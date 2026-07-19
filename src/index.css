@@ -1,0 +1,76 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@400;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+  body {
+    background-color: #faf8f2;
+    color: #1c1c1c;
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-forest-700 hover:bg-forest-800 text-white font-semibold px-6 py-3 rounded-2xl transition-all duration-200 shadow-green hover:shadow-lg active:scale-95 focus:outline-none focus:ring-2 focus:ring-forest-500 focus:ring-offset-2;
+  }
+  .btn-secondary {
+    @apply bg-cream-100 hover:bg-cream-200 text-forest-800 font-semibold px-6 py-3 rounded-2xl transition-all duration-200 border border-cream-300 hover:border-forest-300 focus:outline-none focus:ring-2 focus:ring-forest-500 focus:ring-offset-2;
+  }
+  .btn-outline {
+    @apply border-2 border-forest-700 text-forest-700 hover:bg-forest-700 hover:text-white font-semibold px-6 py-3 rounded-2xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-forest-500 focus:ring-offset-2;
+  }
+  .card {
+    @apply bg-white rounded-3xl shadow-card overflow-hidden;
+  }
+  .card-hover {
+    @apply transition-all duration-300 hover:shadow-card-hover hover:-translate-y-0.5;
+  }
+  .badge-fresh {
+    @apply inline-flex items-center gap-1 bg-jade-100 text-jade-700 text-xs font-semibold px-2.5 py-1 rounded-full;
+  }
+  .section-title {
+    @apply text-2xl md:text-3xl font-display font-bold text-forest-950;
+  }
+  .input-field {
+    @apply w-full bg-cream-50 border border-cream-300 rounded-2xl px-4 py-3 text-charcoal focus:outline-none focus:ring-2 focus:ring-forest-500 focus:border-transparent transition-all;
+  }
+}
+
+@layer utilities {
+  @keyframes fadeSlideUp {
+    from { opacity: 0; transform: translateY(12px) scale(0.98); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .text-charcoal {
+    color: #1c1c1c;
+  }
+  .bg-page {
+    background-color: #faf8f2;
+  }
+  .gradient-forest {
+    background: linear-gradient(135deg, #134530 0%, #1e8458 50%, #2ea36e 100%);
+  }
+  .gradient-hero {
+    background: linear-gradient(150deg, #0a2a1e 0%, #134530 40%, #196848 70%, #1e8458 100%);
+  }
+  .gradient-card {
+    background: linear-gradient(135deg, #196848 0%, #2ea36e 100%);
+  }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #f5f1e8; }
+::-webkit-scrollbar-thumb { background: #2ea36e; border-radius: 3px; }
+
+/* Quantity stepper */
+.qty-btn {
+  @apply w-8 h-8 flex items-center justify-center rounded-full bg-cream-100 hover:bg-forest-100 text-forest-700 font-bold transition-colors focus:outline-none focus:ring-2 focus:ring-forest-400;
+}
