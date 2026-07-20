@@ -1,4 +1,5 @@
-import type { Combo } from '../types';
+import { getPrepOptionsByCategory } from '../lib/preparationOptions';
+import type { Combo, ComboExpandedItem, PreparationOption, Product } from '../types';
 
 export const familyCombo: Combo = {
   id: 'family-combo-50',
@@ -29,3 +30,29 @@ export const familyCombo: Combo = {
     'Free preparation: cleaned, descaled, cut',
   ],
 };
+
+const COMBO_ITEM_PREPS: Record<string, PreparationOption> = {
+  'broiler-chicken': 'cut12',
+  siakap: 'gutted',
+};
+
+export function buildExpandedComboItems(products: Product[]): ComboExpandedItem[] {
+  return familyCombo.items.map((ci) => {
+    const product = products.find((p) => p.id === ci.productId);
+    const category = product?.category;
+    const options = category ? getPrepOptionsByCategory(category) : [];
+    const prep = COMBO_ITEM_PREPS[ci.productId] ?? options[0];
+    const isFixed = category === 'chicken' || ci.productId === 'broiler-chicken';
+    return {
+      productId: ci.productId,
+      name: product?.name ?? ci.label,
+      image: product?.image ?? familyCombo.image,
+      price: product?.price ?? 0,
+      unit: product?.unit ?? (isFixed ? 'per bird' : 'per kg'),
+      quantity: ci.quantity,
+      preparation: prep,
+      pricingType: isFixed ? 'fixed' : 'per_kg',
+      label: ci.label,
+    };
+  });
+}

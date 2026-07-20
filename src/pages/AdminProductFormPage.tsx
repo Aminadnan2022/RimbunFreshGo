@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Navigate } from 'react-router-dom';
-import { ArrowLeft, Save, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, CheckCircle2, AlertCircle, Info } from 'lucide-react';
+import { getPrepOptionsByCategory, getPrepLabel } from '../lib/preparationOptions';
 import { useAuth } from '../context/AuthContext';
 import { fetchProductById, createProduct, updateProduct } from '../data/products';
 import type { ProductPayload } from '../data/products';
@@ -18,17 +19,6 @@ const FRESHNESS_OPTIONS: { value: 'available' | 'limited' | 'sold-out'; label: s
   { value: 'available', label: 'Available' },
   { value: 'limited', label: 'Limited' },
   { value: 'sold-out', label: 'Sold Out' },
-];
-
-const PREP_OPTIONS: { value: PreparationOption; label: string }[] = [
-  { value: 'whole', label: 'Whole' },
-  { value: 'cleaned', label: 'Cleaned' },
-  { value: 'descaled', label: 'Descaled & Gutted' },
-  { value: 'gutted', label: 'Gutted & Cleaned' },
-  { value: 'cut', label: 'Cut into pieces' },
-  { value: 'cut4', label: 'Cut into 4' },
-  { value: 'cut12', label: 'Cut into 12' },
-  { value: 'cut16', label: 'Cut into 16' },
 ];
 
 function slugify(text: string): string {
@@ -73,7 +63,7 @@ const EMPTY_FORM: FormData = {
   image: '',
   images: '',
   freshness: 'available',
-  preparation_options: ['whole', 'cleaned'],
+  preparation_options: getPrepOptionsByCategory('fish'),
   vendor_id: '',
   vendor_name: '',
   tags: '',
@@ -115,7 +105,7 @@ export default function AdminProductFormPage() {
           image: product.image,
           images: product.images.join('\n'),
           freshness: product.freshness,
-          preparation_options: product.preparationOptions,
+          preparation_options: getPrepOptionsByCategory(product.category),
           vendor_id: product.vendorId,
           vendor_name: '',
           tags: product.tags.join(', '),
@@ -129,6 +119,11 @@ export default function AdminProductFormPage() {
     })();
   }, [id, isEdit, navigate]);
 
+  // Recompute preparation options whenever category changes
+  useEffect(() => {
+    setForm((prev) => ({ ...prev, preparation_options: getPrepOptionsByCategory(prev.category) }));
+  }, [form.category]);
+
   if (authLoading || loadingProduct) {
     return (
       <div className="flex items-center justify-center min-h-[50vh]">
@@ -141,15 +136,6 @@ export default function AdminProductFormPage() {
 
   const set = (key: keyof FormData, value: FormData[keyof FormData]) =>
     setForm((prev) => ({ ...prev, [key]: value }));
-
-  const togglePrep = (opt: PreparationOption) => {
-    setForm((prev) => ({
-      ...prev,
-      preparation_options: prev.preparation_options.includes(opt)
-        ? prev.preparation_options.filter((o) => o !== opt)
-        : [...prev.preparation_options, opt],
-    }));
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -172,7 +158,7 @@ export default function AdminProductFormPage() {
       image: form.image.trim(),
       images: form.images.split('\n').map((s) => s.trim()).filter(Boolean),
       freshness: form.freshness,
-      preparation_options: form.preparation_options,
+      preparation_options: getPrepOptionsByCategory(form.category),
       vendor_id: form.vendor_id.trim(),
       vendor_name: form.vendor_name.trim(),
       tags: form.tags.split(',').map((s) => s.trim()).filter(Boolean),
@@ -296,25 +282,29 @@ export default function AdminProductFormPage() {
           </div>
         </section>
 
-        {/* Preparation options */}
+        {/* Preparation options — auto-determined by category */}
         <section className="bg-white rounded-2xl border border-cream-200 shadow-soft p-6">
-          <h2 className="font-semibold text-forest-900 text-base mb-4">Preparation Options</h2>
-          <div className="flex flex-wrap gap-2">
-            {PREP_OPTIONS.map((opt) => (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => togglePrep(opt.value)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all ${
-                  form.preparation_options.includes(opt.value)
-                    ? 'bg-forest-700 text-white border-forest-700'
-                    : 'bg-white text-gray-600 border-gray-200 hover:border-forest-300'
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
+          <h2 className="font-semibold text-forest-900 text-base mb-1">Preparation Options</h2>
+          <p className="text-xs text-gray-400 mb-4">
+            Automatically determined by the selected category. Update the category above to change available options.
+          </p>
+          {form.preparation_options.length > 0 ? (
+            <div className="flex flex-wrap gap-2">
+              {form.preparation_options.map((opt) => (
+                <span
+                  key={opt}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-forest-700 text-white border border-forest-700"
+                >
+                  {getPrepLabel(opt)}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <div className="flex items-start gap-3 p-3 bg-cream-50 border border-cream-200 rounded-xl text-sm text-gray-500">
+              <Info size={16} className="flex-shrink-0 mt-0.5 text-gray-400" />
+              <p>No preparation options for this category. You can add support in <code className="text-xs bg-cream-200 px-1 py-0.5 rounded">src/lib/preparationOptions.ts</code>.</p>
+            </div>
+          )}
         </section>
 
         {/* Vendor & metadata */}

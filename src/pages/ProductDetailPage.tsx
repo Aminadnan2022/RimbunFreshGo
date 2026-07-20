@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ShoppingCart, Clock, ChevronRight, Loader2, Pencil, Trash2, X, AlertTriangle } from 'lucide-react';
+import { getPrepLabel } from '../lib/preparationOptions';
 import { useProduct, useProducts } from '../hooks/useProducts';
 import { getVendorById } from '../data/vendors';
 import { deleteProduct } from '../data/products';
@@ -11,17 +12,6 @@ import { useDeliveryConfig } from '../context/DeliveryConfigContext';
 import QuantityStepper from '../components/ui/QuantityStepper';
 import ProductCard from '../components/ui/ProductCard';
 import type { PreparationOption } from '../types';
-
-const prepLabels: Record<PreparationOption, string> = {
-  whole: 'Whole',
-  cleaned: 'Cleaned',
-  descaled: 'Descaled',
-  gutted: 'Gutted & Cleaned',
-  cut: 'Cut into pieces',
-  cut4: 'Cut into 4',
-  cut12: 'Cut into 12',
-  cut16: 'Cut into 16',
-};
 
 export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -215,7 +205,7 @@ export default function ProductDetailPage() {
                         : 'border-cream-300 bg-white text-gray-600 hover:border-forest-400'
                     }`}
                   >
-                    {prepLabels[o]}
+                    {getPrepLabel(o)}
                   </button>
                 ))}
               </div>

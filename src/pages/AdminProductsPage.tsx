@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { Plus, Search, Pencil, Trash2, X, AlertTriangle, Package, Loader2, Settings, ShoppingBag, Truck, CheckCircle2, AlertCircle, PenLine, ShieldAlert, Clock, Calendar, Users, ClipboardList, ChevronLeft, CreditCard, Phone, Copy, MapPin } from 'lucide-react';
+import { getPrepLabel } from '../lib/preparationOptions';
 import { useAuth } from '../context/AuthContext';
 import { useProducts } from '../hooks/useProducts';
 import { deleteProduct } from '../data/products';
@@ -1250,8 +1251,8 @@ function AdminOrderDetailView({
                         {item.name}
                         {!isPerKg && <span className="ml-2 text-xs text-jade-600 font-normal">Fixed</span>}
                       </td>
-                      <td className="px-4 py-3 text-gray-500 capitalize hidden sm:table-cell">
-                        {item.preparation ?? '—'}
+                      <td className="px-4 py-3 text-gray-500 hidden sm:table-cell">
+                        {item.preparation ? getPrepLabel(item.preparation) : '—'}
                       </td>
                       <td className="px-4 py-3 text-right text-gray-600">{item.quantity}</td>
                       <td className="px-4 py-3 text-right hidden md:table-cell">
@@ -1284,6 +1285,14 @@ function AdminOrderDetailView({
               <span className="text-forest-800">RM{order.total.toFixed(2)}</span>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Customer remarks */}
+      {order.deliveryNotes && (
+        <div className="bg-white rounded-2xl border border-cream-200 shadow-soft p-5 mb-4">
+          <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide mb-1">Customer Remarks / Notes</p>
+          <p className="text-sm text-gray-700">{order.deliveryNotes}</p>
         </div>
       )}
 

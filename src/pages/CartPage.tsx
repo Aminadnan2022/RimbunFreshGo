@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { Navigate } from 'react-router-dom';
-import { ShoppingBag, ArrowRight, Trash2, Clock } from 'lucide-react';
+import { ShoppingBag, ArrowRight, Trash2, Clock, Package } from 'lucide-react';
+import { getPrepLabel } from '../lib/preparationOptions';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import DeliverySlotSelector from '../components/ui/DeliverySlotSelector';
@@ -38,43 +39,61 @@ export default function CartPage() {
         {/* Items */}
         <div className="lg:col-span-2 space-y-4">
           {cart.items.map((item) => (
-            <div key={item.comboId ?? item.productId} className="card p-4 sm:p-5 flex gap-4">
-              <img
-                src={item.image}
-                alt={item.name}
-                className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover flex-shrink-0"
-              />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-start justify-between gap-2 mb-1">
-                  <div>
-                    <p className="font-semibold text-charcoal leading-snug">{item.name}</p>
-                    {item.preparation && (
-                      <p className="text-xs text-gray-400 mt-0.5 capitalize">{item.preparation}</p>
-                    )}
-                    {item.isCombo && (
-                      <span className="inline-block bg-forest-100 text-forest-700 text-xs font-semibold px-2 py-0.5 rounded-full mt-1">
-                        Combo Bundle
-                      </span>
-                    )}
+            <div key={item.comboId ?? item.productId} className="card p-4 sm:p-5">
+              {/* Combo header */}
+              <div className="flex gap-4">
+                <img
+                  src={item.image}
+                  alt={item.name}
+                  className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover flex-shrink-0"
+                />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-2 mb-1">
+                    <div>
+                      <p className="font-semibold text-charcoal leading-snug">{item.name}</p>
+                      {item.preparation && (
+                        <p className="text-xs text-gray-400 mt-0.5">{getPrepLabel(item.preparation)}</p>
+                      )}
+                      {item.isCombo && (
+                        <span className="inline-block bg-forest-100 text-forest-700 text-xs font-semibold px-2 py-0.5 rounded-full mt-1">
+                          Combo Bundle
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => removeItem(item.productId, item.comboId)}
+                      className="p-1.5 rounded-xl text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all flex-shrink-0"
+                      aria-label={`Remove ${item.name}`}
+                    >
+                      <Trash2 size={16} />
+                    </button>
                   </div>
-                  <button
-                    onClick={() => removeItem(item.productId, item.comboId)}
-                    className="p-1.5 rounded-xl text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all flex-shrink-0"
-                    aria-label={`Remove ${item.name}`}
-                  >
-                    <Trash2 size={16} />
-                  </button>
+                  <div className="flex items-center justify-between mt-2">
+                    <QuantityStepper
+                      value={item.quantity}
+                      onChange={(v) => updateQty(item.productId, v, item.comboId)}
+                      size="sm"
+                    />
+                    <p className="font-bold text-forest-800">RM{(item.price * item.quantity).toFixed(2)}</p>
+                  </div>
+                  <p className="text-xs text-gray-400 mt-1">RM{item.price} × {item.quantity} {item.unit}</p>
                 </div>
-                <div className="flex items-center justify-between mt-2">
-                  <QuantityStepper
-                    value={item.quantity}
-                    onChange={(v) => updateQty(item.productId, v, item.comboId)}
-                    size="sm"
-                  />
-                  <p className="font-bold text-forest-800">RM{(item.price * item.quantity).toFixed(2)}</p>
-                </div>
-                <p className="text-xs text-gray-400 mt-1">RM{item.price} × {item.quantity} {item.unit}</p>
               </div>
+              {/* Expanded combo items */}
+              {item.comboItems && item.comboItems.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-cream-200 space-y-2">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Contains</p>
+                  {item.comboItems.map((ci) => (
+                    <div key={ci.productId} className="flex items-center gap-2 text-sm">
+                      <Package size={13} className="text-forest-400 flex-shrink-0" />
+                      <span className="text-gray-700">{ci.label}</span>
+                      {ci.preparation && (
+                        <span className="text-xs text-gray-400">({getPrepLabel(ci.preparation)})</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           ))}
 

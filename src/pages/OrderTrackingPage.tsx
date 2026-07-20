@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, Navigate } from 'react-router-dom';
 import { CheckCircle2, Clock, MapPin, Package, Home, ChevronRight } from 'lucide-react';
+import { getPrepLabel } from '../lib/preparationOptions';
 import { useOrders } from '../context/OrderContext';
 import { useAuth } from '../context/AuthContext';
 import type { Order } from '../types';
@@ -184,7 +185,7 @@ export default function OrderTrackingPage() {
               <img src={item.image} alt={item.name} className="w-14 h-14 rounded-2xl object-cover flex-shrink-0" />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold truncate">{item.name}</p>
-                {item.preparation && <p className="text-xs text-gray-400 capitalize">{item.preparation}</p>}
+                {item.preparation && <p className="text-xs text-gray-400">{getPrepLabel(item.preparation)}</p>}
                 <p className="text-xs text-gray-400">Qty {item.quantity}</p>
               </div>
               <p className="text-sm font-semibold text-forest-800">RM{(item.price * item.quantity).toFixed(2)}</p>

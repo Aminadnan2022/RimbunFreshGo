@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
-import { CheckCircle2, ChevronRight, Clock, Lock, Info } from 'lucide-react';
+import { CheckCircle2, ChevronRight, Clock, Lock, Info, Package } from 'lucide-react';
+import { getPrepLabel } from '../lib/preparationOptions';
 import { useCart } from '../context/CartContext';
 import { useOrders } from '../context/OrderContext';
 import { useAuth } from '../context/AuthContext';
@@ -28,13 +29,7 @@ const nextDeliveryDate = (day: DeliveryDay): string => {
   return next.toLocaleDateString('en-MY', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 };
 
-const prepLabel = (p?: string): string => {
-  const map: Record<string, string> = {
-    whole: 'Whole', cleaned: 'Cleaned', descaled: 'Descaled', gutted: 'Gutted & Cleaned',
-    cut: 'Cut into pieces', cut4: 'Cut into 4', cut12: 'Cut into 12', cut16: 'Cut into 16',
-  };
-  return p ? (map[p] ?? p) : '';
-};
+
 
 function Field({
   label, required, error, children,
@@ -303,6 +298,12 @@ export default function CheckoutPage() {
                   <p className="text-sm text-gray-600">Unit {details.houseUnit}</p>
                   <p className="text-sm text-gray-600">{details.pickupLocation}</p>
                   <p className="text-sm text-gray-500 mt-1">{details.phone} · {details.email}</p>
+                  {details.notes && (
+                    <div className="mt-2 pt-2 border-t border-cream-200">
+                      <p className="text-xs text-gray-400 font-medium">Remarks / Notes</p>
+                      <p className="text-sm text-gray-600 mt-0.5">{details.notes}</p>
+                    </div>
+                  )}
                 </div>
                 <div className="p-4 border border-cream-200 rounded-2xl">
                   <p className="text-xs text-gray-400 mb-1 font-medium">DELIVERY SLOT</p>
@@ -344,27 +345,46 @@ export default function CheckoutPage() {
         <div>
           <div className="card p-5 sticky top-24">
             <h3 className="font-semibold text-charcoal mb-4">Order Summary</h3>
-            <div className="space-y-3 mb-4 max-h-64 overflow-y-auto">
+            <div className="space-y-3 mb-4 max-h-80 overflow-y-auto">
               {cart.items.map((item) => (
-                <div key={item.comboId ?? item.productId} className="flex gap-3">
-                  <img src={item.image} alt={item.name} className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-charcoal leading-snug truncate">{item.name}</p>
-                    {item.preparation && (
-                      <p className="text-xs text-gray-400">{prepLabel(item.preparation)}</p>
-                    )}
-                    <p className="text-xs text-gray-400">Qty {item.quantity}</p>
+                <div key={item.comboId ?? item.productId}>
+                  <div className="flex gap-3">
+                    <img src={item.image} alt={item.name} className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-charcoal leading-snug truncate">{item.name}</p>
+                      {item.preparation && (
+                        <p className="text-xs text-gray-400">{getPrepLabel(item.preparation)}</p>
+                      )}
+                      <p className="text-xs text-gray-400">Qty {item.quantity}</p>
+                    </div>
+                    <div className="text-right flex-shrink-0">
+                      {item.pricingType === 'per_kg' ? (
+                        <div>
+                          <p className="text-sm font-semibold text-amber-700">≈ RM{(item.price * item.quantity).toFixed(2)}</p>
+                          <p className="text-xs text-amber-600 leading-tight">est. only</p>
+                        </div>
+                      ) : (
+                        <p className="text-sm font-semibold text-forest-800">RM{(item.price * item.quantity).toFixed(2)}</p>
+                      )}
+                    </div>
                   </div>
-                  <div className="text-right flex-shrink-0">
-                    {item.pricingType === 'per_kg' ? (
-                      <div>
-                        <p className="text-sm font-semibold text-amber-700">≈ RM{(item.price * item.quantity).toFixed(2)}</p>
-                        <p className="text-xs text-amber-600 leading-tight">est. only</p>
-                      </div>
-                    ) : (
-                      <p className="text-sm font-semibold text-forest-800">RM{(item.price * item.quantity).toFixed(2)}</p>
-                    )}
-                  </div>
+                  {/* Expanded combo items */}
+                  {item.comboItems && item.comboItems.length > 0 && (
+                    <div className="ml-14 mt-2 pl-3 border-l-2 border-jade-200 space-y-1.5">
+                      <p className="text-xs font-semibold text-jade-700 uppercase tracking-wide">Contains</p>
+                      {item.comboItems.map((ci) => (
+                        <div key={ci.productId} className="flex items-start gap-2 text-xs">
+                          <Package size={12} className="text-jade-500 flex-shrink-0 mt-0.5" />
+                          <div>
+                            <span className="text-gray-700 font-medium">{ci.label}</span>
+                            {ci.preparation && (
+                              <p className="text-gray-400">Preparation: {getPrepLabel(ci.preparation)}</p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

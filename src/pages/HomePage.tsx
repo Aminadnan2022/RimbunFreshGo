@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowRight, Shield, Snowflake, Clock, Star, ChevronRight, Repeat2, CheckCircle2, Loader2
@@ -8,7 +8,8 @@ import { useAuth } from '../context/AuthContext';
 import { useDeliveryConfig } from '../context/DeliveryConfigContext';
 import DeliverySlotSelector from '../components/ui/DeliverySlotSelector';
 import type { DeliveryDay } from '../types';
-import { familyCombo } from '../data/combos';
+import { familyCombo, buildExpandedComboItems } from '../data/combos';
+import { fetchProducts } from '../data/products';
 import { useProducts } from '../hooks/useProducts';
 import ProductCard from '../components/ui/ProductCard';
 
@@ -82,20 +83,29 @@ export default function HomePage() {
     setDeliveryDay(day);
   };
 
-  const handleAddCombo = () => {
-    addItem({
-      productId: familyCombo.id,
-      comboId: familyCombo.id,
-      name: familyCombo.name,
-      image: familyCombo.image,
-      price: familyCombo.price,
-      unit: 'combo',
-      quantity: 1,
-      isCombo: true,
-    });
-    setComboAdded(true);
-    setTimeout(() => setComboAdded(false), 2000);
-  };
+  const handleAddCombo = useCallback(async () => {
+    try {
+      const allProducts = await fetchProducts();
+      const expanded = buildExpandedComboItems(
+        familyCombo.items.map((ci) => allProducts.find((p) => p.id === ci.productId)).filter(Boolean) as import('../types').Product[]
+      );
+      addItem({
+        productId: familyCombo.id,
+        comboId: familyCombo.id,
+        name: familyCombo.name,
+        image: familyCombo.image,
+        price: familyCombo.price,
+        unit: 'combo',
+        quantity: 1,
+        isCombo: true,
+        comboItems: expanded,
+      });
+      setComboAdded(true);
+      setTimeout(() => setComboAdded(false), 2000);
+    } catch {
+      // silently fail — products may not load
+    }
+  }, [addItem]);
 
   return (
     <main>

@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { getPrepOptionsByCategory } from '../lib/preparationOptions';
 import type { Product, Category, PreparationOption } from '../types';
 
 type DbProduct = {
@@ -38,7 +39,7 @@ function mapRow(row: DbProduct): Product {
     image: row.image,
     images: row.images ?? [],
     freshness: row.freshness,
-    preparationOptions: row.preparation_options ?? [],
+    preparationOptions: getPrepOptionsByCategory(row.category),
     vendorId: row.vendor_id,
     tags: row.tags ?? [],
     isPopular: row.is_popular,

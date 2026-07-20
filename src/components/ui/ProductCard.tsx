@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ShoppingCart, Zap } from 'lucide-react';
+import { getPrepLabel } from '../../lib/preparationOptions';
 import type { Product, PreparationOption } from '../../types';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
@@ -15,17 +16,6 @@ const freshnessConfig = {
   available: { label: 'Available', color: 'bg-jade-100 text-jade-700' },
   limited: { label: 'Limited Stock', color: 'bg-amber-100 text-amber-700' },
   'sold-out': { label: 'Sold Out', color: 'bg-red-100 text-red-600' },
-};
-
-const prepLabels: Record<PreparationOption, string> = {
-  whole: 'Whole',
-  cleaned: 'Cleaned',
-  descaled: 'Descaled',
-  gutted: 'Gutted & Cleaned',
-  cut: 'Cut into pieces',
-  cut4: 'Cut into 4',
-  cut12: 'Cut into 12',
-  cut16: 'Cut into 16',
 };
 
 export default function ProductCard({ product }: Props) {
@@ -108,8 +98,8 @@ export default function ProductCard({ product }: Props) {
             className="text-xs bg-cream-50 border border-cream-300 rounded-xl px-3 py-1.5 text-gray-600 focus:outline-none focus:ring-2 focus:ring-forest-400"
             aria-label="Preparation option"
           >
-            {product.preparationOptions.map((o) => (
-              <option key={o} value={o}>{prepLabels[o]}</option>
+              {product.preparationOptions.map((o) => (
+                <option key={o} value={o}>{getPrepLabel(o)}</option>
             ))}
           </select>
         )}

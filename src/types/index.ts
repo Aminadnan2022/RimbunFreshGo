@@ -44,6 +44,18 @@ export interface Combo {
   highlights: string[];
 }
 
+export interface ComboExpandedItem {
+  productId: string;
+  name: string;
+  image: string;
+  price: number;
+  unit: string;
+  quantity: number;
+  preparation?: PreparationOption;
+  pricingType?: 'per_kg' | 'fixed';
+  label: string;
+}
+
 export interface CartItem {
   productId: string;
   name: string;
@@ -55,6 +67,7 @@ export interface CartItem {
   pricingType?: 'per_kg' | 'fixed';
   isCombo?: boolean;
   comboId?: string;
+  comboItems?: ComboExpandedItem[];
 }
 
 export interface Cart {

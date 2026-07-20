@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Navigate } from 'react-router-dom';
 import { Loader2, ChevronLeft, AlertCircle, CheckCircle2, Scale, Lock, Phone, Home, MapPin } from 'lucide-react';
+import { getPrepLabel } from '../lib/preparationOptions';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import type { PaymentStatus } from '../types';
+import type { PaymentStatus, PreparationOption } from '../types';
 
 // ----------- Local types (scoped to supplier workflow) -----------
 
@@ -40,22 +41,10 @@ interface SupplierOrder {
   supplierWeights: Record<string, number>;
   deliveryFee: number;
   paymentStatus: PaymentStatus;
+  orderNotes: string;
 }
 
 // ----------- Helpers -----------
-
-const PREP_LABELS: Record<string, string> = {
-  whole: 'Whole',
-  cleaned: 'Cleaned',
-  descaled: 'Descaled',
-  gutted: 'Gutted & Cleaned',
-  cut: 'Cut into pieces',
-  cut4: 'Cut into 4',
-  cut12: 'Cut into 12',
-  cut16: 'Cut into 16',
-};
-
-const prepLabel = (p?: string) => (p ? (PREP_LABELS[p] ?? p) : '');
 
 const isPerKg = (item: OrderItem): boolean => {
   if (item.pricingType !== undefined) return item.pricingType === 'per_kg';
@@ -128,7 +117,7 @@ function OrderListView({ onOpen }: { onOpen: (o: SupplierOrder) => void }) {
     try {
       const { data, error: fetchError } = await supabase
         .from('Orders')
-        .select('id, full_name, phone_number, apartment, house_unit, pickup_location, order_items, order_summary, supplier_weights, delivery_fee, payment_status')
+        .select('id, full_name, phone_number, apartment, house_unit, pickup_location, order_notes, order_items, order_summary, supplier_weights, delivery_fee, payment_status')
         .order('created_at', { ascending: false });
 
       if (fetchError) throw fetchError;
@@ -152,6 +141,7 @@ function OrderListView({ onOpen }: { onOpen: (o: SupplierOrder) => void }) {
           supplierWeights: (r.supplier_weights as Record<string, number>) ?? {},
           deliveryFee: Number(r.delivery_fee),
           paymentStatus: (r.payment_status as PaymentStatus) ?? 'Pending',
+          orderNotes: r.order_notes ?? '',
         };
       });
 
@@ -220,6 +210,7 @@ function OrderListView({ onOpen }: { onOpen: (o: SupplierOrder) => void }) {
                 <td className="px-4 py-3 font-mono text-xs text-gray-900">{order.orderRef}</td>
                 <td className="px-4 py-3">
                   <p className="font-medium text-gray-900">{order.customerName}</p>
+                  {order.customerPhone && <p className="text-xs text-gray-400">{order.customerPhone}</p>}
                   {order.houseUnit && <p className="text-xs text-gray-400">Unit {order.houseUnit}</p>}
                 </td>
                 <td className="px-4 py-3 text-gray-600 hidden sm:table-cell text-xs">{order.pickupLocation || '—'}</td>
@@ -397,6 +388,12 @@ function WeightEntryView({
             <div className="mt-0.5"><PaymentBadge status={order.paymentStatus} /></div>
           </div>
         </div>
+        {order.orderNotes && (
+          <div className="mt-3 pt-3 border-t border-cream-200">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">Customer Remarks / Notes</p>
+            <p className="text-sm text-gray-700">{order.orderNotes}</p>
+          </div>
+        )}
       </div>
 
       {/* Lock notice */}
@@ -432,7 +429,7 @@ function WeightEntryView({
                     <td className="px-4 py-3">
                       <p className="font-medium text-gray-900">{item.name}</p>
                       {item.preparation && (
-                        <p className="text-xs text-gray-400">{prepLabel(item.preparation)}</p>
+                        <p className="text-xs text-gray-400">{getPrepLabel(item.preparation as PreparationOption)}</p>
                       )}
                       {!perKg && (
                         <p className="text-xs text-jade-600 font-medium mt-0.5">Fixed price</p>
