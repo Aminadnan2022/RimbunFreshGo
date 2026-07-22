@@ -40,33 +40,7 @@ interface OrderRow {
   paid_at: string | null;
 }
 
-function expandItems(items: Order['items']): Order['items'] {
-  const result: Order['items'] = [];
-  for (const item of items) {
-    if (item.comboItems && item.comboItems.length > 0) {
-      for (const ci of item.comboItems) {
-        result.push({
-          productId: ci.productId,
-          name: ci.name,
-          image: ci.image,
-          price: ci.price,
-          unit: ci.unit,
-          quantity: ci.quantity,
-          preparation: ci.preparation,
-          pricingType: ci.pricingType,
-          comboId: item.comboId ?? item.productId,
-          isCombo: true,
-        });
-      }
-    } else {
-      result.push(item);
-    }
-  }
-  return result;
-}
-
 const toRow = (order: Order) => {
-  const expanded = expandItems(order.items);
   return {
     full_name: order.customer.name,
     phone_number: order.customer.phone,
@@ -79,12 +53,12 @@ const toRow = (order: Order) => {
     house_unit: order.customer.houseUnit,
     pickup_location: order.customer.pickupLocation,
     order_notes: order.customer.notes || null,
-    item_options: expanded.map((i) => ({
+    item_options: order.items.map((i) => ({
       productId: i.productId,
       name: i.name,
       preparation: i.preparation ?? null,
     })),
-    order_items: expanded,
+    order_items: order.items,
     delivery_slot: order.deliveryDay,
     order_summary: {
       status: order.status,

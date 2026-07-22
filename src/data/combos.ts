@@ -1,5 +1,5 @@
 import { getPrepOptionsByCategory } from '../lib/preparationOptions';
-import type { Combo, ComboExpandedItem, PreparationOption, Product } from '../types';
+import type { CartItem, Combo, ComboExpandedItem, PreparationOption, Product } from '../types';
 
 export const familyCombo: Combo = {
   id: 'family-combo-50',
@@ -55,4 +55,18 @@ export function buildExpandedComboItems(products: Product[]): ComboExpandedItem[
       label: ci.label,
     };
   });
+}
+
+export function buildComboCartItem(products: Product[] = [], quantity = 1): CartItem {
+  return {
+    productId: familyCombo.id,
+    comboId: familyCombo.id,
+    name: familyCombo.name,
+    image: familyCombo.image,
+    price: familyCombo.price,
+    unit: 'combo',
+    quantity,
+    isCombo: true,
+    comboItems: buildExpandedComboItems(products),
+  };
 }

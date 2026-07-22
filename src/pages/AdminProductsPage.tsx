@@ -7,7 +7,7 @@ import { useProducts } from '../hooks/useProducts';
 import { deleteProduct } from '../data/products';
 import { useDeliveryConfig } from '../context/DeliveryConfigContext';
 import { supabase } from '../lib/supabase';
-import type { PaymentStatus } from '../types';
+import type { PaymentStatus, ComboExpandedItem } from '../types';
 
 type Tab = 'products' | 'settings' | 'users' | 'orders';
 
@@ -1245,18 +1245,32 @@ function AdminOrderDetailView({
                   const lineTotal = isPerKg && actualKg
                     ? actualKg * item.price
                     : item.price * item.quantity;
+                  const hasComboItems = item.comboItems && item.comboItems.length > 0;
                   return (
-                    <tr key={i} className="hover:bg-cream-50/50">
+                    <tr key={i} className={`hover:bg-cream-50/50 ${hasComboItems ? 'bg-cream-50/30' : ''}`}>
                       <td className="px-4 py-3 font-medium text-gray-900">
                         {item.name}
-                        {!isPerKg && <span className="ml-2 text-xs text-jade-600 font-normal">Fixed</span>}
+                        {!isPerKg && !hasComboItems && <span className="ml-2 text-xs text-jade-600 font-normal">Fixed</span>}
+                        {hasComboItems && (
+                          <div className="mt-2 pt-2 border-t border-cream-200 space-y-1.5">
+                            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Contains</p>
+                            {item.comboItems.map((ci: ComboExpandedItem) => (
+                              <div key={ci.productId} className="flex items-center gap-2 text-xs">
+                                <span className="text-gray-700">{ci.label}</span>
+                                {ci.preparation && (
+                                  <span className="text-gray-400">({getPrepLabel(ci.preparation)})</span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-gray-500 hidden sm:table-cell">
                         {item.preparation ? getPrepLabel(item.preparation) : '—'}
                       </td>
                       <td className="px-4 py-3 text-right text-gray-600">{item.quantity}</td>
                       <td className="px-4 py-3 text-right hidden md:table-cell">
-                        {isPerKg
+                        {isPerKg && !hasComboItems
                           ? actualKg != null
                             ? <span className="font-medium text-gray-900">{actualKg} kg</span>
                             : <span className="text-amber-600 text-xs">Pending weighing</span>

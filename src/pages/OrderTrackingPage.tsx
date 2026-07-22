@@ -187,6 +187,19 @@ export default function OrderTrackingPage() {
                 <p className="text-sm font-semibold truncate">{item.name}</p>
                 {item.preparation && <p className="text-xs text-gray-400">{getPrepLabel(item.preparation)}</p>}
                 <p className="text-xs text-gray-400">Qty {item.quantity}</p>
+                {item.comboItems && item.comboItems.length > 0 && (
+                  <div className="mt-1.5 pt-1.5 border-t border-cream-200 space-y-1">
+                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Contains</p>
+                    {item.comboItems.map((ci) => (
+                      <div key={ci.productId} className="flex items-center gap-1.5 text-xs">
+                        <span className="text-gray-700">{ci.label}</span>
+                        {ci.preparation && (
+                          <span className="text-gray-400">({getPrepLabel(ci.preparation)})</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
               <p className="text-sm font-semibold text-forest-800">RM{(item.price * item.quantity).toFixed(2)}</p>
             </div>

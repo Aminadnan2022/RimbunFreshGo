@@ -5,11 +5,11 @@ import {
 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
+import { useAuthModal } from '../context/AuthModalContext';
 import { useDeliveryConfig } from '../context/DeliveryConfigContext';
 import DeliverySlotSelector from '../components/ui/DeliverySlotSelector';
 import type { DeliveryDay } from '../types';
-import { familyCombo, buildExpandedComboItems } from '../data/combos';
-import { fetchProducts } from '../data/products';
+import { familyCombo, buildComboCartItem } from '../data/combos';
 import { useProducts } from '../hooks/useProducts';
 import ProductCard from '../components/ui/ProductCard';
 
@@ -48,6 +48,7 @@ export default function HomePage() {
   const [selectedDay, setSelectedDay] = useState<DeliveryDay | null>(null);
   const { setDeliveryDay, addItem } = useCart();
   const { user } = useAuth();
+  const { openSignIn } = useAuthModal();
   const { config } = useDeliveryConfig();
   const [comboAdded, setComboAdded] = useState(false);
   const { products, loading, error } = useProducts();
@@ -83,36 +84,22 @@ export default function HomePage() {
     setDeliveryDay(day);
   };
 
-  const handleAddCombo = useCallback(async () => {
-    try {
-      const allProducts = await fetchProducts();
-      const expanded = buildExpandedComboItems(
-        familyCombo.items.map((ci) => allProducts.find((p) => p.id === ci.productId)).filter(Boolean) as import('../types').Product[]
-      );
-      addItem({
-        productId: familyCombo.id,
-        comboId: familyCombo.id,
-        name: familyCombo.name,
-        image: familyCombo.image,
-        price: familyCombo.price,
-        unit: 'combo',
-        quantity: 1,
-        isCombo: true,
-        comboItems: expanded,
-      });
-      setComboAdded(true);
-      setTimeout(() => setComboAdded(false), 2000);
-    } catch {
-      // silently fail — products may not load
+  const handleAddCombo = useCallback(() => {
+    if (!user) {
+      openSignIn('/shop');
+      return;
     }
-  }, [addItem]);
+    addItem(buildComboCartItem(products));
+    setComboAdded(true);
+    setTimeout(() => setComboAdded(false), 2000);
+  }, [addItem, user, openSignIn, products]);
 
   return (
     <main>
       {/* Hero — only shown when signed out */}
       {!user && (
       <section className="gradient-hero relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.3),_transparent_60%)]" />
+        <div className="absolute inset-0 opacity-10 pointer-events-none bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.3),_transparent_60%)]" />
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-28 lg:py-32">
           <div className="max-w-3xl">
             <span className="inline-flex items-center gap-1.5 bg-white/10 border border-white/20 text-jade-300 text-xs font-semibold px-3 py-1.5 rounded-full mb-6">
@@ -188,7 +175,7 @@ export default function HomePage() {
       {/* Family Combo — Prominent Feature */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
         <div className="relative gradient-hero rounded-4xl overflow-hidden shadow-green">
-          <div className="absolute inset-0 opacity-10 bg-[radial-gradient(ellipse_at_bottom_right,_rgba(78,222,128,0.4),_transparent_60%)]" />
+          <div className="absolute inset-0 opacity-10 pointer-events-none bg-[radial-gradient(ellipse_at_bottom_right,_rgba(78,222,128,0.4),_transparent_60%)]" />
           <div className="grid md:grid-cols-2 gap-0">
             {/* Text side */}
             <div className="p-8 sm:p-10 lg:p-14 flex flex-col justify-center">
@@ -231,14 +218,17 @@ export default function HomePage() {
               </div>
             </div>
             {/* Image side */}
-            <div className="relative hidden md:block">
+            <Link to="/combo" className="relative hidden md:block group">
               <img
                 src={familyCombo.image}
                 alt="Family Combo fresh seafood spread"
-                className="w-full h-full object-cover opacity-80 mix-blend-luminosity"
+                className="w-full h-full object-cover opacity-80 mix-blend-luminosity group-hover:scale-105 transition-transform duration-500"
               />
-              <div className="absolute inset-0 bg-gradient-to-r from-forest-950/50 to-transparent" />
-            </div>
+              <div className="absolute inset-0 bg-gradient-to-r from-forest-950/50 to-transparent group-hover:from-forest-950/60 transition-all" />
+              <div className="absolute bottom-4 right-4 bg-white/20 backdrop-blur-sm text-white text-sm font-semibold px-4 py-2 rounded-2xl flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                Learn more <ChevronRight size={15} />
+              </div>
+            </Link>
           </div>
         </div>
       </section>

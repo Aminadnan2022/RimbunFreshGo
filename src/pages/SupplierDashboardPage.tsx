@@ -4,7 +4,7 @@ import { Loader2, ChevronLeft, AlertCircle, CheckCircle2, Scale, Lock, Phone, Ho
 import { getPrepLabel } from '../lib/preparationOptions';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import type { PaymentStatus, PreparationOption } from '../types';
+import type { PaymentStatus, PreparationOption, ComboExpandedItem } from '../types';
 
 // ----------- Local types (scoped to supplier workflow) -----------
 
@@ -17,6 +17,7 @@ interface OrderItem {
   preparation?: string;
   pricingType?: 'per_kg' | 'fixed';
   comboId?: string;
+  comboItems?: ComboExpandedItem[];
 }
 
 interface OrderSummary {
@@ -424,14 +425,28 @@ function WeightEntryView({
               {order.items.map((item, i) => {
                 const perKg = isPerKg(item);
                 const total = lineTotal(item, i);
+                const hasComboItems = item.comboItems && item.comboItems.length > 0;
                 return (
-                  <tr key={`${item.productId}-${i}`} className="hover:bg-cream-50/50 transition-colors">
+                  <tr key={`${item.productId}-${i}`} className={`hover:bg-cream-50/50 transition-colors ${hasComboItems ? 'bg-cream-50/30' : ''}`}>
                     <td className="px-4 py-3">
                       <p className="font-medium text-gray-900">{item.name}</p>
                       {item.preparation && (
                         <p className="text-xs text-gray-400">{getPrepLabel(item.preparation as PreparationOption)}</p>
                       )}
-                      {!perKg && (
+                      {hasComboItems && (
+                        <div className="mt-2 pt-2 border-t border-cream-200 space-y-1.5">
+                          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Contains</p>
+                          {item.comboItems!.map((ci) => (
+                            <div key={ci.productId} className="flex items-center gap-2 text-xs">
+                              <span className="text-gray-700">{ci.label}</span>
+                              {ci.preparation && (
+                                <span className="text-gray-400">({getPrepLabel(ci.preparation as PreparationOption)})</span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {!perKg && !hasComboItems && (
                         <p className="text-xs text-jade-600 font-medium mt-0.5">Fixed price</p>
                       )}
                     </td>
@@ -440,7 +455,7 @@ function WeightEntryView({
                       RM{item.price.toFixed(2)}{perKg ? '/kg' : ''}
                     </td>
                     <td className="px-4 py-3">
-                      {perKg ? (
+                      {perKg && !hasComboItems ? (
                         <div>
                           <input
                             type="number"
@@ -461,7 +476,7 @@ function WeightEntryView({
                       )}
                     </td>
                     <td className="px-4 py-3 text-right font-semibold">
-                      {perKg && !weights[String(i)] ? (
+                      {perKg && !hasComboItems && !weights[String(i)] ? (
                         <span className="text-amber-600">≈ RM{(item.price * item.quantity).toFixed(2)}</span>
                       ) : (
                         <span className="text-gray-900">

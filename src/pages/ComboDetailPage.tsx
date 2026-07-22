@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import {
   CheckCircle2, Star, Clock, ShoppingCart, ChevronRight, Users, TrendingDown,
 } from 'lucide-react';
-import { familyCombo } from '../data/combos';
+import { familyCombo, buildComboCartItem } from '../data/combos';
 import { fetchProductById } from '../data/products';
 import type { Product } from '../types';
 import { useCart } from '../context/CartContext';
@@ -35,16 +35,10 @@ export default function ComboDetailPage() {
       openSignIn('/shop');
       return;
     }
-    addItem({
-      productId: familyCombo.id,
-      comboId: familyCombo.id,
-      name: familyCombo.name,
-      image: familyCombo.image,
-      price: familyCombo.price,
-      unit: 'combo',
-      quantity: qty,
-      isCombo: true,
-    });
+    addItem(buildComboCartItem(
+      Object.values(comboProducts).filter(Boolean) as Product[],
+      qty
+    ));
     setAdded(true);
     setTimeout(() => setAdded(false), 2000);
   };
