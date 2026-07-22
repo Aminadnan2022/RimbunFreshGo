@@ -146,61 +146,71 @@ function ProductsTab() {
           <p className="text-gray-500">{search ? 'No products match your search.' : 'No products yet.'}</p>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-cream-200 shadow-soft overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-cream-50 border-b border-cream-200">
-                  <th className="text-left px-4 py-3 font-semibold text-gray-700">Product</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-700 hidden sm:table-cell">Category</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-700">Price</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-700 hidden md:table-cell">Status</th>
-                  <th className="text-right px-4 py-3 font-semibold text-gray-700">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-cream-100">
-                {filtered.map((product) => (
-                  <tr key={product.id} className="hover:bg-cream-50/50 transition-colors">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <img src={product.image} alt={product.name} className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
-                        <div className="min-w-0">
-                          <p className="font-medium text-gray-900 truncate">{product.name}</p>
-                          <p className="text-xs text-gray-400 truncate">{product.nameMs}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 hidden sm:table-cell">
-                      <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-medium bg-forest-50 text-forest-700 capitalize">
-                        {product.category}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 font-medium text-gray-900">RM{product.price.toFixed(2)}</td>
-                    <td className="px-4 py-3 hidden md:table-cell">
-                      <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                        product.freshness === 'available' ? 'bg-green-50 text-green-700' :
-                        product.freshness === 'limited' ? 'bg-amber-50 text-amber-700' :
-                        'bg-red-50 text-red-700'
-                      }`}>
-                        {product.freshness}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-1">
-                        <Link to={`/admin/products/edit/${product.id}`} className="p-2 rounded-lg text-gray-500 hover:text-forest-700 hover:bg-forest-50 transition-all" title="Edit">
-                          <Pencil size={16} />
-                        </Link>
-                        <button onClick={() => setDeleteTarget({ id: product.id, name: product.name })} className="p-2 rounded-lg text-gray-500 hover:text-red-600 hover:bg-red-50 transition-all" title="Delete">
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </td>
+        <>
+          <div className="bg-white rounded-2xl border border-cream-200 shadow-soft overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-cream-50 border-b border-cream-200">
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700 w-8">#</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Product</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700 hidden sm:table-cell">Category</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Price</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700 hidden md:table-cell">Status</th>
+                    <th className="text-right px-4 py-3 font-semibold text-gray-700">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-cream-100">
+                  {filtered.map((product, index) => (
+                    <tr key={product.id} className="hover:bg-cream-50/50 transition-colors">
+                      <td className="px-4 py-3 text-xs text-gray-400 tabular-nums">{index + 1}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <img src={product.image} alt={product.name} className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
+                          <div className="min-w-0">
+                            <p className="font-medium text-gray-900 truncate">{product.name}</p>
+                            <p className="text-xs text-gray-400 truncate">{product.nameMs}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 hidden sm:table-cell">
+                        <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-medium bg-forest-50 text-forest-700 capitalize">
+                          {product.category}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 font-medium text-gray-900">RM{product.price.toFixed(2)}</td>
+                      <td className="px-4 py-3 hidden md:table-cell">
+                        <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                          product.freshness === 'available' ? 'bg-green-50 text-green-700' :
+                          product.freshness === 'limited' ? 'bg-amber-50 text-amber-700' :
+                          'bg-red-50 text-red-700'
+                        }`}>
+                          {product.freshness}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-end gap-1">
+                          <Link to={`/admin/products/edit/${product.id}`} className="p-2 rounded-lg text-gray-500 hover:text-forest-700 hover:bg-forest-50 transition-all" title="Edit">
+                            <Pencil size={16} />
+                          </Link>
+                          <button onClick={() => setDeleteTarget({ id: product.id, name: product.name })} className="p-2 rounded-lg text-gray-500 hover:text-red-600 hover:bg-red-50 transition-all" title="Delete">
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+
+          <div className="text-right text-xs text-gray-400 mt-2">
+            {search.trim()
+              ? `Showing ${filtered.length} of ${products.length} products`
+              : `Total Products: ${products.length}`}
+          </div>
+        </>
       )}
 
       {deleteTarget && (
@@ -1099,45 +1109,53 @@ function OrdersTab() {
           <p className="text-gray-500">{filter === 'all' ? 'No orders yet.' : `No orders with status "${filter}".`}</p>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl border border-cream-200 shadow-soft overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-cream-50 border-b border-cream-200">
-                  <th className="text-left px-4 py-3 font-semibold text-gray-700">Order Ref</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-700">Customer</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-700 hidden sm:table-cell">Date</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-700">Total</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-700">Order Status</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-700">Payment Status</th>
-                  <th className="text-right px-4 py-3 font-semibold text-gray-700">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-cream-100">
-                {filtered.map((order) => (
-                  <tr key={order.dbId} className="hover:bg-cream-50/50 transition-colors">
-                    <td className="px-4 py-3 font-mono text-xs text-gray-900">{order.orderRef}</td>
-                    <td className="px-4 py-3 font-medium text-gray-900">{order.customerName}</td>
-                    <td className="px-4 py-3 text-gray-600 hidden sm:table-cell">
-                      {new Date(order.createdAt).toLocaleDateString('en-MY', { day: 'numeric', month: 'short' })}
-                    </td>
-                    <td className="px-4 py-3 font-semibold text-gray-900">RM{order.total.toFixed(2)}</td>
-                    <td className="px-4 py-3"><AdminOrderStatusBadge status={order.orderStatus} /></td>
-                    <td className="px-4 py-3"><AdminPaymentBadge status={order.paymentStatus} /></td>
-                    <td className="px-4 py-3 text-right">
-                      <button
-                        onClick={() => setSelected(order)}
-                        className="px-3 py-1.5 rounded-lg text-xs font-semibold text-forest-700 border border-forest-200 hover:bg-forest-50 transition-all"
-                      >
-                        View
-                      </button>
-                    </td>
+        <>
+          <div className="bg-white rounded-2xl border border-cream-200 shadow-soft overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-cream-50 border-b border-cream-200">
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700 w-8">#</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Order Ref</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Customer</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700 hidden sm:table-cell">Date</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Total</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Order Status</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Payment Status</th>
+                    <th className="text-right px-4 py-3 font-semibold text-gray-700">Action</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="divide-y divide-cream-100">
+                  {filtered.map((order, index) => (
+                    <tr key={order.dbId} className="hover:bg-cream-50/50 transition-colors">
+                      <td className="px-4 py-3 text-xs text-gray-400 tabular-nums">{index + 1}</td>
+                      <td className="px-4 py-3 font-mono text-xs text-gray-900">{order.orderRef}</td>
+                      <td className="px-4 py-3 font-medium text-gray-900">{order.customerName}</td>
+                      <td className="px-4 py-3 text-gray-600 hidden sm:table-cell">
+                        {new Date(order.createdAt).toLocaleDateString('en-MY', { day: 'numeric', month: 'short' })}
+                      </td>
+                      <td className="px-4 py-3 font-semibold text-gray-900">RM{order.total.toFixed(2)}</td>
+                      <td className="px-4 py-3"><AdminOrderStatusBadge status={order.orderStatus} /></td>
+                      <td className="px-4 py-3"><AdminPaymentBadge status={order.paymentStatus} /></td>
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          onClick={() => setSelected(order)}
+                          className="px-3 py-1.5 rounded-lg text-xs font-semibold text-forest-700 border border-forest-200 hover:bg-forest-50 transition-all"
+                        >
+                          View
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </div>
+
+          <div className="text-right text-xs text-gray-400 mt-2">
+            Showing {filtered.length} of {orders.length} orders
+          </div>
+        </>
       )}
     </>
   );
