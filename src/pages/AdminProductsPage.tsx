@@ -1118,7 +1118,8 @@ function OrdersTab() {
                     <th className="text-left px-4 py-3 font-semibold text-gray-700 w-8">#</th>
                     <th className="text-left px-4 py-3 font-semibold text-gray-700">Order Ref</th>
                     <th className="text-left px-4 py-3 font-semibold text-gray-700">Customer</th>
-                    <th className="text-left px-4 py-3 font-semibold text-gray-700 hidden sm:table-cell">Date</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700 hidden sm:table-cell">Created</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700 hidden sm:table-cell">Delivery</th>
                     <th className="text-left px-4 py-3 font-semibold text-gray-700">Total</th>
                     <th className="text-left px-4 py-3 font-semibold text-gray-700">Order Status</th>
                     <th className="text-left px-4 py-3 font-semibold text-gray-700">Payment Status</th>
@@ -1131,9 +1132,10 @@ function OrdersTab() {
                       <td className="px-4 py-3 text-xs text-gray-400 tabular-nums">{index + 1}</td>
                       <td className="px-4 py-3 font-mono text-xs text-gray-900">{order.orderRef}</td>
                       <td className="px-4 py-3 font-medium text-gray-900">{order.customerName}</td>
-                      <td className="px-4 py-3 text-gray-600 hidden sm:table-cell">
-                        {new Date(order.createdAt).toLocaleDateString('en-MY', { day: 'numeric', month: 'short' })}
+                      <td className="px-4 py-3 text-gray-600 hidden sm:table-cell whitespace-nowrap">
+                        {new Date(order.createdAt).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
                       </td>
+                      <td className="px-4 py-3 text-gray-600 hidden sm:table-cell whitespace-nowrap">{order.deliveryDate || '—'}</td>
                       <td className="px-4 py-3 font-semibold text-gray-900">RM{order.total.toFixed(2)}</td>
                       <td className="px-4 py-3"><AdminOrderStatusBadge status={order.orderStatus} /></td>
                       <td className="px-4 py-3"><AdminPaymentBadge status={order.paymentStatus} /></td>
