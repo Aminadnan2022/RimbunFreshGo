@@ -1,9 +1,11 @@
 import { Link } from 'react-router-dom';
 import { Leaf, Instagram, Facebook, Phone, Mail, MapPin } from 'lucide-react';
 import { useDeliveryConfig } from '../../context/DeliveryConfigContext';
+import { useLanguage } from '../../context/LanguageContext';
 
 export default function Footer() {
   const { config } = useDeliveryConfig();
+  const { t } = useLanguage();
 
   const daysText = config.days.length > 1
     ? `${config.days.slice(0, -1).join(', ')} & ${config.days[config.days.length - 1]}`
@@ -25,7 +27,7 @@ export default function Footer() {
               </div>
             </div>
             <p className="text-sm text-forest-300 leading-relaxed mb-5">
-              Freshly prepared daily proteins, delivered to your door every {daysText}. Never frozen. Always local.
+              {t("footer.description", { days: daysText })}
             </p>
             <div className="flex gap-3">
               <a href="#" aria-label="Instagram" className="w-9 h-9 rounded-xl bg-forest-800 hover:bg-jade-600 flex items-center justify-center transition-colors">
@@ -39,14 +41,14 @@ export default function Footer() {
 
           {/* Shop */}
           <div>
-            <h3 className="font-semibold text-white mb-4">Shop</h3>
+            <h3 className="font-semibold text-white mb-4">{t("footer.shop")}</h3>
             <ul className="space-y-2.5 text-sm text-forest-300">
               {[
-                { to: '/shop?category=chicken', label: 'Chicken' },
-                { to: '/shop?category=fish', label: 'Fish' },
-                { to: '/shop?category=prawns', label: 'Prawns' },
-                { to: '/shop?category=squid', label: 'Squid' },
-                { to: '/combo', label: 'Family Combo RM50' },
+                { to: '/shop?category=chicken', label: t("footer.chicken") },
+                { to: '/shop?category=fish', label: t("footer.fish") },
+                { to: '/shop?category=prawns', label: t("footer.prawns") },
+                { to: '/shop?category=squid', label: t("footer.squid") },
+                { to: '/combo', label: t("footer.familyCombo") },
               ].map((link) => (
                 <li key={link.to}>
                   <Link to={link.to} className="hover:text-jade-400 transition-colors">{link.label}</Link>
@@ -57,13 +59,13 @@ export default function Footer() {
 
           {/* Info */}
           <div>
-            <h3 className="font-semibold text-white mb-4">Information</h3>
+            <h3 className="font-semibold text-white mb-4">{t("footer.information")}</h3>
             <ul className="space-y-2.5 text-sm text-forest-300">
               {[
-                { to: '/vendors', label: 'Our Suppliers' },
-                { to: '/recurring', label: 'Recurring Baskets' },
-                { to: '/how-it-works', label: 'How It Works' },
-                { to: '/faq', label: 'FAQ' },
+                { to: '/vendors', label: t("footer.ourSuppliers") },
+                { to: '/recurring', label: t("footer.recurringBasket") },
+                { to: '/how-it-works', label: t("footer.howItWorks") },
+                { to: '/faq', label: t("footer.faq") },
               ].map((link) => (
                 <li key={link.to}>
                   <Link to={link.to} className="hover:text-jade-400 transition-colors">{link.label}</Link>
@@ -74,7 +76,7 @@ export default function Footer() {
 
           {/* Contact */}
           <div>
-            <h3 className="font-semibold text-white mb-4">Contact</h3>
+            <h3 className="font-semibold text-white mb-4">{t("footer.contact")}</h3>
             <ul className="space-y-3 text-sm text-forest-300">
               <li className="flex items-start gap-2.5">
                 <Phone size={15} className="mt-0.5 flex-shrink-0 text-jade-400" />
@@ -86,11 +88,11 @@ export default function Footer() {
               </li>
               <li className="flex items-start gap-2.5">
                 <MapPin size={15} className="mt-0.5 flex-shrink-0 text-jade-400" />
-                <span>Delivering across Klang Valley, Selangor</span>
+                <span>{t("footer.address")}</span>
               </li>
             </ul>
             <div className="mt-5 p-3 bg-forest-900 rounded-2xl">
-              <p className="text-xs font-semibold text-jade-400 mb-1">Delivery Schedule</p>
+              <p className="text-xs font-semibold text-jade-400 mb-1">{t("footer.deliverySchedule")}</p>
               <p className="text-xs text-forest-300">{daysText}</p>
               <p className="text-xs text-forest-300">{config.time}</p>
             </div>
@@ -98,10 +100,10 @@ export default function Footer() {
         </div>
 
         <div className="border-t border-forest-800 mt-12 pt-8 flex flex-col sm:flex-row justify-between items-center gap-3 text-xs text-forest-400">
-          <p>&copy; {new Date().getFullYear()} Rimbun FreshGo. All rights reserved.</p>
+          <p>{t("footer.copyright", { year: new Date().getFullYear() })}</p>
           <div className="flex gap-4">
-            <a href="#" className="hover:text-jade-400 transition-colors">Privacy Policy</a>
-            <a href="#" className="hover:text-jade-400 transition-colors">Terms of Service</a>
+            <a href="#" className="hover:text-jade-400 transition-colors">{t("footer.privacy")}</a>
+            <a href="#" className="hover:text-jade-400 transition-colors">{t("footer.terms")}</a>
           </div>
         </div>
       </div>

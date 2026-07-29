@@ -4,6 +4,8 @@ export type DeliveryDay = string;
 
 export type PreparationOption = 'whole' | 'cleaned' | 'descaled' | 'gutted' | 'cut' | 'cut4' | 'cut12' | 'cut16';
 
+export type OrderingMode = 'fixed_quantity' | 'weight_only' | 'whole_or_weight' | 'combo';
+
 export interface Product {
   id: string;
   name: string;
@@ -22,6 +24,9 @@ export interface Product {
   vendorId: string;
   tags: string[];
   isPopular?: boolean;
+  showEstimatedQuantity?: boolean;
+  orderingMode: OrderingMode;
+  averageWeight?: number;
 }
 
 export interface ComboItem {
@@ -62,7 +67,12 @@ export interface CartItem {
   image: string;
   price: number;
   unit: string;
+  category?: Category;
+  showEstimatedQuantity?: boolean;
+  orderingMode?: OrderingMode;
+  averageWeight?: number;
   quantity: number;
+  estimatedWeight?: number;
   preparation?: PreparationOption;
   pricingType?: 'per_kg' | 'fixed';
   isCombo?: boolean;

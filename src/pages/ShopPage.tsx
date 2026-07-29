@@ -3,6 +3,7 @@ import { useSearchParams, Link } from 'react-router-dom';
 import { Search, SlidersHorizontal, X, ChevronDown, Loader2 } from 'lucide-react';
 import { useProducts } from '../hooks/useProducts';
 import ProductCard from '../components/ui/ProductCard';
+import { useLanguage } from '../context/LanguageContext';
 import type { Category } from '../types';
 
 const categories: { value: Category | 'all'; label: string }[] = [
@@ -29,6 +30,7 @@ const availabilityOpts = [
 export default function ShopPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { products, loading, error } = useProducts();
+  const { t } = useLanguage();
   const [query, setQuery] = useState(searchParams.get('q') ?? '');
   const [category, setCategory] = useState<Category | 'all'>(
     (searchParams.get('category') as Category) ?? 'all'
@@ -89,13 +91,13 @@ export default function ShopPage() {
       {/* Page title */}
       <div className="mb-8">
         <nav className="text-xs text-gray-400 mb-2">
-          <Link to="/" className="hover:text-forest-600">Home</Link>
+          <Link to="/" className="hover:text-forest-600">{t("shop.breadcrumbHome")}</Link>
           <span className="mx-2">/</span>
-          <span className="text-gray-600">Shop</span>
+          <span className="text-gray-600">{t("shop.breadcrumbShop")}</span>
         </nav>
-        <h1 className="section-title">Fresh Market</h1>
+        <h1 className="section-title">{t("shop.title")}</h1>
         <p className="text-gray-500 mt-1">
-          {filtered.length} {filtered.length === 1 ? 'product' : 'products'} found
+          {filtered.length === 1 ? t("shop.resultCount", { count: filtered.length }) : t("shop.resultCountPlural", { count: filtered.length })}
         </p>
       </div>
 
@@ -107,7 +109,7 @@ export default function ShopPage() {
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search chicken, siakap, udang, sotong..."
+            placeholder={t("shop.searchPlaceholder")}
             className="w-full bg-white border border-cream-300 rounded-2xl pl-10 pr-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-forest-500 focus:border-transparent shadow-soft"
           />
         </div>
@@ -117,7 +119,7 @@ export default function ShopPage() {
           className="flex items-center gap-2 px-4 py-3 rounded-2xl border border-cream-300 bg-white hover:border-forest-400 hover:bg-forest-50 text-gray-600 text-sm font-medium transition-all shadow-soft"
         >
           <SlidersHorizontal size={16} />
-          <span className="hidden sm:block">Filters</span>
+          <span className="hidden sm:block">{t("shop.filterButton")}</span>
           <ChevronDown size={14} className={`transition-transform ${filtersOpen ? 'rotate-180' : ''}`} />
         </button>
       </form>
@@ -134,7 +136,7 @@ export default function ShopPage() {
                 : 'bg-white text-gray-600 border border-cream-300 hover:border-forest-400 hover:text-forest-700'
             }`}
           >
-            {c.label}
+            {t("shop.categories." + c.value)}
           </button>
         ))}
       </div>
@@ -143,33 +145,33 @@ export default function ShopPage() {
       {filtersOpen && (
         <div className="bg-white rounded-3xl border border-cream-200 shadow-soft p-5 mb-6 grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 block">Price Range</label>
+            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 block">{t("shop.priceRange")}</label>
             <select
               value={priceRange}
               onChange={(e) => setPriceRange(e.target.value)}
               className="w-full bg-cream-50 border border-cream-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-forest-400"
             >
               {priceRanges.map((r) => (
-                <option key={r.value} value={r.value}>{r.label}</option>
+                <option key={r.value} value={r.value}>{t("shop.priceOptions." + r.value)}</option>
               ))}
             </select>
           </div>
           <div>
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 block">Availability</label>
+            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 block">{t("shop.availability")}</label>
             <select
               value={availability}
               onChange={(e) => setAvailability(e.target.value)}
               className="w-full bg-cream-50 border border-cream-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-forest-400"
             >
               {availabilityOpts.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
+                <option key={o.value} value={o.value}>{t("shop.availabilityOptions." + o.value)}</option>
               ))}
             </select>
           </div>
           <div className="flex items-end">
             {hasActiveFilters && (
               <button onClick={clearFilters} className="flex items-center gap-1.5 text-sm text-red-500 hover:text-red-700 font-medium transition-colors">
-                <X size={15} /> Clear all filters
+                <X size={15} /> {t("shop.clearAllFilters")}
               </button>
             )}
           </div>
@@ -188,9 +190,9 @@ export default function ShopPage() {
           <div className="w-16 h-16 bg-cream-200 rounded-full flex items-center justify-center mb-4">
             <Search size={28} className="text-cream-400" />
           </div>
-          <h3 className="text-lg font-semibold text-gray-700 mb-2">No products found</h3>
-          <p className="text-gray-500 text-sm mb-6">Try adjusting your search or filters.</p>
-          <button onClick={clearFilters} className="btn-primary text-sm">Clear filters</button>
+          <h3 className="text-lg font-semibold text-gray-700 mb-2">{t("shop.empty.title")}</h3>
+          <p className="text-gray-500 text-sm mb-6">{t("shop.empty.description")}</p>
+          <button onClick={clearFilters} className="btn-primary text-sm">{t("shop.empty.clearButton")}</button>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">

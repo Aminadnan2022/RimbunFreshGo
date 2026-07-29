@@ -6,6 +6,8 @@ import { supabase } from '../../lib/supabase';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import { useAuthModal } from '../../context/AuthModalContext';
+import { useLanguage } from '../../context/LanguageContext';
+import LanguageSwitcher from './LanguageSwitcher';
 
 // ---------------------------------------------------------------------------
 // Sign In Modal
@@ -19,6 +21,7 @@ function SignInModal({ onClose, onSwitchToCreate, onSuccess }: {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { t } = useLanguage();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,7 +53,7 @@ function SignInModal({ onClose, onSwitchToCreate, onSuccess }: {
         <button
           onClick={onClose}
           className="absolute top-5 right-5 p-2 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-all"
-          aria-label="Close"
+          aria-label={t("header.signIn.close")}
         >
           <X size={20} />
         </button>
@@ -61,23 +64,23 @@ function SignInModal({ onClose, onSwitchToCreate, onSuccess }: {
           </div>
           <div>
             <h2 id="signin-title" className="font-display font-bold text-forest-900 text-xl leading-tight">
-              Welcome back
+              {t("header.signIn.title")}
             </h2>
-            <p className="text-sm text-gray-500">Sign in to your account</p>
+            <p className="text-sm text-gray-500">{t("header.signIn.subtitle")}</p>
           </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label htmlFor="si-email" className="block text-sm font-medium text-gray-700 mb-1.5">
-              Email Address
+              {t("header.signIn.emailLabel")}
             </label>
             <input
               id="si-email"
               type="email"
               autoComplete="email"
               required
-              placeholder="you@example.com"
+              placeholder={t("header.signIn.emailPlaceholder")}
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
               className="input-field"
@@ -88,31 +91,31 @@ function SignInModal({ onClose, onSwitchToCreate, onSuccess }: {
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label htmlFor="si-password" className="block text-sm font-medium text-gray-700">
-                Password
+                {t("header.signIn.passwordLabel")}
               </label>
               <button
                 type="button"
                 className="text-xs text-forest-700 font-medium hover:underline"
               >
-                Forgot password?
+                {t("header.signIn.forgotPassword")}
               </button>
             </div>
             <div className="relative">
               <input
-                id="si-password"
-                type={showPassword ? 'text' : 'password'}
-                autoComplete="current-password"
-                required
-                placeholder="Your password"
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-                className="input-field pr-11"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  id="si-password"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  required
+                  placeholder={t("header.signIn.passwordPlaceholder")}
+                  value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  className="input-field pr-11"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                  aria-label={showPassword ? t("header.signIn.hidePassword") : t("header.signIn.showPassword")}
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
@@ -126,18 +129,18 @@ function SignInModal({ onClose, onSwitchToCreate, onSuccess }: {
           )}
 
           <button type="submit" className="btn-primary w-full mt-2" disabled={loading}>
-            {loading ? 'Signing in…' : 'Sign In'}
+            {loading ? t("header.signIn.signingIn") : t("header.signIn.signIn")}
           </button>
         </form>
 
         <p className="text-center text-sm text-gray-500 mt-5">
-          Don&apos;t have an account?{' '}
+          {t("header.signIn.noAccount")}{' '}
           <button
             type="button"
             onClick={onSwitchToCreate}
             className="text-forest-700 font-semibold hover:underline"
           >
-            Create one
+            {t("header.signIn.createOne")}
           </button>
         </p>
       </div>
@@ -154,6 +157,7 @@ function CreateAccountModal({ onClose, onSwitchToSignIn }: { onClose: () => void
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { t } = useLanguage();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -185,7 +189,7 @@ function CreateAccountModal({ onClose, onSwitchToSignIn }: { onClose: () => void
         <button
           onClick={onClose}
           className="absolute top-5 right-5 p-2 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-all"
-          aria-label="Close"
+          aria-label={t("header.createAccount.close")}
         >
           <X size={20} />
         </button>
@@ -196,23 +200,23 @@ function CreateAccountModal({ onClose, onSwitchToSignIn }: { onClose: () => void
           </div>
           <div>
             <h2 id="create-account-title" className="font-display font-bold text-forest-900 text-xl leading-tight">
-              Create Account
+              {t("header.createAccount.title")}
             </h2>
-            <p className="text-sm text-gray-500">Join Rimbun FreshGo today</p>
+            <p className="text-sm text-gray-500">{t("header.createAccount.subtitle")}</p>
           </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label htmlFor="ca-name" className="block text-sm font-medium text-gray-700 mb-1.5">
-              Full Name
+              {t("header.createAccount.nameLabel")}
             </label>
             <input
               id="ca-name"
               type="text"
               autoComplete="name"
               required
-              placeholder="e.g. Ahmad Razif"
+              placeholder={t("header.createAccount.namePlaceholder")}
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
               className="input-field"
@@ -222,14 +226,14 @@ function CreateAccountModal({ onClose, onSwitchToSignIn }: { onClose: () => void
 
           <div>
             <label htmlFor="ca-email" className="block text-sm font-medium text-gray-700 mb-1.5">
-              Email Address
+              {t("header.createAccount.emailLabel")}
             </label>
             <input
               id="ca-email"
               type="email"
               autoComplete="email"
               required
-              placeholder="you@example.com"
+              placeholder={t("header.createAccount.emailPlaceholder")}
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
               className="input-field"
@@ -238,25 +242,25 @@ function CreateAccountModal({ onClose, onSwitchToSignIn }: { onClose: () => void
 
           <div>
             <label htmlFor="ca-password" className="block text-sm font-medium text-gray-700 mb-1.5">
-              Password
+              {t("header.createAccount.passwordLabel")}
             </label>
             <div className="relative">
               <input
-                id="ca-password"
-                type={showPassword ? 'text' : 'password'}
-                autoComplete="new-password"
-                required
-                placeholder="At least 8 characters"
-                minLength={8}
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-                className="input-field pr-11"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  id="ca-password"
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="new-password"
+                  required
+                  placeholder={t("header.createAccount.passwordPlaceholder")}
+                  minLength={8}
+                  value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  className="input-field pr-11"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                  aria-label={showPassword ? t("header.createAccount.hidePassword") : t("header.createAccount.showPassword")}
               >
                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
@@ -270,18 +274,18 @@ function CreateAccountModal({ onClose, onSwitchToSignIn }: { onClose: () => void
           )}
 
           <button type="submit" className="btn-primary w-full mt-2" disabled={loading}>
-            {loading ? 'Creating account…' : 'Create Account'}
+            {loading ? t("header.createAccount.creating") : t("header.createAccount.createAccount")}
           </button>
         </form>
 
         <p className="text-center text-sm text-gray-500 mt-5">
-          Already have an account?{' '}
+          {t("header.createAccount.hasAccount")}{' '}
           <button
             type="button"
             onClick={onSwitchToSignIn}
             className="text-forest-700 font-semibold hover:underline"
           >
-            Sign in
+            {t("header.createAccount.signIn")}
           </button>
         </p>
       </div>
@@ -297,6 +301,7 @@ export default function Header() {
   const { itemCount } = useCart();
   const { user, signOut, isAdmin, isSupplier } = useAuth();
   const { state: authModalState, openSignIn, closeSignIn } = useAuthModal();
+  const { t } = useLanguage();
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -304,10 +309,10 @@ export default function Header() {
   const navigate = useNavigate();
 
   const navLinks = [
-    { to: '/shop', label: 'Shop' },
-    { to: '/combo', label: 'Family Combo' },
-    { to: '/vendors', label: 'Our Suppliers' },
-    { to: '/recurring', label: 'Recurring Basket' },
+    { to: '/shop', label: 'header.shop' },
+    { to: '/combo', label: 'header.familyCombo' },
+    { to: '/vendors', label: 'header.ourSuppliers' },
+    { to: '/recurring', label: 'header.recurringBasket' },
   ];
 
   const handleSearch = (e: React.FormEvent) => {
@@ -345,7 +350,7 @@ export default function Header() {
                 to={link.to}
                 className="px-4 py-2 rounded-xl text-sm font-medium text-gray-600 hover:text-forest-700 hover:bg-forest-50 transition-all"
               >
-                {link.label}
+                {t(link.label)}
               </Link>
             ))}
             {user && !isSupplier && (
@@ -354,13 +359,13 @@ export default function Header() {
                   to="/orders"
                   className="px-4 py-2 rounded-xl text-sm font-medium text-gray-600 hover:text-forest-700 hover:bg-forest-50 transition-all"
                 >
-                  My Orders
+                  {t("header.myOrders")}
                 </Link>
                 <Link
                   to="/profile"
                   className="px-4 py-2 rounded-xl text-sm font-medium text-gray-600 hover:text-forest-700 hover:bg-forest-50 transition-all"
                 >
-                  Profile
+                  {t("header.profile")}
                 </Link>
               </>
             )}
@@ -370,7 +375,7 @@ export default function Header() {
                 className="px-4 py-2 rounded-xl text-sm font-medium text-forest-700 hover:bg-forest-50 transition-all inline-flex items-center gap-1.5"
               >
                 <ShieldCheck size={15} />
-                Admin
+                {t("header.admin")}
               </Link>
             )}
             {isSupplier && (
@@ -379,7 +384,7 @@ export default function Header() {
                 className="px-4 py-2 rounded-xl text-sm font-medium text-forest-700 hover:bg-forest-50 transition-all inline-flex items-center gap-1.5"
               >
                 <Warehouse size={15} />
-                Supplier Portal
+                {t("header.supplierPortal")}
               </Link>
             )}
           </nav>
@@ -391,11 +396,14 @@ export default function Header() {
               <button
                 onClick={() => setSearchOpen(!searchOpen)}
                 className="p-2.5 rounded-xl text-gray-500 hover:text-forest-700 hover:bg-forest-50 transition-all"
-                aria-label="Search"
+                aria-label={t("header.search")}
               >
                 <Search size={20} />
               </button>
             )}
+
+            {/* Language Switcher */}
+            <LanguageSwitcher />
 
             {user ? (
               /* Signed-in state */
@@ -411,10 +419,10 @@ export default function Header() {
                 <button
                   onClick={signOut}
                   className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-forest-700 border border-forest-200 hover:bg-forest-50 transition-all"
-                  aria-label="Log out"
+                  aria-label={t("header.logout")}
                 >
                   <LogOut size={17} />
-                  Log Out
+                  {t("header.logout")}
                 </button>
               </div>
             ) : (
@@ -425,14 +433,14 @@ export default function Header() {
                   className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-gray-600 hover:text-forest-700 hover:bg-forest-50 transition-all"
                 >
                   <LogIn size={17} />
-                  Sign In
+                  {t("header.login")}
                 </button>
                 <button
                   onClick={() => setShowCreateModal(true)}
                   className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-forest-700 border border-forest-200 hover:bg-forest-50 transition-all"
                 >
                   <User size={17} />
-                  Join
+                  {t("header.join")}
                 </button>
               </>
             )}
@@ -442,14 +450,14 @@ export default function Header() {
               <Link
                 to="/cart"
                 className="relative flex items-center gap-2 px-3 py-2 rounded-xl bg-forest-700 text-white hover:bg-forest-800 transition-all ml-1"
-                aria-label={`Cart, ${itemCount} items`}
+                aria-label={`${t("header.cart")}, ${itemCount} items`}
               >
                 <ShoppingCart size={18} />
                 {itemCount > 0 && (
                   <span className="text-sm font-semibold">{itemCount}</span>
                 )}
                 {itemCount === 0 && (
-                  <span className="hidden sm:block text-sm font-medium">Cart</span>
+                  <span className="hidden sm:block text-sm font-medium">{t("header.cart")}</span>
                 )}
               </Link>
             )}
@@ -458,7 +466,7 @@ export default function Header() {
             <button
               onClick={() => setMenuOpen(!menuOpen)}
               className="md:hidden p-2.5 rounded-xl text-gray-500 hover:text-forest-700 hover:bg-forest-50 transition-all"
-              aria-label="Menu"
+              aria-label={t("header.menu")}
             >
               {menuOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
@@ -473,12 +481,12 @@ export default function Header() {
                 type="search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search chicken, siakap, udang..."
+                placeholder={t("header.searchPlaceholder")}
                 className="flex-1 bg-cream-50 border border-cream-300 rounded-2xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-forest-500 focus:border-transparent"
                 autoFocus
               />
               <button type="submit" className="btn-primary py-2.5 px-5 text-sm">
-                Search
+                {t("header.searchButton")}
               </button>
             </form>
           </div>
@@ -495,7 +503,7 @@ export default function Header() {
               onClick={() => setMenuOpen(false)}
               className="block px-4 py-2.5 rounded-xl text-sm font-medium text-gray-600 hover:text-forest-700 hover:bg-forest-50 transition-all"
             >
-              {link.label}
+              {t(link.label)}
             </Link>
           ))}
           {user && !isSupplier && (
@@ -505,14 +513,14 @@ export default function Header() {
                 onClick={() => setMenuOpen(false)}
                 className="block px-4 py-2.5 rounded-xl text-sm font-medium text-gray-600 hover:text-forest-700 hover:bg-forest-50 transition-all"
               >
-                My Orders
+                {t("header.myOrders")}
               </Link>
               <Link
                 to="/profile"
                 onClick={() => setMenuOpen(false)}
                 className="block px-4 py-2.5 rounded-xl text-sm font-medium text-gray-600 hover:text-forest-700 hover:bg-forest-50 transition-all"
               >
-                Profile
+                {t("header.profile")}
               </Link>
             </>
           )}
@@ -523,7 +531,7 @@ export default function Header() {
               className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium text-forest-700 hover:bg-forest-50 transition-all"
             >
               <ShieldCheck size={15} />
-              Admin
+              {t("header.admin")}
             </Link>
           )}
           {isSupplier && (
@@ -533,7 +541,7 @@ export default function Header() {
               className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium text-forest-700 hover:bg-forest-50 transition-all"
             >
               <Warehouse size={15} />
-              Supplier Portal
+              {t("header.supplierPortal")}
             </Link>
           )}
           <div className="pt-1 border-t border-cream-100 mt-1 space-y-1">
@@ -549,7 +557,7 @@ export default function Header() {
                   onClick={() => { setMenuOpen(false); signOut(); }}
                   className="block w-full text-left px-4 py-2.5 rounded-xl text-sm font-semibold text-forest-700 hover:bg-forest-50 transition-all"
                 >
-                  Log Out
+                  {t("header.logOut")}
                 </button>
               </>
             ) : (
@@ -558,13 +566,13 @@ export default function Header() {
                   onClick={() => { setMenuOpen(false); openSignIn(); }}
                   className="block w-full text-left px-4 py-2.5 rounded-xl text-sm font-medium text-gray-600 hover:text-forest-700 hover:bg-forest-50 transition-all"
                 >
-                  Sign In
+                  {t("header.signInButton")}
                 </button>
                 <button
                   onClick={() => { setMenuOpen(false); setShowCreateModal(true); }}
                   className="block w-full text-left px-4 py-2.5 rounded-xl text-sm font-semibold text-forest-700 hover:bg-forest-50 transition-all"
                 >
-                  Create Account
+                  {t("header.createAccountButton")}
                 </button>
               </>
             )}
@@ -591,3 +599,5 @@ export default function Header() {
     </header>
   );
 }
+
+

@@ -1,15 +1,19 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ShoppingCart, Clock, ChevronRight, Loader2, Pencil, Trash2, X, AlertTriangle } from 'lucide-react';
-import { getPrepLabel } from '../lib/preparationOptions';
 import { useProduct, useProducts } from '../hooks/useProducts';
 import { getVendorById } from '../data/vendors';
 import { deleteProduct } from '../data/products';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { useAuthModal } from '../context/AuthModalContext';
+import { useLanguage } from '../context/LanguageContext';
 import { useDeliveryConfig } from '../context/DeliveryConfigContext';
 import QuantityStepper from '../components/ui/QuantityStepper';
+import EstimatedWeightStepper from '../components/ui/EstimatedWeightStepper';
+import PrawnEstimationNote from '../components/ui/PrawnEstimationNote';
+import EstimatedQuantityNote from '../components/ui/EstimatedQuantityNote';
+import ProductImage from '../components/ui/ProductImage';
 import ProductCard from '../components/ui/ProductCard';
 import type { PreparationOption } from '../types';
 
@@ -20,11 +24,14 @@ export default function ProductDetailPage() {
   const { isAdmin, user } = useAuth();
   const { openSignIn } = useAuthModal();
   const { config } = useDeliveryConfig();
+  const { t, lang } = useLanguage();
   const { product, loading, error } = useProduct(id);
   const { products } = useProducts();
 
   const [activeImg, setActiveImg] = useState(0);
   const [qty, setQty] = useState(1);
+  const [estimatedWeight, setEstimatedWeight] = useState(500);
+  const [orderMode, setOrderMode] = useState<'whole' | 'weight'>('whole');
   const [prep, setPrep] = useState<PreparationOption>('whole');
   const [added, setAdded] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -46,7 +53,7 @@ export default function ProductDetailPage() {
     return (
       <div className="flex flex-col items-center justify-center min-h-[40vh] gap-4">
         <p className="text-red-500 text-sm">{error}</p>
-        <button onClick={() => navigate('/shop')} className="btn-primary">Back to Shop</button>
+        <button onClick={() => navigate('/shop')} className="btn-primary">{t("productDetail.backToShop")}</button>
       </div>
     );
   }
@@ -54,8 +61,8 @@ export default function ProductDetailPage() {
   if (!product) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[40vh] gap-4">
-        <p className="text-gray-500">Product not found.</p>
-        <button onClick={() => navigate('/shop')} className="btn-primary">Back to Shop</button>
+        <p className="text-gray-500">{t("productDetail.productNotFound")}</p>
+        <button onClick={() => navigate('/shop')} className="btn-primary">{t("productDetail.backToShop")}</button>
       </div>
     );
   }
@@ -70,18 +77,62 @@ export default function ProductDetailPage() {
       openSignIn('/shop');
       return;
     }
-    const pricingType: 'per_kg' | 'fixed' =
-      product.unit === 'per kg' || product.priceNote?.includes('/kg') ? 'per_kg' : 'fixed';
-    addItem({
-      productId: product.id,
-      name: product.name,
-      image: product.image,
-      price: product.price,
-      unit: product.unit,
-      quantity: qty,
-      preparation: prep,
-      pricingType,
-    });
+
+    const mode = product.orderingMode ?? 'fixed_quantity';
+    let itemData: Parameters<typeof addItem>[0];
+
+    if (mode === 'whole_or_weight' && orderMode === 'whole') {
+      const estWeightKg = (qty * (product.averageWeight ?? 0)) / 1000;
+      itemData = {
+        productId: product.id,
+        name: product.name,
+        image: product.image,
+        price: product.price,
+        unit: product.unit,
+        category: product.category,
+        showEstimatedQuantity: product.showEstimatedQuantity,
+        orderingMode: product.orderingMode,
+        averageWeight: product.averageWeight,
+        quantity: qty,
+        estimatedWeight: estWeightKg > 0 ? estWeightKg : undefined,
+        preparation: prep,
+        pricingType: 'per_kg',
+      };
+    } else if (mode === 'weight_only' || (mode === 'whole_or_weight' && orderMode === 'weight')) {
+      itemData = {
+        productId: product.id,
+        name: product.name,
+        image: product.image,
+        price: product.price,
+        unit: product.unit,
+        category: product.category,
+        showEstimatedQuantity: product.showEstimatedQuantity,
+        orderingMode: product.orderingMode,
+        averageWeight: product.averageWeight,
+        quantity: 1,
+        estimatedWeight: estimatedWeight / 1000,
+        preparation: prep,
+        pricingType: 'per_kg',
+      };
+    } else {
+      itemData = {
+        productId: product.id,
+        name: product.name,
+        image: product.image,
+        price: product.price,
+        unit: product.unit,
+        category: product.category,
+        showEstimatedQuantity: product.showEstimatedQuantity,
+        orderingMode: product.orderingMode,
+        averageWeight: product.averageWeight,
+        quantity: qty,
+        estimatedWeight: undefined,
+        preparation: prep,
+        pricingType: 'fixed',
+      };
+    }
+
+    addItem(itemData);
     setAdded(true);
     setTimeout(() => setAdded(false), 2000);
   };
@@ -92,7 +143,7 @@ export default function ProductDetailPage() {
       await deleteProduct(product.id);
       navigate('/shop');
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Delete failed');
+      alert(err instanceof Error ? err.message : t("productDetail.deleteFailed"));
       setDeleting(false);
       setShowDeleteModal(false);
     }
@@ -102,9 +153,9 @@ export default function ProductDetailPage() {
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       {/* Breadcrumb */}
       <nav className="flex items-center gap-2 text-xs text-gray-400 mb-8">
-        <Link to="/" className="hover:text-forest-600">Home</Link>
+        <Link to="/" className="hover:text-forest-600">{t("productDetail.breadcrumbHome")}</Link>
         <ChevronRight size={12} />
-        <Link to="/shop" className="hover:text-forest-600">Shop</Link>
+        <Link to="/shop" className="hover:text-forest-600">{t("productDetail.breadcrumbShop")}</Link>
         <ChevronRight size={12} />
         <Link to={`/shop?category=${product.category}`} className="hover:text-forest-600 capitalize">{product.category}</Link>
         <ChevronRight size={12} />
@@ -118,13 +169,13 @@ export default function ProductDetailPage() {
             to={`/admin/products/edit/${product.id}`}
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-forest-700 border border-forest-200 hover:bg-forest-50 transition-all"
           >
-            <Pencil size={15} /> Edit Product
+            <Pencil size={15} /> {t("productDetail.editProduct")}
           </Link>
           <button
             onClick={() => setShowDeleteModal(true)}
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold text-red-600 border border-red-200 hover:bg-red-50 transition-all"
           >
-            <Trash2 size={15} /> Delete
+            <Trash2 size={15} /> {t("productDetail.delete")}
           </button>
         </div>
       )}
@@ -133,7 +184,7 @@ export default function ProductDetailPage() {
         {/* Gallery */}
         <div>
           <div className="rounded-3xl overflow-hidden shadow-card mb-3 aspect-[4/3]">
-            <img
+            <ProductImage
               src={product.images[activeImg]}
               alt={product.name}
               className="w-full h-full object-cover"
@@ -149,7 +200,7 @@ export default function ProductDetailPage() {
                     activeImg === i ? 'border-forest-600 shadow-green' : 'border-cream-300 hover:border-forest-400'
                   }`}
                 >
-                  <img src={img} alt="" className="w-full h-full object-cover" />
+                  <ProductImage src={img} alt="" className="w-full h-full object-cover" />
                 </button>
               ))}
             </div>
@@ -169,7 +220,7 @@ export default function ProductDetailPage() {
               : product.freshness === 'limited' ? 'bg-amber-100 text-amber-700'
               : 'bg-red-100 text-red-600'
             }`}>
-              {product.freshness === 'available' ? 'Available' : product.freshness === 'limited' ? 'Limited' : 'Sold Out'}
+              {product.freshness === 'available' ? t("product.status.available") : product.freshness === 'limited' ? t("product.status.limited") : t("product.status.soldOut")}
             </span>
           </div>
 
@@ -193,7 +244,7 @@ export default function ProductDetailPage() {
           {/* Preparation */}
           {product.preparationOptions.length > 1 && (
             <div className="mb-6">
-              <label className="text-sm font-semibold text-gray-700 block mb-2">Preparation Preference</label>
+              <label className="text-sm font-semibold text-gray-700 block mb-2">{t("productDetail.preparation")}</label>
               <div className="flex flex-wrap gap-2">
                 {product.preparationOptions.map((o) => (
                   <button
@@ -205,7 +256,7 @@ export default function ProductDetailPage() {
                         : 'border-cream-300 bg-white text-gray-600 hover:border-forest-400'
                     }`}
                   >
-                    {getPrepLabel(o)}
+                    {t("product.preparation." + o)}
                   </button>
                 ))}
               </div>
@@ -216,13 +267,51 @@ export default function ProductDetailPage() {
           <div className="flex items-center gap-2.5 bg-jade-50 border border-jade-200 rounded-2xl px-4 py-3 mb-6">
             <Clock size={16} className="text-jade-600 flex-shrink-0" />
             <p className="text-jade-800 text-sm font-medium">
-              Delivered fresh every <strong>{config.days.join(' & ')}</strong>, {config.time}
+              {t("productDetail.deliveryReminder")} <strong>{config.days.map((d) => t("days." + d.toLowerCase())).join(' & ')}</strong>, {config.time}
             </p>
           </div>
 
+          {/* Ordering mode toggle (whole_or_weight only) */}
+          {product.orderingMode === 'whole_or_weight' && (
+            <div className="mb-4">
+              <p className="text-sm font-semibold text-gray-700 block mb-2">{t("product.howToOrder")}</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setOrderMode('whole')}
+                  className={`px-5 py-2.5 rounded-xl text-sm font-semibold border-2 transition-all ${
+                    orderMode === 'whole'
+                      ? 'border-forest-700 bg-forest-700 text-white'
+                      : 'border-cream-300 bg-white text-gray-600 hover:border-forest-400'
+                  }`}
+                >
+                  {t("product.wholeFish")}
+                </button>
+                <button
+                  onClick={() => setOrderMode('weight')}
+                  className={`px-5 py-2.5 rounded-xl text-sm font-semibold border-2 transition-all ${
+                    orderMode === 'weight'
+                      ? 'border-forest-700 bg-forest-700 text-white'
+                      : 'border-cream-300 bg-white text-gray-600 hover:border-forest-400'
+                  }`}
+                >
+                  {t("product.byWeight")}
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Add to cart */}
           <div className="flex items-center gap-4">
-            <QuantityStepper value={qty} onChange={setQty} />
+            {product.orderingMode === 'whole_or_weight' && orderMode === 'whole' ? (
+              <QuantityStepper value={qty} onChange={setQty} />
+            ) : product.orderingMode === 'weight_only' || (product.orderingMode === 'whole_or_weight' && orderMode === 'weight') ? (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-500">{t("product.estimatedWeight")}</span>
+                <EstimatedWeightStepper value={estimatedWeight} onChange={setEstimatedWeight} />
+              </div>
+            ) : (
+              <QuantityStepper value={qty} onChange={setQty} />
+            )}
             <button
               onClick={handleAdd}
               disabled={product.freshness === 'sold-out'}
@@ -235,14 +324,46 @@ export default function ProductDetailPage() {
               }`}
             >
               <ShoppingCart size={18} />
-              {added ? 'Added to Cart!' : 'Add to Cart'}
+              {added ? t("product.buttons.added") : t("product.buttons.addToCart")}
             </button>
           </div>
+
+          {/* Estimated price display */}
+          {product.orderingMode !== 'fixed_quantity' && (
+            <div className="mt-3 text-sm text-gray-500">
+              {product.orderingMode === 'whole_or_weight' && orderMode === 'whole' && product.averageWeight && product.averageWeight > 0 ? (
+                <p>≈ {qty} × {product.averageWeight}g = <strong>{(qty * product.averageWeight / 1000).toFixed(2).replace(/\.?0+$/, '')}kg</strong> · ≈ <strong>RM{(qty * product.price * product.averageWeight / 1000).toFixed(2)}</strong></p>
+              ) : (
+                <p>{t("product.estimatedWeight")}: <strong>{estimatedWeight >= 1000 ? (estimatedWeight / 1000).toFixed(2).replace(/\.?0+$/, '') + 'kg' : estimatedWeight + 'g'}</strong> · ≈ <strong>RM{(product.price * estimatedWeight / 1000).toFixed(2)}</strong></p>
+              )}
+            </div>
+          )}
+
+          {/* Estimation notes */}
+          {product.orderingMode === 'whole_or_weight' && orderMode === 'whole' && product.showEstimatedQuantity && product.averageWeight && product.averageWeight > 0 && (
+            <div className="mt-4">
+              <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 leading-relaxed space-y-1">
+                <p className="font-semibold">{t("product.estimatedQuantity")}</p>
+                <p>≈ {qty} {t("productDetail.fish")}</p>
+                <p className="text-amber-500">{t("product.estimationDisclaimer")}</p>
+              </div>
+            </div>
+          )}
+
+          {(product.orderingMode === 'weight_only' || (product.orderingMode === 'whole_or_weight' && orderMode === 'weight')) && product.showEstimatedQuantity && product.averageWeight && product.averageWeight > 0 && (
+            <div className="mt-4">
+              <EstimatedQuantityNote
+                weightGrams={estimatedWeight}
+                averageWeight={product.averageWeight}
+                unitLabel={product.id === 'udang-a' ? 'prawns' : 'fish'}
+              />
+            </div>
+          )}
 
           {/* Vendor */}
           {vendor && (
             <div className="mt-6 pt-6 border-t border-cream-200">
-              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Supplied by</p>
+              <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">{t("productDetail.suppliedBy")}</p>
               <Link to={`/vendors#${vendor.id}`} className="flex items-center gap-3 group">
                 <img src={vendor.image} alt={vendor.name} className="w-10 h-10 rounded-full object-cover" />
                 <div>
@@ -259,7 +380,7 @@ export default function ProductDetailPage() {
       {/* Related products */}
       {related.length > 0 && (
         <section>
-          <h2 className="section-title mb-6">More from {product.category === 'chicken' ? 'Chicken' : product.category === 'fish' ? 'Fish' : product.category === 'prawns' ? 'Prawns' : 'Squid'}</h2>
+          <h2 className="section-title mb-6">{t("productDetail.moreFrom")} {t("shop.categories." + product.category)}</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {related.map((p) => (
               <ProductCard key={p.id} product={p} />
@@ -280,17 +401,17 @@ export default function ProductDetailPage() {
               <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
                 <AlertTriangle size={20} className="text-red-600" />
               </div>
-              <h3 className="font-semibold text-gray-900 text-lg">Delete Product</h3>
+              <h3 className="font-semibold text-gray-900 text-lg">{t("productDetail.deleteModal.title")}</h3>
             </div>
             <p className="text-sm text-gray-600 mb-6">
-              Are you sure you want to delete <strong>{product.name}</strong>? This action cannot be undone.
+              {t("productDetail.deleteModal.message", { name: product.name })}
             </p>
             <div className="flex gap-3 justify-end">
               <button onClick={() => setShowDeleteModal(false)} disabled={deleting} className="px-4 py-2 rounded-xl text-sm font-medium text-gray-700 border border-gray-200 hover:bg-gray-50 transition-all">
-                Cancel
+                {t("productDetail.deleteModal.cancel")}
               </button>
               <button onClick={handleDelete} disabled={deleting} className="px-4 py-2 rounded-xl text-sm font-semibold text-white bg-red-600 hover:bg-red-700 transition-all disabled:opacity-50">
-                {deleting ? 'Deleting...' : 'Delete'}
+                {deleting ? t("productDetail.deleteModal.deleting") : t("productDetail.deleteModal.delete")}
               </button>
             </div>
           </div>

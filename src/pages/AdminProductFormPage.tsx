@@ -3,22 +3,24 @@ import { useParams, useNavigate, Navigate } from 'react-router-dom';
 import { ArrowLeft, Save, Loader2, CheckCircle2, AlertCircle, Info } from 'lucide-react';
 import { getPrepOptionsByCategory, getPrepLabel } from '../lib/preparationOptions';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { fetchProductById, createProduct, updateProduct } from '../data/products';
 import type { ProductPayload } from '../data/products';
 import type { Category, PreparationOption } from '../types';
+import MultiImageUploader from '../components/ui/MultiImageUploader';
 
-const CATEGORIES: { value: Category; label: string }[] = [
-  { value: 'chicken', label: 'Chicken' },
-  { value: 'fish', label: 'Fish' },
-  { value: 'prawns', label: 'Prawns' },
-  { value: 'squid', label: 'Squid' },
-  { value: 'combo', label: 'Combo' },
+const CATEGORIES: { value: Category; labelKey: string }[] = [
+  { value: 'chicken', labelKey: 'adminProducts.labels.chicken' },
+  { value: 'fish', labelKey: 'adminProducts.labels.fish' },
+  { value: 'prawns', labelKey: 'adminProducts.labels.prawns' },
+  { value: 'squid', labelKey: 'adminProducts.labels.squid' },
+  { value: 'combo', labelKey: 'adminProducts.labels.combo' },
 ];
 
-const FRESHNESS_OPTIONS: { value: 'available' | 'limited' | 'sold-out'; label: string }[] = [
-  { value: 'available', label: 'Available' },
-  { value: 'limited', label: 'Limited' },
-  { value: 'sold-out', label: 'Sold Out' },
+const FRESHNESS_OPTIONS: { value: 'available' | 'limited' | 'sold-out'; labelKey: string }[] = [
+  { value: 'available', labelKey: 'adminProducts.labels.available' },
+  { value: 'limited', labelKey: 'adminProducts.labels.limited' },
+  { value: 'sold-out', labelKey: 'adminProducts.labels.soldOut' },
 ];
 
 function slugify(text: string): string {
@@ -27,6 +29,13 @@ function slugify(text: string): string {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
 }
+
+const ORDERING_MODES: { value: string; labelKey: string }[] = [
+  { value: 'fixed_quantity', labelKey: 'adminProducts.form.fixedQuantity' },
+  { value: 'weight_only', labelKey: 'adminProducts.form.weightOnly' },
+  { value: 'whole_or_weight', labelKey: 'adminProducts.form.wholeOrWeight' },
+  { value: 'combo', labelKey: 'adminProducts.form.combo' },
+];
 
 type FormData = {
   name: string;
@@ -40,13 +49,14 @@ type FormData = {
   description: string;
   long_description: string;
   image: string;
-  images: string;
+  images: string[];
   freshness: 'available' | 'limited' | 'sold-out';
   preparation_options: PreparationOption[];
   vendor_id: string;
   vendor_name: string;
   tags: string;
   is_popular: boolean;
+  ordering_mode: string;
 };
 
 const EMPTY_FORM: FormData = {
@@ -61,13 +71,14 @@ const EMPTY_FORM: FormData = {
   description: '',
   long_description: '',
   image: '',
-  images: '',
+  images: [],
   freshness: 'available',
   preparation_options: getPrepOptionsByCategory('fish'),
   vendor_id: '',
   vendor_name: '',
   tags: '',
   is_popular: false,
+  ordering_mode: 'weight_only',
 };
 
 export default function AdminProductFormPage() {
@@ -75,6 +86,7 @@ export default function AdminProductFormPage() {
   const isEdit = !!id;
   const navigate = useNavigate();
   const { isAdmin, loading: authLoading } = useAuth();
+  const { t } = useLanguage();
 
   const [form, setForm] = useState<FormData>(EMPTY_FORM);
   const [loadingProduct, setLoadingProduct] = useState(isEdit);
@@ -103,13 +115,14 @@ export default function AdminProductFormPage() {
           description: product.description,
           long_description: product.longDescription,
           image: product.image,
-          images: product.images.join('\n'),
+          images: product.images,
           freshness: product.freshness,
           preparation_options: getPrepOptionsByCategory(product.category),
           vendor_id: product.vendorId,
           vendor_name: '',
           tags: product.tags.join(', '),
           is_popular: product.isPopular ?? false,
+          ordering_mode: product.orderingMode,
         });
       } catch {
         navigate('/admin/products', { replace: true });
@@ -155,14 +168,15 @@ export default function AdminProductFormPage() {
       quantity: parseInt(form.quantity) || 0,
       description: form.description.trim(),
       long_description: form.long_description.trim(),
-      image: form.image.trim(),
-      images: form.images.split('\n').map((s) => s.trim()).filter(Boolean),
+      image: form.images[0] || '',
+      images: form.images,
       freshness: form.freshness,
       preparation_options: getPrepOptionsByCategory(form.category),
       vendor_id: form.vendor_id.trim(),
       vendor_name: form.vendor_name.trim(),
       tags: form.tags.split(',').map((s) => s.trim()).filter(Boolean),
       is_popular: form.is_popular,
+      ordering_mode: form.ordering_mode,
     };
 
     try {
@@ -176,7 +190,7 @@ export default function AdminProductFormPage() {
       setTimeout(() => navigate('/admin/products'), 1200);
     } catch (err) {
       setStatus('error');
-      setErrorMsg(err instanceof Error ? err.message : 'Operation failed');
+      setErrorMsg(err instanceof Error ? err.message : t("adminProducts.messages.operationFailed"));
       setSubmitting(false);
     }
   };
@@ -192,33 +206,33 @@ export default function AdminProductFormPage() {
           <ArrowLeft size={20} />
         </button>
         <h1 className="font-display font-bold text-forest-900 text-2xl">
-          {isEdit ? 'Edit Product' : 'Add New Product'}
+          {isEdit ? t("adminProducts.form.editTitle") : t("adminProducts.form.addTitle")}
         </h1>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Basic info */}
         <section className="bg-white rounded-2xl border border-cream-200 shadow-soft p-6">
-          <h2 className="font-semibold text-forest-900 text-base mb-4">Basic Information</h2>
+          <h2 className="font-semibold text-forest-900 text-base mb-4">{t("adminProducts.form.basicInfo")}</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1.5">Name (English) *</label>
-              <input id="name" type="text" required value={form.name} onChange={(e) => set('name', e.target.value)} className="input-field" placeholder="e.g. Siakap" />
+              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1.5">{t("adminProducts.form.nameEn")}</label>
+              <input id="name" type="text" required value={form.name} onChange={(e) => set('name', e.target.value)} className="input-field" placeholder={t("adminProducts.form.nameEnPlaceholder")} />
             </div>
             <div>
-              <label htmlFor="name_ms" className="block text-sm font-medium text-gray-700 mb-1.5">Name (Malay) *</label>
-              <input id="name_ms" type="text" required value={form.name_ms} onChange={(e) => set('name_ms', e.target.value)} className="input-field" placeholder="e.g. Ikan Siakap" />
+              <label htmlFor="name_ms" className="block text-sm font-medium text-gray-700 mb-1.5">{t("adminProducts.form.nameMs")}</label>
+              <input id="name_ms" type="text" required value={form.name_ms} onChange={(e) => set('name_ms', e.target.value)} className="input-field" placeholder={t("adminProducts.form.nameMsPlaceholder")} />
             </div>
             <div>
-              <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1.5">Category *</label>
+              <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1.5">{t("adminProducts.form.category")}</label>
               <select id="category" value={form.category} onChange={(e) => set('category', e.target.value as Category)} className="input-field">
-                {CATEGORIES.map((c) => <option key={c.value} value={c.value}>{c.label}</option>)}
+                {CATEGORIES.map((c) => <option key={c.value} value={c.value}>{t(c.labelKey)}</option>)}
               </select>
             </div>
             <div>
-              <label htmlFor="freshness" className="block text-sm font-medium text-gray-700 mb-1.5">Freshness Status</label>
+              <label htmlFor="freshness" className="block text-sm font-medium text-gray-700 mb-1.5">{t("adminProducts.form.freshness")}</label>
               <select id="freshness" value={form.freshness} onChange={(e) => set('freshness', e.target.value)} className="input-field">
-                {FRESHNESS_OPTIONS.map((f) => <option key={f.value} value={f.value}>{f.label}</option>)}
+                {FRESHNESS_OPTIONS.map((f) => <option key={f.value} value={f.value}>{t(f.labelKey)}</option>)}
               </select>
             </div>
           </div>
@@ -226,67 +240,72 @@ export default function AdminProductFormPage() {
 
         {/* Pricing */}
         <section className="bg-white rounded-2xl border border-cream-200 shadow-soft p-6">
-          <h2 className="font-semibold text-forest-900 text-base mb-4">Pricing & Units</h2>
+          <h2 className="font-semibold text-forest-900 text-base mb-4">{t("adminProducts.form.pricing")}</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-1.5">Price (RM) *</label>
-              <input id="price" type="number" step="0.01" min="0" required value={form.price} onChange={(e) => set('price', e.target.value)} className="input-field" placeholder="e.g. 19.00" />
+              <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-1.5">{t("adminProducts.form.price")}</label>
+              <input id="price" type="number" step="0.01" min="0" required value={form.price} onChange={(e) => set('price', e.target.value)} className="input-field" placeholder={t("adminProducts.form.pricePlaceholder")} />
             </div>
             <div>
-              <label htmlFor="unit" className="block text-sm font-medium text-gray-700 mb-1.5">Unit *</label>
-              <input id="unit" type="text" required value={form.unit} onChange={(e) => set('unit', e.target.value)} className="input-field" placeholder="e.g. per kg" />
+              <label htmlFor="unit" className="block text-sm font-medium text-gray-700 mb-1.5">{t("adminProducts.form.unit")}</label>
+              <input id="unit" type="text" required value={form.unit} onChange={(e) => set('unit', e.target.value)} className="input-field" placeholder={t("adminProducts.form.unitPlaceholder")} />
             </div>
             <div>
-              <label htmlFor="price_note" className="block text-sm font-medium text-gray-700 mb-1.5">Price Note</label>
-              <input id="price_note" type="text" value={form.price_note} onChange={(e) => set('price_note', e.target.value)} className="input-field" placeholder="e.g. RM19/kg" />
+              <label htmlFor="price_note" className="block text-sm font-medium text-gray-700 mb-1.5">{t("adminProducts.form.priceNote")}</label>
+              <input id="price_note" type="text" value={form.price_note} onChange={(e) => set('price_note', e.target.value)} className="input-field" placeholder={t("adminProducts.form.priceNotePlaceholder")} />
             </div>
             <div>
-              <label htmlFor="weight" className="block text-sm font-medium text-gray-700 mb-1.5">Weight</label>
-              <input id="weight" type="text" value={form.weight} onChange={(e) => set('weight', e.target.value)} className="input-field" placeholder="e.g. 1.5-1.7 kg" />
+              <label htmlFor="weight" className="block text-sm font-medium text-gray-700 mb-1.5">{t("adminProducts.form.weight")}</label>
+              <input id="weight" type="text" value={form.weight} onChange={(e) => set('weight', e.target.value)} className="input-field" placeholder={t("adminProducts.form.weightPlaceholder")} />
+            </div>
+          </div>
+        </section>
+
+        {/* Ordering Mode */}
+        <section className="bg-white rounded-2xl border border-cream-200 shadow-soft p-6">
+          <h2 className="font-semibold text-forest-900 text-base mb-1">{t("adminProducts.form.orderingMode")}</h2>
+          <p className="text-xs text-gray-400 mb-4">
+            {t("adminProducts.form.orderingModeHelper")}
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <select id="ordering_mode" value={form.ordering_mode} onChange={(e) => set('ordering_mode', e.target.value)} className="input-field">
+                {ORDERING_MODES.map((m) => <option key={m.value} value={m.value}>{t(m.labelKey)}</option>)}
+              </select>
             </div>
           </div>
         </section>
 
         {/* Descriptions */}
         <section className="bg-white rounded-2xl border border-cream-200 shadow-soft p-6">
-          <h2 className="font-semibold text-forest-900 text-base mb-4">Descriptions</h2>
+          <h2 className="font-semibold text-forest-900 text-base mb-4">{t("adminProducts.form.descriptions")}</h2>
           <div className="space-y-4">
             <div>
-              <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1.5">Short Description *</label>
-              <input id="description" type="text" required value={form.description} onChange={(e) => set('description', e.target.value)} className="input-field" placeholder="Short card description" />
+              <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1.5">{t("adminProducts.form.shortDesc")}</label>
+              <input id="description" type="text" required value={form.description} onChange={(e) => set('description', e.target.value)} className="input-field" placeholder={t("adminProducts.form.shortDescPlaceholder")} />
             </div>
             <div>
-              <label htmlFor="long_description" className="block text-sm font-medium text-gray-700 mb-1.5">Long Description *</label>
-              <textarea id="long_description" required rows={4} value={form.long_description} onChange={(e) => set('long_description', e.target.value)} className="input-field resize-y" placeholder="Full detail page description" />
+              <label htmlFor="long_description" className="block text-sm font-medium text-gray-700 mb-1.5">{t("adminProducts.form.longDesc")}</label>
+              <textarea id="long_description" required rows={4} value={form.long_description} onChange={(e) => set('long_description', e.target.value)} className="input-field resize-y" placeholder={t("adminProducts.form.longDescPlaceholder")} />
             </div>
           </div>
         </section>
 
-        {/* Images */}
+        {/* Product Images */}
         <section className="bg-white rounded-2xl border border-cream-200 shadow-soft p-6">
-          <h2 className="font-semibold text-forest-900 text-base mb-4">Images</h2>
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="image" className="block text-sm font-medium text-gray-700 mb-1.5">Primary Image URL *</label>
-              <input id="image" type="url" required value={form.image} onChange={(e) => set('image', e.target.value)} className="input-field" placeholder="https://..." />
-            </div>
-            <div>
-              <label htmlFor="images" className="block text-sm font-medium text-gray-700 mb-1.5">Gallery URLs (one per line)</label>
-              <textarea id="images" rows={3} value={form.images} onChange={(e) => set('images', e.target.value)} className="input-field resize-y" placeholder={"https://url1.jpg\nhttps://url2.jpg"} />
-            </div>
-            {form.image && (
-              <div className="flex gap-2">
-                <img src={form.image} alt="Preview" className="w-16 h-16 rounded-lg object-cover border border-cream-200" />
-              </div>
-            )}
-          </div>
+          <h2 className="font-semibold text-forest-900 text-base mb-4">{t("adminProducts.form.images")}</h2>
+          <MultiImageUploader
+            category={form.category}
+            images={form.images}
+            onChange={(imgs) => setForm((prev) => ({ ...prev, images: imgs }))}
+          />
         </section>
 
         {/* Preparation options — auto-determined by category */}
         <section className="bg-white rounded-2xl border border-cream-200 shadow-soft p-6">
-          <h2 className="font-semibold text-forest-900 text-base mb-1">Preparation Options</h2>
+          <h2 className="font-semibold text-forest-900 text-base mb-1">{t("adminProducts.form.preparation")}</h2>
           <p className="text-xs text-gray-400 mb-4">
-            Automatically determined by the selected category. Update the category above to change available options.
+            {t("adminProducts.form.preparationHelper")}
           </p>
           {form.preparation_options.length > 0 ? (
             <div className="flex flex-wrap gap-2">
@@ -302,33 +321,33 @@ export default function AdminProductFormPage() {
           ) : (
             <div className="flex items-start gap-3 p-3 bg-cream-50 border border-cream-200 rounded-xl text-sm text-gray-500">
               <Info size={16} className="flex-shrink-0 mt-0.5 text-gray-400" />
-              <p>No preparation options for this category. You can add support in <code className="text-xs bg-cream-200 px-1 py-0.5 rounded">src/lib/preparationOptions.ts</code>.</p>
+              <p>{t("adminProducts.form.noPrepOptions")}</p>
             </div>
           )}
         </section>
 
         {/* Vendor & metadata */}
         <section className="bg-white rounded-2xl border border-cream-200 shadow-soft p-6">
-          <h2 className="font-semibold text-forest-900 text-base mb-4">Vendor & Metadata</h2>
+          <h2 className="font-semibold text-forest-900 text-base mb-4">{t("adminProducts.form.vendor")}</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label htmlFor="vendor_id" className="block text-sm font-medium text-gray-700 mb-1.5">Vendor ID *</label>
-              <input id="vendor_id" type="text" required value={form.vendor_id} onChange={(e) => set('vendor_id', e.target.value)} className="input-field" placeholder="e.g. vendor-aminah" />
+              <label htmlFor="vendor_id" className="block text-sm font-medium text-gray-700 mb-1.5">{t("adminProducts.form.vendorId")}</label>
+              <input id="vendor_id" type="text" required value={form.vendor_id} onChange={(e) => set('vendor_id', e.target.value)} className="input-field" placeholder={t("adminProducts.form.vendorIdPlaceholder")} />
             </div>
             <div>
-              <label htmlFor="vendor_name" className="block text-sm font-medium text-gray-700 mb-1.5">Vendor Name *</label>
-              <input id="vendor_name" type="text" required value={form.vendor_name} onChange={(e) => set('vendor_name', e.target.value)} className="input-field" placeholder="e.g. Aminah Seafood Trading" />
+              <label htmlFor="vendor_name" className="block text-sm font-medium text-gray-700 mb-1.5">{t("adminProducts.form.vendorName")}</label>
+              <input id="vendor_name" type="text" required value={form.vendor_name} onChange={(e) => set('vendor_name', e.target.value)} className="input-field" placeholder={t("adminProducts.form.vendorNamePlaceholder")} />
             </div>
             <div>
-              <label htmlFor="tags" className="block text-sm font-medium text-gray-700 mb-1.5">Tags (comma-separated)</label>
-              <input id="tags" type="text" value={form.tags} onChange={(e) => set('tags', e.target.value)} className="input-field" placeholder="e.g. premium, fresh, omega-3" />
+              <label htmlFor="tags" className="block text-sm font-medium text-gray-700 mb-1.5">{t("adminProducts.form.tags")}</label>
+              <input id="tags" type="text" value={form.tags} onChange={(e) => set('tags', e.target.value)} className="input-field" placeholder={t("adminProducts.form.tagsPlaceholder")} />
             </div>
             <div className="flex items-center gap-3 pt-6">
               <label className="relative inline-flex items-center cursor-pointer">
                 <input type="checkbox" checked={form.is_popular} onChange={(e) => set('is_popular', e.target.checked)} className="sr-only peer" />
                 <div className="w-10 h-5 bg-gray-200 peer-focus:ring-2 peer-focus:ring-forest-300 rounded-full peer peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-forest-600"></div>
               </label>
-              <span className="text-sm font-medium text-gray-700">Mark as Popular</span>
+              <span className="text-sm font-medium text-gray-700">{t("adminProducts.form.popular")}</span>
             </div>
           </div>
         </section>
@@ -336,7 +355,7 @@ export default function AdminProductFormPage() {
         {/* Status messages */}
         {status === 'success' && (
           <div className="flex items-center gap-2 p-4 bg-green-50 border border-green-200 rounded-xl text-green-700 text-sm font-medium">
-            <CheckCircle2 size={18} /> Product {isEdit ? 'updated' : 'created'} successfully! Redirecting...
+            <CheckCircle2 size={18} /> {isEdit ? t("adminProducts.messages.updated") : t("adminProducts.messages.added")}
           </div>
         )}
         {status === 'error' && (
@@ -352,7 +371,7 @@ export default function AdminProductFormPage() {
             onClick={() => navigate('/admin/products')}
             className="px-5 py-2.5 rounded-xl text-sm font-medium text-gray-700 border border-gray-200 hover:bg-gray-50 transition-all"
           >
-            Cancel
+            {t("adminProducts.buttons.cancel")}
           </button>
           <button
             type="submit"
@@ -360,7 +379,7 @@ export default function AdminProductFormPage() {
             className="btn-primary inline-flex items-center gap-2 disabled:opacity-50"
           >
             <Save size={16} />
-            {submitting ? 'Saving...' : isEdit ? 'Update Product' : 'Create Product'}
+            {submitting ? t("adminProducts.messages.saving") : isEdit ? t("adminProducts.buttons.update") : t("adminProducts.buttons.create")}
           </button>
         </div>
       </form>

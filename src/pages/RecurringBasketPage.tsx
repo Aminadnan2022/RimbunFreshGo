@@ -6,6 +6,8 @@ import {
 import { useBaskets } from '../context/BasketContext';
 import { useCart } from '../context/CartContext';
 import { useDeliveryConfig } from '../context/DeliveryConfigContext';
+import { useLanguage } from '../context/LanguageContext';
+import ProductImage from '../components/ui/ProductImage';
 import type { RecurringBasket, DeliveryDay } from '../types';
 
 const DAY_MAP: Record<string, number> = {
@@ -34,19 +36,20 @@ function EditModal({ basket, onClose, onSave }: EditModalProps) {
   const [frequency, setFrequency] = useState(basket.frequency);
   const [day, setDay] = useState<DeliveryDay>(basket.deliveryDay);
   const { config } = useDeliveryConfig();
+  const { t } = useLanguage();
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-6">
         <div className="flex justify-between items-center mb-5">
-          <h3 className="font-semibold text-charcoal">Edit Basket</h3>
+          <h3 className="font-semibold text-charcoal">{t("recurringBasket.editBasket")}</h3>
           <button onClick={onClose} className="p-1.5 rounded-xl hover:bg-cream-100 transition-colors">
             <X size={18} />
           </button>
         </div>
         <div className="space-y-4">
           <div>
-            <label className="text-sm font-semibold text-gray-700 block mb-1.5">Basket Name</label>
+            <label className="text-sm font-semibold text-gray-700 block mb-1.5">{t("recurringBasket.basketName")}</label>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -54,7 +57,7 @@ function EditModal({ basket, onClose, onSave }: EditModalProps) {
             />
           </div>
           <div>
-            <label className="text-sm font-semibold text-gray-700 block mb-1.5">Frequency</label>
+            <label className="text-sm font-semibold text-gray-700 block mb-1.5">{t("recurringBasket.frequency")}</label>
             <div className="grid grid-cols-2 gap-2">
               {(['weekly', 'biweekly'] as const).map((f) => (
                 <button
@@ -64,13 +67,13 @@ function EditModal({ basket, onClose, onSave }: EditModalProps) {
                     frequency === f ? 'border-forest-700 bg-forest-700 text-white' : 'border-cream-300 text-gray-600 hover:border-forest-400'
                   }`}
                 >
-                  {f === 'weekly' ? 'Weekly' : 'Every 2 weeks'}
+                  {f === 'weekly' ? t("recurringBasket.weekly") : t("recurringBasket.every2Weeks")}
                 </button>
               ))}
             </div>
           </div>
           <div>
-            <label className="text-sm font-semibold text-gray-700 block mb-1.5">Delivery Day</label>
+            <label className="text-sm font-semibold text-gray-700 block mb-1.5">{t("recurringBasket.deliveryDay")}</label>
             <div className="grid grid-cols-2 gap-2">
               {config.days.map((dayOption) => (
                 <button
@@ -80,19 +83,19 @@ function EditModal({ basket, onClose, onSave }: EditModalProps) {
                     day === dayOption.toLowerCase() ? 'border-forest-700 bg-forest-700 text-white' : 'border-cream-300 text-gray-600 hover:border-forest-400'
                   }`}
                 >
-                  <Calendar size={14} /> {dayOption}
+                  <Calendar size={14} /> {t("days." + dayOption.toLowerCase())}
                 </button>
               ))}
             </div>
           </div>
         </div>
         <div className="flex gap-3 mt-6">
-          <button onClick={onClose} className="btn-secondary flex-1">Cancel</button>
+          <button onClick={onClose} className="btn-secondary flex-1">{t("recurringBasket.cancel")}</button>
           <button
             onClick={() => { onSave({ name, frequency, deliveryDay: day }); onClose(); }}
             className="btn-primary flex-1"
           >
-            Save Changes
+            {t("recurringBasket.saveChanges")}
           </button>
         </div>
       </div>
@@ -101,6 +104,7 @@ function EditModal({ basket, onClose, onSave }: EditModalProps) {
 }
 
 export default function RecurringBasketPage() {
+  const { t } = useLanguage();
   const { baskets, addBasket, updateBasket, removeBasket, togglePause } = useBaskets();
   const { cart } = useCart();
   const { config } = useDeliveryConfig();
@@ -117,7 +121,7 @@ export default function RecurringBasketPage() {
       const defaultDay = config.days[0]?.toLowerCase() ?? 'wednesday';
       const basket: RecurringBasket = {
         id: `basket-${Date.now()}`,
-        name: 'My Weekly Order',
+        name: t("recurringBasket.defaultName"),
         items: cart.items,
         frequency: 'weekly',
         deliveryDay: cart.deliveryDay ?? defaultDay,
@@ -136,9 +140,9 @@ export default function RecurringBasketPage() {
     <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       {/* Header */}
       <div className="mb-10">
-        <h1 className="section-title mb-2">Recurring Baskets</h1>
+        <h1 className="section-title mb-2">{t("recurringBasket.title")}</h1>
         <p className="text-gray-500 leading-relaxed max-w-2xl">
-          Save your favourite order and have it delivered automatically every week or fortnight. Skip, pause, or cancel anytime.
+          {t("recurringBasket.description")}
         </p>
       </div>
 
@@ -146,9 +150,9 @@ export default function RecurringBasketPage() {
       {cart.items.length > 0 && (
         <div className="bg-jade-50 border-2 border-jade-200 rounded-3xl p-6 mb-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
-            <h3 className="font-semibold text-forest-800 mb-1">Turn your current cart into a recurring order</h3>
+            <h3 className="font-semibold text-forest-800 mb-1">{t("recurringBasket.ctaTitle")}</h3>
             <p className="text-sm text-gray-600">
-              You have {cart.items.length} item{cart.items.length !== 1 ? 's' : ''} in your cart. Save them as a recurring basket.
+              {t("recurringBasket.ctaDesc", { count: cart.items.length })}
             </p>
           </div>
           <button
@@ -157,9 +161,9 @@ export default function RecurringBasketPage() {
             className={`btn-primary flex-shrink-0 flex items-center gap-2 ${saving ? 'opacity-70 cursor-wait' : ''}`}
           >
             {saving ? (
-              <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Saving...</>
+              <><span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> {t("recurringBasket.saving")}</>
             ) : (
-              <><Plus size={16} /> Save Cart as Basket</>
+              <><Plus size={16} /> {t("recurringBasket.saveCart")}</>
             )}
           </button>
         </div>
@@ -168,7 +172,7 @@ export default function RecurringBasketPage() {
       {showSuccess && (
         <div className="flex items-center gap-3 bg-jade-100 border border-jade-300 text-jade-800 rounded-2xl px-5 py-3 mb-6">
           <CheckCircle2 size={18} />
-          <p className="text-sm font-medium">Recurring basket saved successfully!</p>
+          <p className="text-sm font-medium">{t("recurringBasket.saved")}</p>
         </div>
       )}
 
@@ -178,11 +182,11 @@ export default function RecurringBasketPage() {
           <div className="w-20 h-20 bg-forest-100 rounded-full flex items-center justify-center mb-6">
             <Repeat2 size={36} className="text-forest-500" />
           </div>
-          <h3 className="text-xl font-semibold text-gray-700 mb-2">No recurring baskets yet</h3>
+          <h3 className="text-xl font-semibold text-gray-700 mb-2">{t("recurringBasket.emptyTitle")}</h3>
           <p className="text-gray-500 text-sm mb-8 max-w-sm">
-            Add items to your cart, then save them here as a recurring order. We'll deliver them every {config.days.join(' or ')} automatically.
+            {t("recurringBasket.emptyDesc", { days: config.days.join(' or ') })}
           </p>
-          <Link to="/shop" className="btn-primary">Start Shopping</Link>
+          <Link to="/shop" className="btn-primary">{t("recurringBasket.startShopping")}</Link>
         </div>
       )}
 
@@ -204,7 +208,7 @@ export default function RecurringBasketPage() {
                 <div>
                   <h3 className="font-semibold text-charcoal">{basket.name}</h3>
                   <p className="text-xs text-gray-400">
-                    {basket.frequency === 'weekly' ? 'Every week' : 'Every 2 weeks'} ·{' '}
+                    {basket.frequency === 'weekly' ? t("recurringBasket.weekly") : t("recurringBasket.every2Weeks")} ·{' '}
                     <span className="capitalize">{basket.deliveryDay}</span>, {config.time}
                   </p>
                 </div>
@@ -212,7 +216,7 @@ export default function RecurringBasketPage() {
               <span className={`text-xs font-semibold px-3 py-1 rounded-full ${
                 basket.active ? 'bg-jade-100 text-jade-700' : 'bg-amber-100 text-amber-700'
               }`}>
-                {basket.active ? 'Active' : 'Paused'}
+                {basket.active ? t("recurringBasket.active") : t("recurringBasket.paused")}
               </span>
             </div>
 
@@ -221,24 +225,30 @@ export default function RecurringBasketPage() {
               <div className="flex gap-2 flex-wrap mb-3">
                 {basket.items.slice(0, 5).map((item) => (
                   <div key={item.productId} className="flex items-center gap-1.5 bg-cream-50 rounded-xl px-2.5 py-1.5 border border-cream-200">
-                    <img src={item.image} alt={item.name} className="w-6 h-6 rounded-lg object-cover" />
+                    <ProductImage src={item.image} alt={item.name} className="w-6 h-6 rounded-lg object-cover" />
                     <span className="text-xs text-gray-700">{item.name}</span>
                     <span className="text-xs text-gray-400">×{item.quantity}</span>
                   </div>
                 ))}
                 {basket.items.length > 5 && (
                   <div className="flex items-center px-2.5 py-1.5 text-xs text-gray-400">
-                    +{basket.items.length - 5} more
+                    {t("recurringBasket.more", { count: basket.items.length - 5 })}
                   </div>
                 )}
               </div>
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-gray-400">Next delivery</p>
+                  <p className="text-xs text-gray-400">{t("recurringBasket.nextDelivery")}</p>
                   <p className="text-sm font-semibold text-forest-700">{basket.nextDelivery}</p>
                 </div>
                 <p className="font-bold text-forest-800">
-                  RM{basket.items.reduce((sum, i) => sum + i.price * i.quantity, 0).toFixed(2)}
+                  RM{basket.items.reduce((sum, i) => {
+                    const weightBased = i.orderingMode ? (i.orderingMode === 'weight_only' || i.orderingMode === 'whole_or_weight') : i.pricingType === 'per_kg';
+                    if (weightBased) {
+                      return sum + i.price * (i.estimatedWeight ?? 0);
+                    }
+                    return sum + i.price * i.quantity;
+                  }, 0).toFixed(2)}
                 </p>
               </div>
             </div>
@@ -253,19 +263,19 @@ export default function RecurringBasketPage() {
                     : 'bg-jade-50 text-jade-700 hover:bg-jade-100 border border-jade-200'
                 }`}
               >
-                {basket.active ? <><Pause size={13} /> Pause</> : <><Play size={13} /> Resume</>}
+                {basket.active ? <><Pause size={13} /> {t("recurringBasket.pause")}</> : <><Play size={13} /> {t("recurringBasket.resume")}</>}
               </button>
               <button
                 onClick={() => setEditingId(basket.id)}
                 className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl bg-cream-50 text-gray-600 hover:bg-cream-100 border border-cream-200 transition-all"
               >
-                <Edit3 size={13} /> Edit
+                <Edit3 size={13} /> {t("recurringBasket.edit")}
               </button>
               <button
                 onClick={() => removeBasket(basket.id)}
                 className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl bg-red-50 text-red-500 hover:bg-red-100 border border-red-100 transition-all ml-auto"
               >
-                <Trash2 size={13} /> Cancel
+                <Trash2 size={13} /> {t("recurringBasket.cancel")}
               </button>
             </div>
           </div>

@@ -7,10 +7,12 @@ import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { useAuthModal } from '../context/AuthModalContext';
 import { useDeliveryConfig } from '../context/DeliveryConfigContext';
+import { useLanguage } from '../context/LanguageContext';
 import DeliverySlotSelector from '../components/ui/DeliverySlotSelector';
 import type { DeliveryDay } from '../types';
 import { familyCombo, buildComboCartItem } from '../data/combos';
 import { useProducts } from '../hooks/useProducts';
+import ProductImage from '../components/ui/ProductImage';
 import ProductCard from '../components/ui/ProductCard';
 
 const categories = [
@@ -50,32 +52,34 @@ export default function HomePage() {
   const { user } = useAuth();
   const { openSignIn } = useAuthModal();
   const { config } = useDeliveryConfig();
+  const { t } = useLanguage();
   const [comboAdded, setComboAdded] = useState(false);
   const { products, loading, error } = useProducts();
   const popularProducts = products.filter((p) => p.isPopular).slice(0, 4);
 
-  const daysShort = config.days.map((d) => d.slice(0, 3)).join(' & ');
+  const tDays = config.days.map((d) => t("days." + d.toLowerCase())).join(' & ');
+  const daysShort = config.days.map((d) => t("days." + d.toLowerCase()).slice(0, 3)).join(' & ');
 
   const trustIndicators = [
     {
       icon: CheckCircle2,
-      title: 'Prepared Fresh Daily',
-      desc: 'Every item is slaughtered, cleaned, or caught the same morning as your delivery.',
+      title: t("homepage.trust.freshDaily.title"),
+      desc: t("homepage.trust.freshDaily.desc"),
     },
     {
       icon: Snowflake,
-      title: 'Never Frozen',
-      desc: 'We never freeze our products. What you receive is genuinely fresh \u2014 not defrosted.',
+      title: t("homepage.trust.neverFrozen.title"),
+      desc: t("homepage.trust.neverFrozen.desc"),
     },
     {
       icon: Clock,
-      title: 'Scheduled Delivery',
-      desc: `${daysShort}, ${config.time} only. Fixed slots mean we plan every delivery to stay fresh.`,
+      title: t("homepage.trust.scheduledDelivery.title"),
+      desc: t("homepage.trust.scheduledDelivery.desc", { days: daysShort, time: config.time }),
     },
     {
       icon: Shield,
-      title: 'Clean & Safe Handling',
-      desc: 'HACCP-aligned handling, halal-certified suppliers, and temperature-controlled delivery bags.',
+      title: t("homepage.trust.cleanSafe.title"),
+      desc: t("homepage.trust.cleanSafe.desc"),
     },
   ];
 
@@ -104,33 +108,33 @@ export default function HomePage() {
           <div className="max-w-3xl">
             <span className="inline-flex items-center gap-1.5 bg-white/10 border border-white/20 text-jade-300 text-xs font-semibold px-3 py-1.5 rounded-full mb-6">
               <span className="w-1.5 h-1.5 bg-jade-400 rounded-full animate-pulse" />
-              Fresh deliveries this {config.days.join(' & ')}
+              {t("homepage.hero.badge", { days: tDays })}
             </span>
             <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-tight mb-6">
-              Freshly prepared.{' '}
-              <span className="text-jade-400">Straight to your door.</span>
+              {t("homepage.hero.title")}{' '}
+              <span className="text-jade-400">{t("homepage.hero.titleHighlight")}</span>
             </h1>
             <p className="text-forest-200 text-lg sm:text-xl leading-relaxed mb-8 max-w-2xl">
-              Premium fresh proteins — whole chicken, local fish, prawns, and squid — prepared every morning and delivered same day. No freezing. No compromise.
+              {t("homepage.hero.description")}
             </p>
 
             {/* Delivery slot selector */}
             <div className="bg-white/10 backdrop-blur-sm rounded-3xl p-5 border border-white/15 mb-8 max-w-md">
-              <p className="text-white font-semibold mb-3 text-sm">Choose your delivery slot</p>
+              <p className="text-white font-semibold mb-3 text-sm">{t("homepage.hero.chooseSlot")}</p>
               <DeliverySlotSelector selected={selectedDay} onChange={handleDaySelect} />
               {selectedDay && (
                 <p className="text-jade-300 text-xs mt-3 font-medium">
-                  Great! You've selected {selectedDay.charAt(0).toUpperCase() + selectedDay.slice(1)} {config.time} delivery.
+                  {t("homepage.hero.selectedSlot", { day: selectedDay.charAt(0).toUpperCase() + selectedDay.slice(1), time: config.time })}
                 </p>
               )}
             </div>
 
             <div className="flex flex-wrap gap-3">
               <Link to="/shop" className="btn-primary bg-jade-500 hover:bg-jade-600 shadow-none flex items-center gap-2">
-                Shop Now <ArrowRight size={16} />
+                {t("homepage.hero.shopNow")} <ArrowRight size={16} />
               </Link>
               <Link to="/combo" className="bg-white/15 hover:bg-white/25 text-white font-semibold px-6 py-3 rounded-2xl transition-all border border-white/20 flex items-center gap-2">
-                View Family Combo <ChevronRight size={16} />
+                {t("homepage.hero.viewFamilyCombo")} <ChevronRight size={16} />
               </Link>
             </div>
           </div>
@@ -142,11 +146,11 @@ export default function HomePage() {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="flex items-end justify-between mb-8">
           <div>
-            <h2 className="section-title">Shop by Category</h2>
-            <p className="text-gray-500 mt-1">Everything fresh, prepared the same morning.</p>
+            <h2 className="section-title">{t("homepage.categories.title")}</h2>
+            <p className="text-gray-500 mt-1">{t("homepage.categories.subtitle")}</p>
           </div>
           <Link to="/shop" className="hidden sm:flex items-center gap-1 text-forest-700 font-semibold text-sm hover:text-forest-900 transition-colors">
-            View all <ChevronRight size={16} />
+            {t("homepage.categories.viewAll")} <ChevronRight size={16} />
           </Link>
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -156,16 +160,15 @@ export default function HomePage() {
               to={`/shop?category=${cat.id}`}
               className="relative rounded-3xl overflow-hidden aspect-square group shadow-card hover:shadow-card-hover transition-all duration-300 hover:-translate-y-1"
             >
-              <img
+              <ProductImage
                 src={cat.image}
-                alt={cat.label}
+                alt={t("homepage.categories." + cat.id)}
                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                loading="lazy"
               />
               <div className={`absolute inset-0 bg-gradient-to-t ${cat.color} opacity-60 group-hover:opacity-70 transition-opacity`} />
               <div className="absolute inset-0 flex flex-col items-center justify-end p-4 pb-5">
-                <p className="text-white font-display font-bold text-xl sm:text-2xl drop-shadow">{cat.label}</p>
-                <p className="text-white/80 text-xs font-medium mt-0.5">{cat.labelMs}</p>
+                <p className="text-white font-display font-bold text-xl sm:text-2xl drop-shadow">{t("homepage.categories." + cat.id)}</p>
+                <p className="text-white/80 text-xs font-medium mt-0.5">{t("homepage.categories." + cat.id)}</p>
               </div>
             </Link>
           ))}
@@ -180,15 +183,15 @@ export default function HomePage() {
             {/* Text side */}
             <div className="p-8 sm:p-10 lg:p-14 flex flex-col justify-center">
               <span className="inline-flex w-fit items-center gap-1.5 bg-white/10 border border-white/20 text-jade-300 text-xs font-semibold px-3 py-1.5 rounded-full mb-5">
-                <Star size={11} className="fill-jade-300" /> Best Value
+                <Star size={11} className="fill-jade-300" /> {t("homepage.combo.badge")}
               </span>
               <h2 className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold text-white leading-tight mb-3">
-                Family Combo
+                {t("homepage.combo.title")}
               </h2>
               <div className="flex items-baseline gap-2 mb-5">
                 <span className="text-5xl font-bold text-jade-400">RM50</span>
                 <span className="text-forest-300 line-through text-xl">RM83</span>
-                <span className="bg-jade-500/20 text-jade-300 text-sm font-semibold px-2 py-0.5 rounded-lg">Save RM33</span>
+                <span className="bg-jade-500/20 text-jade-300 text-sm font-semibold px-2 py-0.5 rounded-lg">{t("homepage.combo.saveLabel")}</span>
               </div>
               <ul className="space-y-2.5 mb-8">
                 {familyCombo.items.map((item, i) => (
@@ -207,26 +210,26 @@ export default function HomePage() {
                       : 'bg-white text-forest-900 hover:bg-jade-50 shadow-lg'
                   }`}
                 >
-                  {comboAdded ? 'Added to Cart!' : 'Add Combo to Cart'}
+                  {comboAdded ? t("homepage.combo.addedToCart") : t("homepage.combo.addToCart")}
                 </button>
                 <Link
                   to="/combo"
                   className="flex items-center gap-1.5 text-white/80 hover:text-white font-medium text-sm py-3 transition-colors"
                 >
-                  Learn more <ChevronRight size={15} />
+                  {t("homepage.combo.learnMore")} <ChevronRight size={15} />
                 </Link>
               </div>
             </div>
             {/* Image side */}
             <Link to="/combo" className="relative hidden md:block group">
-              <img
+              <ProductImage
                 src={familyCombo.image}
-                alt="Family Combo fresh seafood spread"
+                alt={t("homepage.combo.title")}
                 className="w-full h-full object-cover opacity-80 mix-blend-luminosity group-hover:scale-105 transition-transform duration-500"
               />
               <div className="absolute inset-0 bg-gradient-to-r from-forest-950/50 to-transparent group-hover:from-forest-950/60 transition-all" />
               <div className="absolute bottom-4 right-4 bg-white/20 backdrop-blur-sm text-white text-sm font-semibold px-4 py-2 rounded-2xl flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                Learn more <ChevronRight size={15} />
+                {t("homepage.combo.learnMore")} <ChevronRight size={15} />
               </div>
             </Link>
           </div>
@@ -237,11 +240,11 @@ export default function HomePage() {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
         <div className="flex items-end justify-between mb-8">
           <div>
-            <h2 className="section-title">Popular Items</h2>
-            <p className="text-gray-500 mt-1">Customer favourites, fresh every delivery day.</p>
+            <h2 className="section-title">{t("homepage.popular.title")}</h2>
+            <p className="text-gray-500 mt-1">{t("homepage.popular.subtitle")}</p>
           </div>
           <Link to="/shop" className="hidden sm:flex items-center gap-1 text-forest-700 font-semibold text-sm hover:text-forest-900 transition-colors">
-            View all <ChevronRight size={16} />
+            {t("homepage.popular.viewAll")} <ChevronRight size={16} />
           </Link>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -265,14 +268,14 @@ export default function HomePage() {
               <Repeat2 size={28} className="text-jade-700" />
             </div>
             <div>
-              <h2 className="text-2xl font-display font-bold text-forest-950 mb-1">Set Up a Recurring Basket</h2>
+              <h2 className="text-2xl font-display font-bold text-forest-950 mb-1">{t("homepage.recurring.title")}</h2>
               <p className="text-gray-600 leading-relaxed max-w-lg">
-                Order the same items every week or fortnight. Skip the reordering — we remember your favourites, you just pick them up at the door.
+                {t("homepage.recurring.description")}
               </p>
             </div>
           </div>
           <Link to="/recurring" className="btn-primary flex-shrink-0 flex items-center gap-2 whitespace-nowrap">
-            Get Started <ArrowRight size={16} />
+            {t("homepage.recurring.cta")} <ArrowRight size={16} />
           </Link>
         </div>
       </section>
@@ -281,8 +284,8 @@ export default function HomePage() {
       <section className="bg-forest-950 py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-10">
-            <h2 className="font-display text-3xl font-bold text-white mb-2">Why Rimbun FreshGo?</h2>
-            <p className="text-forest-300">We built this service around one principle: real freshness, no shortcuts.</p>
+            <h2 className="font-display text-3xl font-bold text-white mb-2">{t("homepage.trust.title")}</h2>
+            <p className="text-forest-300">{t("homepage.trust.subtitle")}</p>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {trustIndicators.map(({ icon: Icon, title, desc }) => (

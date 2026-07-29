@@ -6,6 +6,7 @@ import { CartProvider } from './context/CartContext';
 import { OrderProvider } from './context/OrderContext';
 import { BasketProvider } from './context/BasketContext';
 import { DeliveryConfigProvider } from './context/DeliveryConfigContext';
+import { LanguageProvider } from './context/LanguageContext';
 import AnnouncementBar from './components/layout/AnnouncementBar';
 import Header from './components/layout/Header';
 import Footer from './components/layout/Footer';
@@ -87,7 +88,9 @@ export default function App() {
             <CartProvider>
               <OrderProvider>
                 <BasketProvider>
-                  <AppRoutes />
+                  <LanguageProvider>
+                    <AppRoutes />
+                  </LanguageProvider>
                 </BasketProvider>
               </OrderProvider>
             </CartProvider>

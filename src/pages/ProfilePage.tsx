@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useLanguage } from '../context/LanguageContext';
 import { Link, Navigate } from 'react-router-dom';
 import { User, Mail, Lock, LogOut, Eye, EyeOff, CheckCircle2, AlertCircle, Calendar, ShieldCheck, Package, ChevronRight } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -43,6 +44,7 @@ function ProfileContent({
   memberSince: string;
   signOut: () => Promise<void>;
 }) {
+  const { t } = useLanguage();
   // Name form
   const [nameValue, setNameValue] = useState(initialName);
   const [nameStatus, setNameStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
@@ -66,11 +68,11 @@ function ProfileContent({
     e.preventDefault();
     setPwError(null);
     if (pwForm.next !== pwForm.confirm) {
-      setPwError('New passwords do not match.');
+      setPwError(t("profile.errors.passwordMismatch"));
       return;
     }
     if (pwForm.next.length < 8) {
-      setPwError('Password must be at least 8 characters.');
+      setPwError(t("profile.errors.passwordLength"));
       return;
     }
     setPwStatus('saving');
@@ -80,7 +82,7 @@ function ProfileContent({
     });
     if (signInError) {
       setPwStatus('error');
-      setPwError('Current password is incorrect.');
+      setPwError(t("profile.errors.incorrectPassword"));
       return;
     }
     const { error } = await supabase.auth.updateUser({ password: pwForm.next });
@@ -116,18 +118,18 @@ function ProfileContent({
           {/* Details */}
           <div className="flex-1 min-w-0">
             <h1 className="font-display font-bold text-forest-900 text-2xl leading-tight truncate">
-              {initialName || 'My Profile'}
+              {initialName || t("profile.title")}
             </h1>
             <p className="text-gray-500 text-sm mt-0.5 truncate">{email}</p>
 
             <div className="flex flex-wrap gap-3 mt-3">
               <span className="inline-flex items-center gap-1.5 text-xs font-medium text-jade-700 bg-jade-50 border border-jade-100 rounded-full px-3 py-1">
                 <Calendar size={12} />
-                Member since {memberSince}
+                {t("profile.memberSince")} {memberSince}
               </span>
               <span className="inline-flex items-center gap-1.5 text-xs font-medium text-forest-700 bg-forest-50 border border-forest-100 rounded-full px-3 py-1">
                 <ShieldCheck size={12} />
-                Verified account
+                {t("profile.verifiedAccount")}
               </span>
             </div>
           </div>
@@ -138,7 +140,7 @@ function ProfileContent({
             className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-red-600 border border-red-200 hover:bg-red-50 transition-all flex-shrink-0"
           >
             <LogOut size={15} />
-            Log Out
+            {t("profile.logOut")}
           </button>
         </div>
       </div>
@@ -152,8 +154,8 @@ function ProfileContent({
           <Package size={18} className="text-forest-700" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-semibold text-forest-900 text-sm">My Orders</p>
-          <p className="text-xs text-gray-400 mt-0.5">View your order history and track deliveries</p>
+          <p className="font-semibold text-forest-900 text-sm">{t("profile.myOrders")}</p>
+          <p className="text-xs text-gray-400 mt-0.5">{t("profile.myOrdersDesc")}</p>
         </div>
         <ChevronRight size={18} className="text-gray-300 group-hover:text-forest-500 transition-colors flex-shrink-0" />
       </Link>
@@ -162,12 +164,12 @@ function ProfileContent({
       <section className="bg-white rounded-2xl border border-cream-200 shadow-soft p-6 mb-4">
         <div className="flex items-center gap-2 mb-5">
           <User size={17} className="text-forest-600" />
-          <h2 className="font-semibold text-forest-900 text-base">Display Name</h2>
+          <h2 className="font-semibold text-forest-900 text-base">{t("profile.displayName")}</h2>
         </div>
         <form onSubmit={handleNameSave} className="space-y-4">
           <div>
             <label htmlFor="profile-name" className="block text-sm font-medium text-gray-700 mb-1.5">
-              Full Name
+              {t("profile.fullName")}
             </label>
             <input
               id="profile-name"
@@ -175,7 +177,7 @@ function ProfileContent({
               value={nameValue}
               onChange={(e) => { setNameValue(e.target.value); setNameStatus('idle'); }}
               className="input-field"
-              placeholder="e.g. Ahmad Razif"
+              placeholder={t("profile.namePlaceholder")}
               required
             />
           </div>
@@ -185,16 +187,16 @@ function ProfileContent({
               disabled={nameStatus === 'saving' || nameValue.trim() === initialName}
               className="btn-primary py-2 px-5 text-sm disabled:opacity-50"
             >
-              {nameStatus === 'saving' ? 'Saving…' : 'Save Name'}
+              {nameStatus === 'saving' ? t("profile.saving") : t("profile.saveName")}
             </button>
             {nameStatus === 'saved' && (
               <span className="flex items-center gap-1.5 text-sm text-jade-600 font-medium">
-                <CheckCircle2 size={15} /> Saved
+                <CheckCircle2 size={15} /> {t("profile.saved")}
               </span>
             )}
             {nameStatus === 'error' && (
               <span className="flex items-center gap-1.5 text-sm text-red-600">
-                <AlertCircle size={15} /> Could not save
+                <AlertCircle size={15} /> {t("profile.couldNotSave")}
               </span>
             )}
           </div>
@@ -205,7 +207,7 @@ function ProfileContent({
       <section className="bg-white rounded-2xl border border-cream-200 shadow-soft p-6 mb-4">
         <div className="flex items-center gap-2 mb-5">
           <Mail size={17} className="text-forest-600" />
-          <h2 className="font-semibold text-forest-900 text-base">Email Address</h2>
+          <h2 className="font-semibold text-forest-900 text-base">{t("profile.emailAddress")}</h2>
         </div>
         <input
           type="email"
@@ -213,20 +215,20 @@ function ProfileContent({
           readOnly
           className="input-field bg-cream-50 cursor-default text-gray-500"
         />
-        <p className="text-xs text-gray-400 mt-2">Contact support to change your email address.</p>
+        <p className="text-xs text-gray-400 mt-2">{t("profile.emailHelp")}</p>
       </section>
 
       {/* ── Change password ────────────────────────────────────────── */}
       <section className="bg-white rounded-2xl border border-cream-200 shadow-soft p-6 mb-6">
         <div className="flex items-center gap-2 mb-5">
           <Lock size={17} className="text-forest-600" />
-          <h2 className="font-semibold text-forest-900 text-base">Change Password</h2>
+          <h2 className="font-semibold text-forest-900 text-base">{t("profile.changePassword")}</h2>
         </div>
         <form onSubmit={handlePasswordSave} className="space-y-4">
           {([
-            { id: 'pw-current', label: 'Current Password', key: 'current' },
-            { id: 'pw-next',    label: 'New Password',     key: 'next' },
-            { id: 'pw-confirm', label: 'Confirm New Password', key: 'confirm' },
+            { id: 'pw-current', label: t("profile.currentPassword"), key: 'current' },
+            { id: 'pw-next',    label: t("profile.newPassword"),     key: 'next' },
+            { id: 'pw-confirm', label: t("profile.confirmPassword"), key: 'confirm' },
           ] as const).map(({ id, label, key }) => (
             <div key={id}>
               <label htmlFor={id} className="block text-sm font-medium text-gray-700 mb-1.5">
@@ -239,14 +241,14 @@ function ProfileContent({
                   value={pwForm[key]}
                   onChange={(e) => { setPwForm({ ...pwForm, [key]: e.target.value }); setPwStatus('idle'); setPwError(null); }}
                   className="input-field pr-11"
-                  placeholder={key === 'next' ? 'At least 8 characters' : ''}
+                  placeholder={key === 'next' ? t("profile.passwordPlaceholder") : ''}
                   required
                 />
                 <button
                   type="button"
                   onClick={() => setShowPw({ ...showPw, [key]: !showPw[key] })}
                   className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                  aria-label={showPw[key] ? 'Hide' : 'Show'}
+                  aria-label={showPw[key] ? t("profile.hide") : t("profile.show")}
                 >
                   {showPw[key] ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
@@ -266,11 +268,11 @@ function ProfileContent({
               disabled={pwStatus === 'saving'}
               className="btn-primary py-2 px-5 text-sm disabled:opacity-50"
             >
-              {pwStatus === 'saving' ? 'Updating…' : 'Update Password'}
+              {pwStatus === 'saving' ? t("profile.updating") : t("profile.updatePassword")}
             </button>
             {pwStatus === 'saved' && (
               <span className="flex items-center gap-1.5 text-sm text-jade-600 font-medium">
-                <CheckCircle2 size={15} /> Updated
+                <CheckCircle2 size={15} /> {t("profile.updated")}
               </span>
             )}
           </div>
@@ -284,7 +286,7 @@ function ProfileContent({
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-red-600 border border-red-200 hover:bg-red-50 transition-all"
         >
           <LogOut size={16} />
-          Log Out
+          {t("profile.logOut")}
         </button>
       </div>
     </main>

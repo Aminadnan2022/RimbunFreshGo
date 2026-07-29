@@ -1,19 +1,22 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link, Navigate } from 'react-router-dom';
-import { Plus, Search, Pencil, Trash2, X, AlertTriangle, Package, Loader2, Settings, ShoppingBag, Truck, CheckCircle2, AlertCircle, PenLine, ShieldAlert, Clock, Calendar, Users, ClipboardList, ChevronLeft, CreditCard, Phone, Copy, MapPin } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, X, AlertTriangle, Package, Loader2, Settings, ShoppingBag, Truck, CheckCircle2, AlertCircle, PenLine, ShieldAlert, Clock, Calendar, Users, ClipboardList, ChevronLeft, CreditCard, Phone, Copy, MapPin, Save } from 'lucide-react';
 import { getPrepLabel } from '../lib/preparationOptions';
+import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { useProducts } from '../hooks/useProducts';
 import { deleteProduct } from '../data/products';
 import { useDeliveryConfig } from '../context/DeliveryConfigContext';
 import { supabase } from '../lib/supabase';
+import ProductImage from '../components/ui/ProductImage';
 import type { PaymentStatus, ComboExpandedItem } from '../types';
 
 type Tab = 'products' | 'settings' | 'users' | 'orders';
 
 export default function AdminProductsPage() {
+  const { t } = useLanguage();
   const { isAdmin, loading: authLoading } = useAuth();
-  const [activeTab, setActiveTab] = useState<Tab>('products');
+  const [activeTab, setActiveTab] = useState<Tab>('orders');
 
   if (authLoading) {
     return (
@@ -28,11 +31,22 @@ export default function AdminProductsPage() {
   return (
     <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
       <div className="mb-6">
-        <h1 className="font-display font-bold text-forest-900 text-2xl">Admin Dashboard</h1>
-        <p className="text-sm text-gray-500 mt-1">Manage products and site settings</p>
+        <h1 className="font-display font-bold text-forest-900 text-2xl">{t("adminDashboard.title")}</h1>
+        <p className="text-sm text-gray-500 mt-1">{t("adminDashboard.subtitle")}</p>
       </div>
 
       <div className="flex gap-1 border-b border-cream-200 mb-6">
+        <button
+          onClick={() => setActiveTab('orders')}
+          className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 transition-all -mb-px ${
+            activeTab === 'orders'
+              ? 'border-forest-700 text-forest-700'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+          }`}
+        >
+          <ClipboardList size={16} />
+          {t("adminOrders.tabs.orders")}
+        </button>
         <button
           onClick={() => setActiveTab('products')}
           className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 transition-all -mb-px ${
@@ -42,18 +56,7 @@ export default function AdminProductsPage() {
           }`}
         >
           <ShoppingBag size={16} />
-          Products
-        </button>
-        <button
-          onClick={() => setActiveTab('settings')}
-          className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 transition-all -mb-px ${
-            activeTab === 'settings'
-              ? 'border-forest-700 text-forest-700'
-              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-          }`}
-        >
-          <Settings size={16} />
-          Settings
+          {t("adminDashboard.tabs.products")}
         </button>
         <button
           onClick={() => setActiveTab('users')}
@@ -64,18 +67,18 @@ export default function AdminProductsPage() {
           }`}
         >
           <Users size={16} />
-          Users
+          {t("adminDashboard.tabs.users")}
         </button>
         <button
-          onClick={() => setActiveTab('orders')}
+          onClick={() => setActiveTab('settings')}
           className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 transition-all -mb-px ${
-            activeTab === 'orders'
+            activeTab === 'settings'
               ? 'border-forest-700 text-forest-700'
               : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
           }`}
         >
-          <ClipboardList size={16} />
-          Orders
+          <Settings size={16} />
+          {t("adminDashboard.tabs.settings")}
         </button>
       </div>
 
@@ -85,6 +88,7 @@ export default function AdminProductsPage() {
 }
 
 function ProductsTab() {
+  const { t } = useLanguage();
   const { products, loading, error } = useProducts();
   const [search, setSearch] = useState('');
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
@@ -107,7 +111,7 @@ function ProductsTab() {
       setDeletedIds((prev) => new Set(prev).add(deleteTarget.id));
       setDeleteTarget(null);
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Delete failed');
+      alert(err instanceof Error ? err.message : t("adminProducts.messages.deleteFailed"));
     } finally {
       setDeleting(false);
     }
@@ -116,10 +120,10 @@ function ProductsTab() {
   return (
     <>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <p className="text-sm text-gray-500">{filtered.length} products</p>
+        <p className="text-sm text-gray-500">{t("adminProducts.products.count", { count: filtered.length })}</p>
         <Link to="/admin/products/new" className="btn-primary inline-flex items-center gap-2 self-start">
           <Plus size={18} />
-          Add Product
+          {t("adminProducts.buttons.add")}
         </Link>
       </div>
 
@@ -127,7 +131,7 @@ function ProductsTab() {
         <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
         <input
           type="search"
-          placeholder="Search by name, Malay name, or category..."
+          placeholder={t("adminProducts.search.placeholder")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="input-field pl-11"
@@ -143,7 +147,7 @@ function ProductsTab() {
       ) : filtered.length === 0 ? (
         <div className="text-center py-20">
           <Package size={48} className="mx-auto text-gray-300 mb-4" />
-          <p className="text-gray-500">{search ? 'No products match your search.' : 'No products yet.'}</p>
+          <p className="text-gray-500">{search ? t("adminProducts.messages.noSearchResults") : t("adminProducts.messages.noProducts")}</p>
         </div>
       ) : (
         <>
@@ -153,11 +157,11 @@ function ProductsTab() {
                 <thead>
                   <tr className="bg-cream-50 border-b border-cream-200">
                     <th className="text-left px-4 py-3 font-semibold text-gray-700 w-8">#</th>
-                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Product</th>
-                    <th className="text-left px-4 py-3 font-semibold text-gray-700 hidden sm:table-cell">Category</th>
-                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Price</th>
-                    <th className="text-left px-4 py-3 font-semibold text-gray-700 hidden md:table-cell">Status</th>
-                    <th className="text-right px-4 py-3 font-semibold text-gray-700">Actions</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">{t("adminProducts.labels.productName")}</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700 hidden sm:table-cell">{t("adminProducts.labels.category")}</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">{t("adminProducts.labels.price")}</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700 hidden md:table-cell">{t("adminProducts.labels.status")}</th>
+                    <th className="text-right px-4 py-3 font-semibold text-gray-700">{t("adminProducts.labels.actions")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-cream-100">
@@ -166,7 +170,7 @@ function ProductsTab() {
                       <td className="px-4 py-3 text-xs text-gray-400 tabular-nums">{index + 1}</td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
-                          <img src={product.image} alt={product.name} className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
+                          <ProductImage src={product.image} alt={product.name} className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
                           <div className="min-w-0">
                             <p className="font-medium text-gray-900 truncate">{product.name}</p>
                             <p className="text-xs text-gray-400 truncate">{product.nameMs}</p>
@@ -190,10 +194,10 @@ function ProductsTab() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1">
-                          <Link to={`/admin/products/edit/${product.id}`} className="p-2 rounded-lg text-gray-500 hover:text-forest-700 hover:bg-forest-50 transition-all" title="Edit">
+                          <Link to={`/admin/products/edit/${product.id}`} className="p-2 rounded-lg text-gray-500 hover:text-forest-700 hover:bg-forest-50 transition-all" title={t("adminProducts.buttons.edit")}>
                             <Pencil size={16} />
                           </Link>
-                          <button onClick={() => setDeleteTarget({ id: product.id, name: product.name })} className="p-2 rounded-lg text-gray-500 hover:text-red-600 hover:bg-red-50 transition-all" title="Delete">
+                          <button onClick={() => setDeleteTarget({ id: product.id, name: product.name })} className="p-2 rounded-lg text-gray-500 hover:text-red-600 hover:bg-red-50 transition-all" title={t("adminProducts.buttons.delete")}>
                             <Trash2 size={16} />
                           </button>
                         </div>
@@ -207,8 +211,8 @@ function ProductsTab() {
 
           <div className="text-right text-xs text-gray-400 mt-2">
             {search.trim()
-              ? `Showing ${filtered.length} of ${products.length} products`
-              : `Total Products: ${products.length}`}
+              ? t("adminProducts.pagination.showing", { count: filtered.length, total: products.length })
+              : t("adminProducts.pagination.total", { count: products.length })}
           </div>
         </>
       )}
@@ -224,17 +228,15 @@ function ProductsTab() {
               <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
                 <AlertTriangle size={20} className="text-red-600" />
               </div>
-              <h3 className="font-semibold text-gray-900 text-lg">Delete Product</h3>
+              <h3 className="font-semibold text-gray-900 text-lg">{t("adminProducts.delete.title")}</h3>
             </div>
-            <p className="text-sm text-gray-600 mb-6">
-              Are you sure you want to delete <strong>{deleteTarget.name}</strong>? This action cannot be undone.
-            </p>
+            <p className="text-sm text-gray-600 mb-6">{t("adminProducts.delete.confirm", { name: deleteTarget.name })}</p>
             <div className="flex gap-3 justify-end">
               <button onClick={() => setDeleteTarget(null)} disabled={deleting} className="px-4 py-2 rounded-xl text-sm font-medium text-gray-700 border border-gray-200 hover:bg-gray-50 transition-all">
-                Cancel
+                {t("adminProducts.buttons.cancel")}
               </button>
               <button onClick={handleDelete} disabled={deleting} className="px-4 py-2 rounded-xl text-sm font-semibold text-white bg-red-600 hover:bg-red-700 transition-all disabled:opacity-50">
-                {deleting ? 'Deleting...' : 'Delete'}
+                {deleting ? t("adminProducts.messages.deleting") : t("adminProducts.buttons.delete")}
               </button>
             </div>
           </div>
@@ -245,6 +247,7 @@ function ProductsTab() {
 }
 
 function SettingsTab() {
+  const { t } = useLanguage();
   const { config, loading, updateConfig } = useDeliveryConfig();
   const [editing, setEditing] = useState(false);
   const [showWarning, setShowWarning] = useState(false);
@@ -298,17 +301,17 @@ function SettingsTab() {
   const handleSave = async () => {
     if (draftDays.length === 0) {
       setStatus('error');
-      setErrorMsg('Add at least one delivery day.');
+      setErrorMsg(t("adminSettings.errors.noDay"));
       return;
     }
     if (!draftTime.trim()) {
       setStatus('error');
-      setErrorMsg('Enter a delivery time window.');
+      setErrorMsg(t("adminSettings.errors.noTime"));
       return;
     }
     if (!draftAnnouncement.trim()) {
       setStatus('error');
-      setErrorMsg('Announcement message cannot be empty.');
+      setErrorMsg(t("adminSettings.errors.noAnnouncement"));
       return;
     }
     setSaving(true);
@@ -324,7 +327,7 @@ function SettingsTab() {
       setTimeout(() => setStatus('idle'), 4000);
     } catch (err) {
       setStatus('error');
-      setErrorMsg(err instanceof Error ? err.message : 'Failed to save settings.');
+      setErrorMsg(err instanceof Error ? err.message : t("adminSettings.errors.saveFailed"));
     } finally {
       setSaving(false);
     }
@@ -351,7 +354,7 @@ function SettingsTab() {
   const handleSaveLocations = async () => {
     if (draftLocations.length === 0) {
       setLocStatus('error');
-      setLocError('Add at least one pickup location.');
+      setLocError(t("adminSettings.errors.noLocation"));
       return;
     }
     setSavingLocations(true);
@@ -363,7 +366,7 @@ function SettingsTab() {
       setTimeout(() => setLocStatus('idle'), 4000);
     } catch (err) {
       setLocStatus('error');
-      setLocError(err instanceof Error ? err.message : 'Failed to save locations.');
+      setLocError(err instanceof Error ? err.message : t("adminSettings.errors.saveLocationsFailed"));
     } finally {
       setSavingLocations(false);
     }
@@ -390,8 +393,8 @@ function SettingsTab() {
             <Truck size={20} className="text-forest-700" />
           </div>
           <div>
-            <h2 className="font-semibold text-forest-900 text-base">Delivery Settings</h2>
-            <p className="text-xs text-gray-500 mt-0.5">These settings affect the entire site -- announcement bar, product pages, checkout, and footer</p>
+            <h2 className="font-semibold text-forest-900 text-base">{t("adminSettings.sections.delivery")}</h2>
+            <p className="text-xs text-gray-500 mt-0.5">{t("adminSettings.delivery.description")}</p>
           </div>
         </div>
 
@@ -402,21 +405,21 @@ function SettingsTab() {
               <div className="bg-cream-50 rounded-xl p-4 border border-cream-200">
                 <div className="flex items-center gap-2 mb-1.5">
                   <Calendar size={14} className="text-forest-600" />
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Delivery Days</p>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("adminSettings.sections.deliveryDays")}</p>
                 </div>
                 <p className="text-sm font-semibold text-gray-900">{daysText}</p>
               </div>
               <div className="bg-cream-50 rounded-xl p-4 border border-cream-200">
                 <div className="flex items-center gap-2 mb-1.5">
                   <Clock size={14} className="text-forest-600" />
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Time Window</p>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("adminSettings.sections.deliveryWindow")}</p>
                 </div>
                 <p className="text-sm font-semibold text-gray-900">{config.time}</p>
               </div>
             </div>
 
             <div>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Announcement Bar Preview</p>
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t("adminSettings.labels.announcementPreview")}</p>
               <div className="gradient-forest text-white py-2.5 px-4 rounded-xl text-center text-sm font-medium">
                 <div className="flex items-center justify-center gap-2">
                   <Truck size={15} className="opacity-90 flex-shrink-0" />
@@ -434,7 +437,7 @@ function SettingsTab() {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <Calendar size={14} className="inline mr-1.5 -mt-0.5" />
-                Delivery Days
+                {t("adminSettings.sections.deliveryDays")}
               </label>
               <div className="flex flex-wrap gap-2 mb-3">
                 {draftDays.map((day) => (
@@ -446,7 +449,7 @@ function SettingsTab() {
                   </span>
                 ))}
                 {draftDays.length === 0 && (
-                  <span className="text-sm text-gray-400 italic">No days added yet</span>
+                  <span className="text-sm text-gray-400 italic">{t("adminSettings.messages.noDays")}</span>
                 )}
               </div>
               <div className="flex gap-2">
@@ -455,7 +458,7 @@ function SettingsTab() {
                   value={customDay}
                   onChange={(e) => setCustomDay(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustomDay(); } }}
-                  placeholder="Type a day name (e.g. Monday, 1st Saturday)..."
+                  placeholder={t("adminSettings.delivery.dayPlaceholder")}
                   className="input-field flex-1"
                 />
                 <button
@@ -464,34 +467,34 @@ function SettingsTab() {
                   disabled={!customDay.trim()}
                   className="px-4 py-2 rounded-xl text-sm font-semibold bg-forest-700 text-white hover:bg-forest-800 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  Add
+                  {t("adminSettings.buttons.add")}
                 </button>
               </div>
-              <p className="text-xs text-gray-400 mt-1.5">Add any custom day names. These will appear as delivery slot options across the site.</p>
+              <p className="text-xs text-gray-400 mt-1.5">{t("adminSettings.delivery.dayHelper")}</p>
             </div>
 
             {/* Delivery Time */}
             <div>
               <label htmlFor="delivery_time" className="block text-sm font-medium text-gray-700 mb-2">
                 <Clock size={14} className="inline mr-1.5 -mt-0.5" />
-                Delivery Time Window
+                {t("adminSettings.sections.deliveryWindow")}
               </label>
               <input
                 id="delivery_time"
                 type="text"
                 value={draftTime}
                 onChange={(e) => setDraftTime(e.target.value)}
-                placeholder="e.g. 6:30-8:00 PM"
+                placeholder={t("adminSettings.delivery.timePlaceholder")}
                 className="input-field max-w-xs"
               />
-              <p className="text-xs text-gray-400 mt-1.5">Shown on delivery slots, checkout, and product pages.</p>
+              <p className="text-xs text-gray-400 mt-1.5">{t("adminSettings.delivery.timeHelper")}</p>
             </div>
 
             {/* Announcement Message */}
             <div>
               <label htmlFor="announcement_msg" className="block text-sm font-medium text-gray-700 mb-2">
                 <Truck size={14} className="inline mr-1.5 -mt-0.5" />
-                Announcement Bar Message
+                {t("adminSettings.labels.announcement")}
               </label>
               <textarea
                 id="announcement_msg"
@@ -499,15 +502,15 @@ function SettingsTab() {
                 onChange={(e) => setDraftAnnouncement(e.target.value)}
                 rows={3}
                 className="input-field resize-none"
-                placeholder="e.g. We deliver to your door every Tuesday & Saturday, 9:00 AM - 12:00 PM"
+                placeholder={t("adminSettings.delivery.announcementPlaceholder")}
               />
-              <p className="text-xs text-gray-400 mt-1.5">Full custom message shown in the green bar at the top of every page.</p>
+              <p className="text-xs text-gray-400 mt-1.5">{t("adminSettings.delivery.announcementHelper")}</p>
             </div>
 
             {/* Preview */}
             {draftAnnouncement.trim() && (
               <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Live Preview</p>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t("adminSettings.labels.livePreview")}</p>
                 <div className="gradient-forest text-white py-2.5 px-4 rounded-xl text-center text-sm font-medium">
                   <div className="flex items-center justify-center gap-2">
                     <Truck size={15} className="opacity-90 flex-shrink-0" />
@@ -524,7 +527,7 @@ function SettingsTab() {
                 disabled={saving}
                 className="px-4 py-2 rounded-xl text-sm font-medium text-gray-700 border border-gray-200 hover:bg-gray-50 transition-all"
               >
-                Cancel
+                {t("adminSettings.buttons.cancel")}
               </button>
               <button
                 type="button"
@@ -533,7 +536,7 @@ function SettingsTab() {
                 className="btn-primary inline-flex items-center gap-2 disabled:opacity-50"
               >
                 {saving ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
-                {saving ? 'Saving...' : 'Save All Settings'}
+                {saving ? t("adminSettings.messages.saving") : t("adminSettings.buttons.save")}
               </button>
             </div>
           </div>
@@ -544,7 +547,7 @@ function SettingsTab() {
             className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-forest-700 border-2 border-forest-200 bg-forest-50 hover:bg-forest-100 transition-all"
           >
             <PenLine size={16} />
-            Edit Settings
+            {t("adminSettings.buttons.edit")}
           </button>
         )}
       </section>
@@ -552,7 +555,7 @@ function SettingsTab() {
       {/* Status messages */}
       {status === 'success' && (
         <div className="flex items-center gap-2 p-4 bg-green-50 border border-green-200 rounded-xl text-green-700 text-sm font-medium animate-[fadeSlideUp_0.2s_ease-out]">
-          <CheckCircle2 size={18} /> Settings updated successfully! Changes are now live across the site.
+          <CheckCircle2 size={18} /> {t("adminSettings.messages.saved")}
         </div>
       )}
       {status === 'error' && (
@@ -573,26 +576,26 @@ function SettingsTab() {
               <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center flex-shrink-0">
                 <ShieldAlert size={20} className="text-amber-600" />
               </div>
-              <h3 className="font-semibold text-gray-900 text-lg">Edit Live Settings</h3>
+              <h3 className="font-semibold text-gray-900 text-lg">{t("adminSettings.confirmation.editTitle")}</h3>
             </div>
             <p className="text-sm text-gray-600 mb-2">
-              Changes you save here will <strong>immediately update</strong> the delivery schedule and announcement shown across the entire site.
+              {t("adminSettings.confirmation.editBody")}
             </p>
             <p className="text-sm text-gray-500 mb-6">
-              This affects the announcement bar, product pages, checkout flow, footer, and delivery slot options.
+              {t("adminSettings.confirmation.editScope")}
             </p>
             <div className="flex gap-3 justify-end">
               <button
                 onClick={() => setShowWarning(false)}
                 className="px-4 py-2 rounded-xl text-sm font-medium text-gray-700 border border-gray-200 hover:bg-gray-50 transition-all"
               >
-                Keep Current
+                {t("adminSettings.buttons.discard")}
               </button>
               <button
                 onClick={handleConfirmEdit}
                 className="px-4 py-2 rounded-xl text-sm font-semibold text-white bg-forest-700 hover:bg-forest-800 transition-all"
               >
-                Continue Editing
+                {t("adminSettings.buttons.confirm")}
               </button>
             </div>
           </div>
@@ -606,8 +609,8 @@ function SettingsTab() {
             <MapPin size={20} className="text-forest-700" />
           </div>
           <div>
-            <h2 className="font-semibold text-forest-900 text-base">Pickup Locations</h2>
-            <p className="text-xs text-gray-500 mt-0.5">Manage the delivery drop-off points shown to customers during checkout</p>
+            <h2 className="font-semibold text-forest-900 text-base">{t("adminSettings.sections.pickupLocations")}</h2>
+            <p className="text-xs text-gray-500 mt-0.5">{t("adminSettings.pickup.description")}</p>
           </div>
         </div>
 
@@ -621,7 +624,7 @@ function SettingsTab() {
                 </li>
               ))}
               {config.pickupLocations.length === 0 && (
-                <li className="text-sm text-gray-400 italic">No pickup locations configured.</li>
+                <li className="text-sm text-gray-400 italic">{t("adminSettings.messages.noPickupLocations")}</li>
               )}
             </ul>
             <button
@@ -630,7 +633,7 @@ function SettingsTab() {
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-forest-700 border-2 border-forest-200 bg-forest-50 hover:bg-forest-100 transition-all"
             >
               <PenLine size={16} />
-              Edit Locations
+              {t("adminSettings.buttons.edit")}
             </button>
           </>
         ) : (
@@ -649,7 +652,7 @@ function SettingsTab() {
                 </div>
               ))}
               {draftLocations.length === 0 && (
-                <p className="text-sm text-gray-400 italic">No locations added yet.</p>
+                <p className="text-sm text-gray-400 italic">{t("adminSettings.messages.noLocationsAdded")}</p>
               )}
             </div>
             <div className="flex gap-2">
@@ -658,7 +661,7 @@ function SettingsTab() {
                 value={newLocation}
                 onChange={(e) => setNewLocation(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addLocation(); } }}
-                placeholder="e.g. Delivery to Lobby A Rimbun"
+                placeholder={t("adminSettings.pickup.placeholder")}
                 className="input-field flex-1"
               />
               <button
@@ -667,7 +670,7 @@ function SettingsTab() {
                 disabled={!newLocation.trim()}
                 className="px-4 py-2 rounded-xl text-sm font-semibold bg-forest-700 text-white hover:bg-forest-800 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                Add
+                {t("adminSettings.buttons.add")}
               </button>
             </div>
             <div className="flex gap-3 justify-end pt-1">
@@ -677,7 +680,7 @@ function SettingsTab() {
                 disabled={savingLocations}
                 className="px-4 py-2 rounded-xl text-sm font-medium text-gray-700 border border-gray-200 hover:bg-gray-50 transition-all"
               >
-                Cancel
+                {t("adminSettings.buttons.cancel")}
               </button>
               <button
                 type="button"
@@ -686,7 +689,7 @@ function SettingsTab() {
                 className="btn-primary inline-flex items-center gap-2 disabled:opacity-50"
               >
                 {savingLocations ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
-                {savingLocations ? 'Saving...' : 'Save Locations'}
+                {savingLocations ? t("adminSettings.messages.saving") : t("adminSettings.buttons.save")}
               </button>
             </div>
             {locStatus === 'error' && (
@@ -699,7 +702,7 @@ function SettingsTab() {
 
         {locStatus === 'success' && (
           <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-xl text-green-700 text-sm mt-3 animate-[fadeSlideUp_0.2s_ease-out]">
-            <CheckCircle2 size={16} /> Pickup locations updated successfully.
+            <CheckCircle2 size={16} /> {t("adminSettings.messages.saved")}
           </div>
         )}
       </section>
@@ -721,6 +724,7 @@ const roleBadgeClass: Record<UserRoleValue, string> = {
 };
 
 function UsersTab() {
+  const { t } = useLanguage();
   const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<UserRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -769,7 +773,7 @@ function UsersTab() {
 
       setUsers(merged);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load users');
+      setError(err instanceof Error ? err.message : t("adminUsers.messages.failedLoad"));
     } finally {
       setLoading(false);
     }
@@ -807,7 +811,7 @@ function UsersTab() {
       // Optimistic update — re-fetch to confirm
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update role');
+      setError(err instanceof Error ? err.message : t("adminUsers.messages.failedUpdate"));
       setMutating(null);
     }
   };
@@ -834,9 +838,9 @@ function UsersTab() {
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-cream-50 border-b border-cream-200">
-              <th className="text-left px-4 py-3 font-semibold text-gray-700">Email</th>
-              <th className="text-left px-4 py-3 font-semibold text-gray-700">Role</th>
-              <th className="text-right px-4 py-3 font-semibold text-gray-700">Actions</th>
+              <th className="text-left px-4 py-3 font-semibold text-gray-700">{t("adminUsers.labels.email")}</th>
+              <th className="text-left px-4 py-3 font-semibold text-gray-700">{t("adminUsers.labels.role")}</th>
+              <th className="text-right px-4 py-3 font-semibold text-gray-700">{t("adminUsers.labels.actions")}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-cream-100">
@@ -847,17 +851,17 @@ function UsersTab() {
               const actions: { label: string; to: UserRoleValue; danger?: boolean }[] =
                 u.role === 'customer'
                   ? [
-                      { label: 'Promote to Supplier', to: 'supplier' },
-                      { label: 'Promote to Admin',    to: 'admin' },
+                      { label: t("adminUsers.buttons.promoteToSupplier"), to: 'supplier' },
+                      { label: t("adminUsers.buttons.promoteToAdmin"),    to: 'admin' },
                     ]
                   : u.role === 'supplier'
                   ? [
-                      { label: 'Make Customer',    to: 'customer', danger: true },
-                      { label: 'Promote to Admin', to: 'admin' },
+                      { label: t("adminUsers.buttons.makeCustomer"),    to: 'customer', danger: true },
+                      { label: t("adminUsers.buttons.promoteToAdmin"), to: 'admin' },
                     ]
                   : [
-                      { label: 'Make Supplier', to: 'supplier' },
-                      { label: 'Make Customer', to: 'customer', danger: true },
+                      { label: t("adminUsers.buttons.makeSupplier"), to: 'supplier' },
+                      { label: t("adminUsers.buttons.makeCustomer"), to: 'customer', danger: true },
                     ];
 
               return (
@@ -865,7 +869,7 @@ function UsersTab() {
                   <td className="px-4 py-3 font-medium text-gray-900">
                     {u.email}
                     {isSelf && (
-                      <span className="ml-2 text-xs text-gray-400 font-normal">(you)</span>
+                      <span className="ml-2 text-xs text-gray-400 font-normal">{t("adminUsers.labels.you")}</span>
                     )}
                   </td>
                   <td className="px-4 py-3">
@@ -882,7 +886,7 @@ function UsersTab() {
                           key={action.to}
                           onClick={() => changeRole(u, action.to)}
                           disabled={isSelf}
-                          title={isSelf ? 'Cannot change your own role' : undefined}
+                          title={isSelf ? t("adminUsers.messages.cannotChangeOwnRole") : undefined}
                           className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all disabled:opacity-30 disabled:cursor-not-allowed ${
                             action.danger
                               ? 'text-red-600 border border-red-200 hover:bg-red-50'
@@ -917,6 +921,7 @@ interface AdminOrder {
   houseUnit: string;
   pickupLocation: string;
   deliveryDate: string;
+  deliverySlot: string;
   deliveryWindow: string;
   deliveryNotes: string;
   createdAt: string;
@@ -924,6 +929,7 @@ interface AdminOrder {
   paymentStatus: PaymentStatus;
   paidAt: string | null;
   orderStatus: string;
+  orderSummary: any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   orderItems: any[];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -932,11 +938,50 @@ interface AdminOrder {
   subtotal: number;
 }
 
-const PAYMENT_FILTERS: { label: string; value: PaymentStatus | 'all' }[] = [
-  { label: 'All',           value: 'all' },
-  { label: 'Pending',       value: 'Pending' },
-  { label: 'Ready To Pay',  value: 'Ready To Pay' },
-  { label: 'Paid',          value: 'Paid' },
+// Local date formatter (avoids timezone shift)
+function formatLocalDate(date: Date) {
+  const yyyy = date.getFullYear();
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const dd = String(date.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
+// Display formatter for delivery date (e.g., "Monday • 3 Aug 2026")
+function formatDeliveryDate(dateStr: string): string {
+  if (!dateStr || dateStr === '—') return '—';
+
+  // Try ISO format first: YYYY-MM-DD
+  const isoMatch = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (isoMatch) {
+    const yyyy = Number(isoMatch[1]);
+    const mm = Number(isoMatch[2]) - 1;
+    const dd = Number(isoMatch[3]);
+    if (yyyy > 1900 && mm >= 0 && mm <= 11 && dd >= 1 && dd <= 31) {
+      const date = new Date(yyyy, mm, dd);
+      if (!isNaN(date.getTime())) {
+        const dayName = date.toLocaleDateString('en-MY', { weekday: 'long' });
+        const formatted = date.toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' });
+        return `${dayName} • ${formatted}`;
+      }
+    }
+  }
+
+  // Try parsing human-readable format directly
+  const date = new Date(dateStr);
+  if (!isNaN(date.getTime())) {
+    const dayName = date.toLocaleDateString('en-MY', { weekday: 'long' });
+    const formatted = date.toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' });
+    return `${dayName} • ${formatted}`;
+  }
+
+  return '—';
+}
+
+const PAYMENT_FILTERS = (t: (key: string) => string): { label: string; value: PaymentStatus | 'all' }[] => [
+  { label: t("adminOrders.filters.all"),           value: 'all' },
+  { label: t("adminOrders.filters.pending"),       value: 'Pending' },
+  { label: t("adminOrders.filters.readyToPay"),    value: 'Ready To Pay' },
+  { label: t("adminOrders.filters.paid"),          value: 'Paid' },
 ];
 
 function AdminPaymentBadge({ status }: { status: PaymentStatus }) {
@@ -952,15 +997,16 @@ function AdminPaymentBadge({ status }: { status: PaymentStatus }) {
   );
 }
 
-const ORDER_STATUS_BADGE: Record<string, { label: string; className: string }> = {
-  'confirmed':        { label: 'Confirmed',       className: 'bg-jade-100 text-jade-700' },
-  'preparing':        { label: 'Being Prepared',   className: 'bg-blue-100 text-blue-700' },
-  'out-for-delivery': { label: 'Out for Delivery', className: 'bg-amber-100 text-amber-700' },
-  'delivered':        { label: 'Delivered',        className: 'bg-forest-100 text-forest-700' },
-};
+const ORDER_STATUS_BADGE = (t: (key: string) => string): Record<string, { label: string; className: string }> => ({
+  'confirmed':        { label: t("adminOrders.orderStatus.confirmed"),       className: 'bg-jade-100 text-jade-700' },
+  'preparing':        { label: t("adminOrders.orderStatus.preparing"),        className: 'bg-blue-100 text-blue-700' },
+  'out-for-delivery': { label: t("adminOrders.orderStatus.outForDelivery"),   className: 'bg-amber-100 text-amber-700' },
+  'delivered':        { label: t("adminOrders.orderStatus.delivered"),        className: 'bg-forest-100 text-forest-700' },
+});
 
-function AdminOrderStatusBadge({ status }: { status: string }) {
-  const cfg = ORDER_STATUS_BADGE[status] ?? ORDER_STATUS_BADGE['confirmed'];
+function AdminOrderStatusBadge({ status, t }: { status: string; t: (key: string) => string }) {
+  const badgeMap = ORDER_STATUS_BADGE(t);
+  const cfg = badgeMap[status] ?? badgeMap['confirmed'];
   return (
     <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-medium ${cfg.className}`}>
       {cfg.label}
@@ -1011,11 +1057,36 @@ function buildPaymentMessage(order: AdminOrder): string {
 }
 
 function OrdersTab() {
-  const [orders, setOrders] = useState<AdminOrder[]>([]);
+  const { t } = useLanguage();
+const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<PaymentStatus | 'all'>('all');
   const [selected, setSelected] = useState<AdminOrder | null>(null);
+  const [editSelected, setEditSelected] = useState<AdminOrder | null>(null);
+  const [deleteSelected, setDeleteSelected] = useState<AdminOrder | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const handleDelete = async () => {
+    if (!deleteSelected) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      const { error: deleteErr } = await supabase
+        .from('Orders')
+        .delete()
+        .eq('id', deleteSelected.dbId);
+      if (deleteErr) throw deleteErr;
+      setOrders((prev) => prev.filter((o) => o.dbId !== deleteSelected.dbId));
+      setDeleteSelected(null);
+      alert(t("adminOrders.messages.deleted"));
+    } catch (err) {
+      setDeleteError(err instanceof Error ? err.message : t("adminOrders.messages.failedDelete"));
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1023,7 +1094,7 @@ function OrdersTab() {
     try {
       const { data, error: fetchErr } = await supabase
         .from('Orders')
-        .select('id, full_name, phone_number, apartment, house_unit, pickup_location, order_notes, order_summary, order_items, supplier_weights, subtotal, delivery_fee, total, payment_status, paid_at, created_at')
+        .select('id, full_name, phone_number, apartment, house_unit, pickup_location, order_notes, order_summary, order_items, supplier_weights, subtotal, delivery_fee, total, payment_status, paid_at, created_at, delivery_slot')
         .order('created_at', { ascending: false });
       if (fetchErr) throw fetchErr;
 
@@ -1040,6 +1111,7 @@ function OrdersTab() {
           houseUnit: r.house_unit ?? '',
           pickupLocation: r.pickup_location ?? '',
           deliveryDate: summary.deliveryDate ?? '—',
+          deliverySlot: r.delivery_slot ?? '',
           deliveryWindow: summary.deliveryWindow ?? '',
           deliveryNotes: r.order_notes ?? '',
           createdAt: r.created_at,
@@ -1047,6 +1119,7 @@ function OrdersTab() {
           paymentStatus: (r.payment_status as PaymentStatus) ?? 'Pending',
           paidAt: r.paid_at ?? null,
           orderStatus: summary.status ?? 'confirmed',
+          orderSummary: summary,
           orderItems: r.order_items ?? [],
           supplierWeights: (r.supplier_weights as Record<string, number>) ?? {},
           deliveryFee: Number(r.delivery_fee),
@@ -1056,7 +1129,7 @@ function OrdersTab() {
 
       setOrders(mapped);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load orders');
+      setError(err instanceof Error ? err.message : t("adminOrders.messages.failedLoad"));
     } finally {
       setLoading(false);
     }
@@ -1065,6 +1138,13 @@ function OrdersTab() {
   useEffect(() => { load(); }, [load]);
 
   const filtered = filter === 'all' ? orders : orders.filter((o) => o.paymentStatus === filter);
+
+  const filterCounts = useMemo(() => ({
+    'all': orders.length,
+    'Pending': orders.filter((o) => o.paymentStatus === 'Pending').length,
+    'Ready To Pay': orders.filter((o) => o.paymentStatus === 'Ready To Pay').length,
+    'Paid': orders.filter((o) => o.paymentStatus === 'Paid').length,
+  }), [orders]);
 
   if (selected) {
     return (
@@ -1076,23 +1156,44 @@ function OrdersTab() {
     );
   }
 
+  if (editSelected) {
+    return (
+      <EditOrderModal
+        order={editSelected}
+        onClose={() => setEditSelected(null)}
+        onSaved={load}
+      />
+    );
+  }
+
   return (
     <>
       {/* Filter pills */}
       <div className="flex flex-wrap gap-2 mb-5">
-        {PAYMENT_FILTERS.map((f) => (
-          <button
-            key={f.value}
-            onClick={() => setFilter(f.value)}
-            className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${
-              filter === f.value
-                ? 'bg-forest-700 text-white'
-                : 'bg-cream-100 text-gray-600 hover:bg-cream-200'
-            }`}
-          >
-            {f.label}
-          </button>
-        ))}
+        {PAYMENT_FILTERS(t).map((f) => {
+          const badgeColors: Record<string, string> = {
+            'all': 'bg-gray-100 text-gray-700',
+            'Pending': 'bg-red-100 text-red-700',
+            'Ready To Pay': 'bg-orange-100 text-orange-700',
+            'Paid': 'bg-green-100 text-green-700',
+          };
+          return (
+            <button
+              key={f.value}
+              onClick={() => setFilter(f.value)}
+              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all flex items-center gap-1.5 ${
+                filter === f.value
+                  ? 'bg-forest-700 text-white'
+                  : 'bg-cream-100 text-gray-600 hover:bg-cream-200'
+              }`}
+            >
+              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${badgeColors[f.value]}`}>
+                {filterCounts[f.value]}
+              </span>
+              {f.label}
+            </button>
+          );
+        })}
       </div>
 
       {loading ? (
@@ -1106,7 +1207,7 @@ function OrdersTab() {
       ) : filtered.length === 0 ? (
         <div className="text-center py-20">
           <ClipboardList size={48} className="mx-auto text-gray-300 mb-4" />
-          <p className="text-gray-500">{filter === 'all' ? 'No orders yet.' : `No orders with status "${filter}".`}</p>
+          <p className="text-gray-500">{filter === 'all' ? t("adminOrders.messages.noOrders") : t("adminOrders.messages.noOrdersFilter", { filter })}</p>
         </div>
       ) : (
         <>
@@ -1116,14 +1217,14 @@ function OrdersTab() {
                 <thead>
                   <tr className="bg-cream-50 border-b border-cream-200">
                     <th className="text-left px-4 py-3 font-semibold text-gray-700 w-8">#</th>
-                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Order Ref</th>
-                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Customer</th>
-                    <th className="text-left px-4 py-3 font-semibold text-gray-700 hidden sm:table-cell">Created</th>
-                    <th className="text-left px-4 py-3 font-semibold text-gray-700 hidden sm:table-cell">Delivery</th>
-                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Total</th>
-                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Order Status</th>
-                    <th className="text-left px-4 py-3 font-semibold text-gray-700">Payment Status</th>
-                    <th className="text-right px-4 py-3 font-semibold text-gray-700">Action</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">{t("adminOrders.labels.orderRef")}</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">{t("adminOrders.labels.customer")}</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700 hidden sm:table-cell">{t("adminOrders.labels.createdAt")}</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700 hidden sm:table-cell">{t("adminOrders.labels.deliveryDate")}</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">{t("adminOrders.labels.total")}</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">{t("adminOrders.labels.orderStatus")}</th>
+                    <th className="text-left px-4 py-3 font-semibold text-gray-700">{t("adminOrders.labels.paymentStatus")}</th>
+                    <th className="text-right px-4 py-3 font-semibold text-gray-700">{t("adminOrders.labels.actions")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-cream-100">
@@ -1135,17 +1236,33 @@ function OrdersTab() {
                       <td className="px-4 py-3 text-gray-600 hidden sm:table-cell whitespace-nowrap">
                         {new Date(order.createdAt).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
                       </td>
-                      <td className="px-4 py-3 text-gray-600 hidden sm:table-cell whitespace-nowrap">{order.deliveryDate || '—'}</td>
+                      <td className="px-4 py-3 text-gray-600 hidden sm:table-cell whitespace-nowrap">{formatDeliveryDate(order.deliveryDate)}</td>
                       <td className="px-4 py-3 font-semibold text-gray-900">RM{order.total.toFixed(2)}</td>
-                      <td className="px-4 py-3"><AdminOrderStatusBadge status={order.orderStatus} /></td>
+                      <td className="px-4 py-3"><AdminOrderStatusBadge status={order.orderStatus} t={t} /></td>
                       <td className="px-4 py-3"><AdminPaymentBadge status={order.paymentStatus} /></td>
                       <td className="px-4 py-3 text-right">
-                        <button
-                          onClick={() => setSelected(order)}
-                          className="px-3 py-1.5 rounded-lg text-xs font-semibold text-forest-700 border border-forest-200 hover:bg-forest-50 transition-all"
-                        >
-                          View
-                        </button>
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => setEditSelected(order)}
+                            className="p-1.5 rounded-lg text-forest-700 border border-forest-200 hover:bg-forest-50 transition-all"
+                            title={t("adminOrders.buttons.edit")}
+                          >
+                            <Pencil size={14} />
+                          </button>
+                          <button
+                            onClick={() => setSelected(order)}
+                            className="px-3 py-1.5 rounded-lg text-xs font-semibold text-forest-700 border border-forest-200 hover:bg-forest-50 transition-all"
+                          >
+                            {t("adminOrders.buttons.view")}
+                          </button>
+                          <button
+                            onClick={() => setDeleteSelected(order)}
+                            className="p-1.5 rounded-lg text-red-600 border border-red-200 hover:bg-red-50 transition-all"
+                            title={t("adminOrders.buttons.delete")}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -1155,14 +1272,45 @@ function OrdersTab() {
           </div>
 
           <div className="text-right text-xs text-gray-400 mt-2">
-            Showing {filtered.length} of {orders.length} orders
-          </div>
+            {t("adminOrders.pagination.showing", { count: filtered.length, total: orders.length })}
+</div>
         </>
+      )}
+
+      {deleteSelected && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+            <div className="p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">{t("adminOrders.modal.deleteTitle")}</h3>
+              <div className="space-y-3 text-sm text-gray-600 mb-6">
+                <p dangerouslySetInnerHTML={{ __html: t("adminOrders.modal.deleteBody", { ref: deleteSelected.orderRef, customer: deleteSelected.customerName, total: `RM${deleteSelected.total.toFixed(2)}` }) }} />
+                <p className="text-red-600 font-medium">{t("adminOrders.messages.cannotUndo")}</p>
+              </div>
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setDeleteSelected(null)}
+                  className="px-4 py-2 rounded-lg text-gray-700 border border-gray-300 hover:bg-gray-50 transition-all"
+                >
+                  {t("adminOrders.buttons.cancel")}
+                </button>
+                <button
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="px-4 py-2 rounded-lg text-white bg-red-600 hover:bg-red-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {deleting ? t("adminOrders.messages.deleting") : t("adminOrders.buttons.delete")}
+                </button>
+              </div>
+              {deleteError && (
+                <p className="mt-4 text-sm text-red-600">{deleteError}</p>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </>
   );
 }
-
 function AdminOrderDetailView({
   order,
   onBack,
@@ -1172,6 +1320,7 @@ function AdminOrderDetailView({
   onBack: () => void;
   onUpdated: () => void;
 }) {
+  const { t } = useLanguage();
   const { user } = useAuth();
   const [confirming, setConfirming] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -1196,7 +1345,7 @@ function AdminOrderDetailView({
       setConfirming(false);
       setTimeout(onUpdated, 1800);
     } catch (err) {
-      setSaveError(err instanceof Error ? err.message : 'Failed to confirm payment');
+      setSaveError(err instanceof Error ? err.message : t("adminOrders.messages.failedConfirm"));
     } finally {
       setSaving(false);
     }
@@ -1208,35 +1357,35 @@ function AdminOrderDetailView({
         onClick={onBack}
         className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-forest-700 mb-6 transition-colors"
       >
-        <ChevronLeft size={16} /> Back to Orders
+        <ChevronLeft size={16} /> {t("adminOrders.buttons.back")}
       </button>
 
       {/* Order header */}
       <div className="bg-white rounded-2xl border border-cream-200 shadow-soft p-5 mb-4">
         <div className="flex flex-wrap gap-x-8 gap-y-3 text-sm">
           <div>
-            <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide">Order Ref</p>
+            <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide">{t("adminOrders.labels.orderRef")}</p>
             <p className="font-mono font-semibold text-gray-900 mt-0.5">{order.orderRef}</p>
           </div>
           <div>
-            <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide">Customer</p>
+            <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide">{t("adminOrders.labels.customer")}</p>
             <p className="font-semibold text-gray-900 mt-0.5">{order.customerName}</p>
             {order.customerPhone && (
               <p className="text-xs text-gray-500 mt-0.5">{order.customerPhone}</p>
             )}
           </div>
           <div>
-            <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide">Delivery Address</p>
-            <p className="font-semibold text-gray-900 mt-0.5">Unit {order.houseUnit || '—'}</p>
+            <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide">{t("adminOrders.labels.deliveryAddress")}</p>
+            <p className="font-semibold text-gray-900 mt-0.5">{t("adminOrders.labels.unit", { unit: order.houseUnit || '—' })}</p>
             {order.apartment && <p className="text-xs text-gray-500">{order.apartment}</p>}
             {order.pickupLocation && <p className="text-xs text-gray-500">{order.pickupLocation}</p>}
           </div>
           <div>
-            <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide">Delivery Date</p>
-            <p className="font-semibold text-gray-900 mt-0.5">{order.deliveryDate}</p>
+            <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide">{t("adminOrders.labels.deliveryDate")}</p>
+            <p className="font-semibold text-gray-900 mt-0.5">{formatDeliveryDate(order.deliveryDate)}</p>
           </div>
           <div>
-            <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide">Placed</p>
+            <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide">{t("adminOrders.labels.createdAt")}</p>
             <p className="font-semibold text-gray-900 mt-0.5">
               {new Date(order.createdAt).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
             </p>
@@ -1251,11 +1400,11 @@ function AdminOrderDetailView({
             <table className="w-full text-sm">
               <thead>
                 <tr className="bg-cream-50 border-b border-cream-200">
-                  <th className="text-left px-4 py-3 font-semibold text-gray-700">Item</th>
-                  <th className="text-left px-4 py-3 font-semibold text-gray-700 hidden sm:table-cell">Prep</th>
-                  <th className="text-right px-4 py-3 font-semibold text-gray-700">Qty</th>
-                  <th className="text-right px-4 py-3 font-semibold text-gray-700 hidden md:table-cell">Actual Weight</th>
-                  <th className="text-right px-4 py-3 font-semibold text-gray-700">Item Total</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-700">{t("adminOrders.labels.item")}</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-700 hidden sm:table-cell">{t("adminOrders.labels.prep")}</th>
+                  <th className="text-right px-4 py-3 font-semibold text-gray-700">{t("adminOrders.labels.qty")}</th>
+                  <th className="text-right px-4 py-3 font-semibold text-gray-700 hidden md:table-cell">{t("adminOrders.labels.actualWeight")}</th>
+                  <th className="text-right px-4 py-3 font-semibold text-gray-700">{t("adminOrders.labels.itemTotal")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-cream-100">
@@ -1270,10 +1419,10 @@ function AdminOrderDetailView({
                     <tr key={i} className={`hover:bg-cream-50/50 ${hasComboItems ? 'bg-cream-50/30' : ''}`}>
                       <td className="px-4 py-3 font-medium text-gray-900">
                         {item.name}
-                        {!isPerKg && !hasComboItems && <span className="ml-2 text-xs text-jade-600 font-normal">Fixed</span>}
+                        {!isPerKg && !hasComboItems && <span className="ml-2 text-xs text-jade-600 font-normal">{t("adminOrders.labels.fixed")}</span>}
                         {hasComboItems && (
                           <div className="mt-2 pt-2 border-t border-cream-200 space-y-1.5">
-                            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Contains</p>
+                            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("adminOrders.labels.contains")}</p>
                             {item.comboItems.map((ci: ComboExpandedItem) => (
                               <div key={ci.productId} className="flex items-center gap-2 text-xs">
                                 <span className="text-gray-700">{ci.label}</span>
@@ -1293,7 +1442,7 @@ function AdminOrderDetailView({
                         {isPerKg && !hasComboItems
                           ? actualKg != null
                             ? <span className="font-medium text-gray-900">{actualKg} kg</span>
-                            : <span className="text-amber-600 text-xs">Pending weighing</span>
+                            : <span className="text-amber-600 text-xs">{t("adminOrders.messages.pendingWeighing")}</span>
                           : <span className="text-gray-400">—</span>
                         }
                       </td>
@@ -1308,14 +1457,14 @@ function AdminOrderDetailView({
           </div>
           <div className="border-t border-cream-200 px-4 py-3 space-y-1.5">
             <div className="flex justify-between text-sm text-gray-600">
-              <span>Subtotal</span><span>RM{order.subtotal.toFixed(2)}</span>
+              <span>{t("adminOrders.labels.subtotal")}</span><span>RM{order.subtotal.toFixed(2)}</span>
             </div>
             <div className="flex justify-between text-sm text-gray-600">
-              <span>Delivery</span>
-              <span>{order.deliveryFee === 0 ? 'FREE' : `RM${order.deliveryFee.toFixed(2)}`}</span>
+              <span>{t("adminOrders.labels.delivery")}</span>
+              <span>{order.deliveryFee === 0 ? t("adminOrders.messages.free") : `RM${order.deliveryFee.toFixed(2)}`}</span>
             </div>
             <div className="flex justify-between font-bold text-base border-t border-cream-200 pt-2">
-              <span>Final Amount</span>
+              <span>{t("adminOrders.labels.finalAmount")}</span>
               <span className="text-forest-800">RM{order.total.toFixed(2)}</span>
             </div>
           </div>
@@ -1325,7 +1474,7 @@ function AdminOrderDetailView({
       {/* Customer remarks */}
       {order.deliveryNotes && (
         <div className="bg-white rounded-2xl border border-cream-200 shadow-soft p-5 mb-4">
-          <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide mb-1">Customer Remarks / Notes</p>
+          <p className="text-xs text-gray-400 font-semibold uppercase tracking-wide mb-1">{t("adminOrders.labels.customerNotes")}</p>
           <p className="text-sm text-gray-700">{order.deliveryNotes}</p>
         </div>
       )}
@@ -1334,22 +1483,22 @@ function AdminOrderDetailView({
       <div className="bg-white rounded-2xl border border-cream-200 shadow-soft p-5">
         <div className="flex items-center gap-2 mb-4">
           <CreditCard size={18} className="text-forest-600" />
-          <h3 className="font-semibold text-charcoal">Payment</h3>
+          <h3 className="font-semibold text-charcoal">{t("adminOrders.labels.payment")}</h3>
         </div>
 
         <div className="flex items-center justify-between mb-4">
-          <span className="text-sm text-gray-600 font-medium">Payment Status</span>
+          <span className="text-sm text-gray-600 font-medium">{t("adminOrders.labels.paymentStatus")}</span>
           <AdminPaymentBadge status={order.paymentStatus} />
         </div>
 
         <div className="flex items-center justify-between text-sm mb-4">
-          <span className="text-gray-600 font-medium">Final Amount</span>
+          <span className="text-gray-600 font-medium">{t("adminOrders.labels.finalAmount")}</span>
           <span className="font-bold text-forest-800 text-base">RM{order.total.toFixed(2)}</span>
         </div>
 
         {order.paymentStatus === 'Paid' && order.paidAt && (
           <div className="text-xs text-gray-400 mb-4">
-            Confirmed on {new Date(order.paidAt).toLocaleString('en-MY', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+            {t("adminOrders.messages.confirmedOn", { date: new Date(order.paidAt).toLocaleString('en-MY', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) })}
           </div>
         )}
 
@@ -1364,7 +1513,7 @@ function AdminOrderDetailView({
               className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white bg-green-600 hover:bg-green-700 transition-all"
             >
               <Phone size={16} />
-              WhatsApp Customer
+              {t("adminOrders.buttons.whatsapp")}
             </button>
             <button
               onClick={async () => {
@@ -1375,21 +1524,21 @@ function AdminOrderDetailView({
               className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-forest-700 border border-forest-200 hover:bg-forest-50 transition-all"
             >
               {copied ? <CheckCircle2 size={16} className="text-green-600" /> : <Copy size={16} />}
-              {copied ? 'Copied!' : 'Copy Payment Message'}
+              {copied ? t("adminOrders.messages.copied") : t("adminOrders.buttons.copyPayment")}
             </button>
             <button
               onClick={() => setConfirming(true)}
               className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-700 border border-gray-200 hover:bg-gray-50 transition-all"
             >
               <CreditCard size={16} />
-              Mark as Paid
+              {t("adminOrders.buttons.markAsPaid")}
             </button>
           </div>
         )}
 
         {success && (
           <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-xl text-green-700 text-sm animate-[fadeSlideUp_0.2s_ease-out]">
-            <CheckCircle2 size={16} /> Payment confirmed successfully.
+            <CheckCircle2 size={16} /> {t("adminOrders.messages.paymentConfirmed")}
           </div>
         )}
 
@@ -1416,31 +1565,317 @@ function AdminOrderDetailView({
               <div className="w-10 h-10 rounded-xl bg-green-100 flex items-center justify-center flex-shrink-0">
                 <CreditCard size={20} className="text-green-700" />
               </div>
-              <h3 className="font-semibold text-gray-900 text-lg">Confirm Payment</h3>
+              <h3 className="font-semibold text-gray-900 text-lg">{t("adminOrders.modal.confirmTitle")}</h3>
             </div>
-            <p className="text-sm text-gray-600 mb-6">
-              Have you confirmed payment has been received for order <strong>{order.orderRef}</strong>?
-            </p>
+            <p className="text-sm text-gray-600 mb-6"
+              dangerouslySetInnerHTML={{ __html: t("adminOrders.modal.confirmBody", { ref: order.orderRef }) }}
+            />
             <div className="flex gap-3 justify-end">
               <button
                 onClick={() => setConfirming(false)}
                 disabled={saving}
                 className="px-4 py-2 rounded-xl text-sm font-medium text-gray-700 border border-gray-200 hover:bg-gray-50 transition-all"
               >
-                Cancel
+                {t("adminOrders.buttons.cancel")}
               </button>
               <button
                 onClick={handleConfirmPayment}
-                disabled={saving}
+disabled={saving}
                 className="px-4 py-2 rounded-xl text-sm font-semibold text-white bg-green-600 hover:bg-green-700 transition-all disabled:opacity-50 inline-flex items-center gap-2"
               >
                 {saving ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
-                {saving ? 'Confirming...' : 'Confirm Payment'}
+                {saving ? t("adminOrders.messages.confirming") : t("adminOrders.modal.confirmTitle")}
               </button>
             </div>
           </div>
         </div>
-      )}
+      )}    </div>
+  );
+}
+
+
+
+function EditOrderModal({ order, onClose, onSaved }: { order: AdminOrder; onClose: () => void; onSaved: () => Promise<void> }) {
+  if (!order) {
+    return null;
+  }
+
+  const { t } = useLanguage();
+  const { user } = useAuth();
+  const { config: deliveryConfig, loading: deliveryLoading } = useDeliveryConfig();
+
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+
+  // Format delivery date as "Monday\n3 Aug 2026" (two lines) or "Mon 3 Aug 2026" for table
+  function formatDeliveryDate(date: string, slot?: string): string {
+    if (!date || date === '—') return '—';
+    // Parse as local date to avoid timezone shift
+    const [yyyy, mm, dd] = date.split('-').map(Number);
+    if (!yyyy || !mm || !dd) return date;
+    const d = new Date(yyyy, mm - 1, dd);
+    const dayName = d.toLocaleDateString('en-MY', { weekday: 'short' });
+    const formatted = d.toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' });
+    return `${dayName} ${formatted}`;
+  }
+
+  // Generate valid upcoming delivery dates based on configured days
+  const generateDeliveryDates = () => {
+    if (!deliveryConfig?.days?.length) return [];
+    const dates: { value: string; label: string }[] = [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const configuredDays = deliveryConfig.days;
+    const dayMap: Record<string, number> = {
+      Sunday: 0, Monday: 1, Tuesday: 2, Wednesday: 3,
+      Thursday: 4, Friday: 5, Saturday: 6
+    };
+    const targetDayNumbers = configuredDays.map(d => dayMap[d]).filter((n): n is number => n !== undefined);
+    const optionsPerDay = 4;
+    const maxDaysToCheck = 90;
+    let checkedDays = 0;
+    let found = 0;
+    const currentDate = new Date(today);
+    while (checkedDays < maxDaysToCheck && found < configuredDays.length * optionsPerDay) {
+      const dayOfWeek = currentDate.getDay();
+      if (targetDayNumbers.includes(dayOfWeek)) {
+        // Use local date string (YYYY-MM-DD) without timezone conversion
+        const year = currentDate.getFullYear();
+        const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+        const day = String(currentDate.getDate()).padStart(2, '0');
+        const value = `${year}-${month}-${day}`;
+        const label = currentDate.toLocaleDateString('en-MY', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+        dates.push({ value, label: `${currentDate.toLocaleDateString('en-MY', { weekday: 'long' })} → ${label}` });
+        found++;
+      }
+      currentDate.setDate(currentDate.getDate() + 1);
+      checkedDays++;
+    }
+    return dates;
+  };
+
+  const validDeliveryDates = generateDeliveryDates();
+
+const [formData, setFormData] = useState({
+    customerName: order.customerName,
+    customerPhone: order.customerPhone,
+    apartment: order.apartment,
+    houseUnit: order.houseUnit,
+    pickupLocation: order.pickupLocation,
+    deliveryDate: order.deliveryDate === '—' ? '' : order.deliveryDate,
+    deliverySlot: order.deliverySlot ?? (order.deliveryDate === '—' ? '' : order.deliveryDate),
+    deliveryWindow: order.deliveryWindow,
+    deliveryNotes: order.deliveryNotes,
+  });
+
+  const handleChange = (field: string, value: string) => {
+    setFormData(prev => {
+      const updated = { ...prev, [field]: value };
+      // When delivery date changes, also update delivery_slot to the day name
+      if (field === 'deliveryDate' && value) {
+        const date = new Date(value + 'T00:00:00');
+        const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        updated.deliverySlot = dayNames[date.getDay()];
+      }
+      return updated;
+    });
+    setError(null);
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    setError(null);
+    try {
+      // Build the updated order_summary JSON - preserve all existing fields
+      const updatedSummary = {
+        ...(order.orderSummary ?? {}),
+        deliveryDate: formData.deliveryDate,
+        deliveryWindow: formData.deliveryWindow,
+      };
+
+      const { error: updateError } = await supabase
+        .from('Orders')
+        .update({
+          full_name: formData.customerName,
+          phone_number: formData.customerPhone,
+          apartment: formData.apartment,
+          house_unit: formData.houseUnit,
+          pickup_location: formData.pickupLocation,
+          order_notes: formData.deliveryNotes,
+          delivery_slot: formData.deliverySlot,
+          order_summary: updatedSummary,
+          updated_at: new Date().toISOString(),
+          updated_by: user?.id ?? null,
+        })
+        .eq('id', order.dbId);
+
+      if (updateError) throw updateError;
+
+      await onSaved();
+      setSuccess(true);
+      setTimeout(() => {
+        setSuccess(false);
+        onClose();
+      }, 800);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("adminOrders.messages.failedUpdate"));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={!saving ? onClose : undefined} />
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-y-auto animate-[fadeSlideUp_0.2s_ease-out]">
+        <div className="flex items-center justify-between p-4 border-b border-cream-200">
+          <h3 className="font-semibold text-gray-900">{t("adminOrders.edit.title")}</h3>
+          <button
+            onClick={!saving ? onClose : undefined}
+            disabled={saving}
+            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors disabled:opacity-50"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        {success && (
+          <div className="mx-4 mt-4 p-3 bg-green-50 border border-green-200 rounded-xl text-green-700 text-sm animate-[fadeSlideUp_0.2s_ease-out] flex items-center gap-2">
+            <CheckCircle2 size={16} /> {t("adminOrders.messages.updated")}
+          </div>
+        )}
+
+        <div className="p-4 space-y-4">
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">{t("adminOrders.edit.customerName")}</label>
+            <input
+              type="text"
+              value={formData.customerName}
+              onChange={(e) => handleChange('customerName', e.target.value)}
+              className="w-full px-3 py-2 border border-cream-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-forest-500 focus:border-transparent"
+              required
+              disabled={saving}
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">{t("adminOrders.edit.phone")}</label>
+            <input
+              type="tel"
+              value={formData.customerPhone}
+              onChange={(e) => handleChange('customerPhone', e.target.value)}
+              className="w-full px-3 py-2 border border-cream-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-forest-500 focus:border-transparent"
+              required
+              disabled={saving}
+              placeholder={t("adminOrders.edit.phonePlaceholder")}
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">{t("adminOrders.edit.apartment")}</label>
+            <input
+              type="text"
+              value={formData.apartment}
+              onChange={(e) => handleChange('apartment', e.target.value)}
+              className="w-full px-3 py-2 border border-cream-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-forest-500 focus:border-transparent"
+              disabled={saving}
+              placeholder={t("adminOrders.edit.apartmentPlaceholder")}
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">{t("adminOrders.edit.houseUnit")}</label>
+            <input
+              type="text"
+              value={formData.houseUnit}
+              onChange={(e) => handleChange('houseUnit', e.target.value)}
+              className="w-full px-3 py-2 border border-cream-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-forest-500 focus:border-transparent"
+              disabled={saving}
+              placeholder={t("adminOrders.edit.unitPlaceholder")}
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">{t("adminOrders.edit.pickupLocation")}</label>
+            <input
+              type="text"
+              value={formData.pickupLocation}
+              onChange={(e) => handleChange('pickupLocation', e.target.value)}
+              className="w-full px-3 py-2 border border-cream-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-forest-500 focus:border-transparent"
+              disabled={saving}
+              placeholder={t("adminOrders.edit.pickupPlaceholder")}
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">{t("adminOrders.edit.deliveryDate")}</label>
+            {deliveryLoading ? (
+              <div className="w-full px-3 py-2 border border-cream-300 rounded-xl text-sm text-gray-400 bg-gray-50">{t("adminOrders.messages.loading")}</div>
+            ) : (
+              <select
+                value={formData.deliveryDate}
+                onChange={(e) => handleChange('deliveryDate', e.target.value)}
+                className="w-full px-3 py-2 border border-cream-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-forest-500 focus:border-transparent"
+                disabled={saving}
+              >
+                <option value="">{t("adminOrders.edit.selectDate")}</option>
+                {validDeliveryDates.map((d) => (
+                  <option key={d.value} value={d.value}>{d.label}</option>
+                ))}
+              </select>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">{t("adminOrders.edit.deliveryWindow")}</label>
+            <input
+              type="text"
+              value={formData.deliveryWindow}
+              onChange={(e) => handleChange('deliveryWindow', e.target.value)}
+              className="w-full px-3 py-2 border border-cream-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-forest-500 focus:border-transparent"
+              disabled={saving}
+              placeholder={t("adminOrders.edit.windowPlaceholder")}
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">{t("adminOrders.edit.orderNotes")}</label>
+            <textarea
+              value={formData.deliveryNotes}
+              onChange={(e) => handleChange('deliveryNotes', e.target.value)}
+              rows={3}
+              className="w-full px-3 py-2 border border-cream-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-forest-500 focus:border-transparent resize-none"
+              disabled={saving}
+              placeholder={t("adminOrders.edit.notesPlaceholder")}
+            />
+          </div>
+
+          {error && (
+            <div className="p-3 bg-red-50 border border-red-100 rounded-xl text-red-600 text-sm flex items-center gap-2">
+              <AlertCircle size={16} /> {error}
+            </div>
+          )}
+        </div>
+
+        <div className="p-4 border-t border-cream-200 flex justify-end gap-3">
+          <button
+            onClick={!saving ? onClose : undefined}
+            disabled={saving}
+            className="px-4 py-2 rounded-xl text-sm font-medium text-gray-700 border border-gray-200 hover:bg-gray-50 transition-colors disabled:opacity-50"
+          >
+            {t("adminOrders.buttons.cancel")}
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="px-4 py-2 rounded-xl text-sm font-semibold text-white bg-forest-700 hover:bg-forest-800 transition-colors disabled:opacity-50 inline-flex items-center gap-2"
+          >
+            {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+            {saving ? t("adminOrders.messages.saving") : t("adminOrders.buttons.save")}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { Link, Navigate } from 'react-router-dom';
 import { Package, ChevronRight, Loader2, ArrowRight } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import type { Order } from '../types';
 
 type OrderRow = {
@@ -31,12 +32,12 @@ type OrderRow = {
   total: number;
 };
 
-const statusConfig: Record<Order['status'], { label: string; className: string }> = {
-  confirmed: { label: 'Confirmed', className: 'bg-jade-100 text-jade-700' },
-  preparing: { label: 'Being Prepared', className: 'bg-blue-100 text-blue-700' },
-  'out-for-delivery': { label: 'Out for Delivery', className: 'bg-amber-100 text-amber-700' },
-  delivered: { label: 'Delivered', className: 'bg-forest-100 text-forest-700' },
-};
+const statusConfig = (t: (key: string) => string): Record<Order['status'], { label: string; className: string }> => ({
+  confirmed: { label: t("ordersPage.confirmed"), className: 'bg-jade-100 text-jade-700' },
+  preparing: { label: t("ordersPage.preparing"), className: 'bg-blue-100 text-blue-700' },
+  'out-for-delivery': { label: t("ordersPage.outForDelivery"), className: 'bg-amber-100 text-amber-700' },
+  delivered: { label: t("ordersPage.delivered"), className: 'bg-forest-100 text-forest-700' },
+});
 
 function mapRow(row: OrderRow): { ref: string; deliveryDate: string; status: Order['status']; total: number; createdAt: string } {
   return {
@@ -50,6 +51,7 @@ function mapRow(row: OrderRow): { ref: string; deliveryDate: string; status: Ord
 
 export default function OrdersPage() {
   const { user, loading: authLoading } = useAuth();
+  const { t } = useLanguage();
   const [orders, setOrders] = useState<ReturnType<typeof mapRow>[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -66,7 +68,7 @@ export default function OrdersPage() {
         if (fetchError) throw fetchError;
         if (active) setOrders((data as OrderRow[]).map(mapRow));
       } catch (err) {
-        if (active) setError(err instanceof Error ? err.message : 'Failed to load orders');
+        if (active) setError(err instanceof Error ? err.message : t("myOrders.failedToLoad"));
       } finally {
         if (active) setLoading(false);
       }
@@ -87,12 +89,12 @@ export default function OrdersPage() {
   return (
     <main className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
       <nav className="flex items-center gap-2 text-xs text-gray-400 mb-6">
-        <Link to="/profile" className="hover:text-forest-600">Profile</Link>
+        <Link to="/profile" className="hover:text-forest-600">{t("myOrders.profile")}</Link>
         <ChevronRight size={12} />
-        <span className="text-gray-600">My Orders</span>
+        <span className="text-gray-600">{t("myOrders.pageTitle")}</span>
       </nav>
 
-      <h1 className="section-title mb-8">My Orders</h1>
+      <h1 className="section-title mb-8">{t("myOrders.title")}</h1>
 
       {loading ? (
         <div className="flex items-center justify-center py-24">
@@ -105,23 +107,23 @@ export default function OrdersPage() {
           <div className="w-20 h-20 bg-cream-100 rounded-full flex items-center justify-center mb-6">
             <Package size={36} className="text-cream-400" />
           </div>
-          <h3 className="text-xl font-semibold text-gray-700 mb-2">No orders yet</h3>
-          <p className="text-gray-500 text-sm mb-8">Your order history will appear here once you place your first order.</p>
+          <h3 className="text-xl font-semibold text-gray-700 mb-2">{t("myOrders.emptyTitle")}</h3>
+          <p className="text-gray-500 text-sm mb-8">{t("myOrders.emptyMessage")}</p>
           <Link to="/shop" className="btn-primary flex items-center gap-2">
-            Start Shopping <ArrowRight size={16} />
+            {t("myOrders.startShopping")} <ArrowRight size={16} />
           </Link>
         </div>
       ) : (
         <div className="space-y-3">
           {orders.map((order) => {
-            const status = statusConfig[order.status] ?? statusConfig.confirmed;
+            const status = statusConfig(t)[order.status] ?? statusConfig(t).confirmed;
             return (
               <div key={order.ref} className="card p-5 flex items-center gap-4">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <p className="font-mono text-sm font-semibold text-forest-800">{order.ref}</p>
                     <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full ${status.className}`}>
-                      {status.label}
+                      {t("myOrders.status." + order.status)}
                     </span>
                   </div>
                   {order.deliveryDate && (
@@ -137,7 +139,7 @@ export default function OrdersPage() {
                     to={`/order/${order.ref}`}
                     className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-forest-700 border border-forest-200 hover:bg-forest-50 transition-all"
                   >
-                    View <ChevronRight size={14} />
+                    {t("myOrders.viewDetails")} <ChevronRight size={14} />
                   </Link>
                 </div>
               </div>

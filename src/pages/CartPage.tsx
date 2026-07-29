@@ -1,16 +1,25 @@
 import { Link } from 'react-router-dom';
 import { Navigate } from 'react-router-dom';
 import { ShoppingBag, ArrowRight, Trash2, Clock, Package } from 'lucide-react';
-import { getPrepLabel } from '../lib/preparationOptions';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import DeliverySlotSelector from '../components/ui/DeliverySlotSelector';
 import QuantityStepper from '../components/ui/QuantityStepper';
-import type { DeliveryDay } from '../types';
+import EstimatedWeightStepper from '../components/ui/EstimatedWeightStepper';
+import EstimatedQuantityNote from '../components/ui/EstimatedQuantityNote';
+import ProductImage from '../components/ui/ProductImage';
+import type { DeliveryDay, CartItem } from '../types';
 
 export default function CartPage() {
   const { user } = useAuth();
-  const { cart, removeItem, updateQty, setDeliveryDay, subtotal, itemCount } = useCart();
+  const { cart, removeItem, updateQty, updateEstimatedWeight, setDeliveryDay, subtotal, itemCount } = useCart();
+  const { t, lang } = useLanguage();
+
+  const isWeightItem = (item: CartItem) => {
+    if (item.orderingMode) return item.orderingMode === 'weight_only' || item.orderingMode === 'whole_or_weight';
+    return item.pricingType === 'per_kg';
+  };
   const deliveryFee = subtotal >= 50 ? 0 : 5;
   const total = subtotal + deliveryFee;
 
@@ -22,10 +31,10 @@ export default function CartPage() {
         <div className="w-24 h-24 bg-cream-100 rounded-full flex items-center justify-center mb-6">
           <ShoppingBag size={40} className="text-cream-400" />
         </div>
-        <h2 className="text-2xl font-display font-bold text-forest-950 mb-2">Your cart is empty</h2>
-        <p className="text-gray-500 mb-8">Add some fresh proteins to get started.</p>
+        <h2 className="text-2xl font-display font-bold text-forest-950 mb-2">{t("cart.emptyTitle")}</h2>
+        <p className="text-gray-500 mb-8">{t("cart.emptySubtitle")}</p>
         <Link to="/shop" className="btn-primary flex items-center gap-2">
-          Start Shopping <ArrowRight size={16} />
+          {t("cart.startShopping")} <ArrowRight size={16} />
         </Link>
       </main>
     );
@@ -33,7 +42,7 @@ export default function CartPage() {
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-      <h1 className="section-title mb-8">Your Cart ({itemCount} {itemCount === 1 ? 'item' : 'items'})</h1>
+      <h1 className="section-title mb-8">{t("cart.title", { count: itemCount, items: itemCount === 1 ? t("cart.item") : t("cart.items") })}</h1>
 
       <div className="grid lg:grid-cols-3 gap-8">
         {/* Items */}
@@ -42,7 +51,7 @@ export default function CartPage() {
             <div key={item.comboId ?? item.productId} className="card p-4 sm:p-5">
               {/* Combo header */}
               <div className="flex gap-4">
-                <img
+                <ProductImage
                   src={item.image}
                   alt={item.name}
                   className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover flex-shrink-0"
@@ -52,43 +61,69 @@ export default function CartPage() {
                     <div>
                       <p className="font-semibold text-charcoal leading-snug">{item.name}</p>
                       {item.preparation && (
-                        <p className="text-xs text-gray-400 mt-0.5">{getPrepLabel(item.preparation)}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">{t("cartItem.preparation." + item.preparation)}</p>
                       )}
                       {item.isCombo && (
                         <span className="inline-block bg-forest-100 text-forest-700 text-xs font-semibold px-2 py-0.5 rounded-full mt-1">
-                          Combo Bundle
+                          {t("cartItem.comboBundle")}
                         </span>
                       )}
                     </div>
                     <button
-                      onClick={() => removeItem(item.productId, item.comboId)}
+                      onClick={() => removeItem(item.productId, item.comboId, item.preparation)}
                       className="p-1.5 rounded-xl text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all flex-shrink-0"
-                      aria-label={`Remove ${item.name}`}
+                      aria-label={t("cartItem.remove", { name: item.name })}
                     >
                       <Trash2 size={16} />
                     </button>
                   </div>
                   <div className="flex items-center justify-between mt-2">
-                    <QuantityStepper
-                      value={item.quantity}
-                      onChange={(v) => updateQty(item.productId, v, item.comboId)}
-                      size="sm"
-                    />
-                    <p className="font-bold text-forest-800">RM{(item.price * item.quantity).toFixed(2)}</p>
+                    {isWeightItem(item) ? (
+                      <>
+                        <EstimatedWeightStepper
+                          value={(item.estimatedWeight ?? 0.5) * 1000}
+                          onChange={(v) => updateEstimatedWeight(item.productId, v / 1000, item.comboId, item.preparation)}
+                          size="sm"
+                        />
+                        <p className="font-bold text-forest-800">≈ RM{(item.price * (item.estimatedWeight ?? 0)).toFixed(2)}</p>
+                      </>
+                    ) : (
+                      <>
+                        <QuantityStepper
+                          value={item.quantity}
+                          onChange={(v) => updateQty(item.productId, v, item.comboId, item.preparation)}
+                          size="sm"
+                        />
+                        <p className="font-bold text-forest-800">RM{(item.price * item.quantity).toFixed(2)}</p>
+                      </>
+                    )}
                   </div>
-                  <p className="text-xs text-gray-400 mt-1">RM{item.price} × {item.quantity} {item.unit}</p>
+                  {isWeightItem(item) ? (
+                    <>
+                      <p className="text-xs text-amber-600 mt-1">RM{item.price}/kg × {(item.estimatedWeight ?? 0).toFixed(2)}kg — {t("cart.estimatedPrice")}</p>
+                      {item.showEstimatedQuantity && item.averageWeight && item.averageWeight > 0 && (
+                        <EstimatedQuantityNote
+                          weightGrams={(item.estimatedWeight ?? 0.5) * 1000}
+                          averageWeight={item.averageWeight}
+                          unitLabel={item.productId === 'udang-a' ? 'prawns' : (lang === 'ms' ? 'ekor' : 'pieces')}
+                        />
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-xs text-gray-400 mt-1">RM{item.price} × {item.quantity} {item.unit}</p>
+                  )}
                 </div>
               </div>
               {/* Expanded combo items */}
               {item.comboItems && item.comboItems.length > 0 && (
                 <div className="mt-3 pt-3 border-t border-cream-200 space-y-2">
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Contains</p>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("cartItem.contains")}</p>
                   {item.comboItems.map((ci) => (
                     <div key={ci.productId} className="flex items-center gap-2 text-sm">
                       <Package size={13} className="text-forest-400 flex-shrink-0" />
                       <span className="text-gray-700">{ci.label}</span>
                       {ci.preparation && (
-                        <span className="text-xs text-gray-400">({getPrepLabel(ci.preparation)})</span>
+                        <span className="text-xs text-gray-400">({t("cartItem.preparation." + ci.preparation)})</span>
                       )}
                     </div>
                   ))}
@@ -98,7 +133,7 @@ export default function CartPage() {
           ))}
 
           <Link to="/shop" className="flex items-center gap-2 text-sm text-forest-600 hover:text-forest-800 font-medium transition-colors px-1">
-            <ArrowRight size={15} className="rotate-180" /> Continue shopping
+            <ArrowRight size={15} className="rotate-180" /> {t("cartAction.continueShopping")}
           </Link>
         </div>
 
@@ -108,36 +143,36 @@ export default function CartPage() {
           <div className="card p-5">
             <div className="flex items-center gap-2 mb-3">
               <Clock size={16} className="text-forest-600" />
-              <h3 className="font-semibold text-charcoal">Delivery Slot</h3>
+              <h3 className="font-semibold text-charcoal">{t("delivery.slot")}</h3>
             </div>
             <DeliverySlotSelector
               selected={cart.deliveryDay}
               onChange={(day: DeliveryDay) => setDeliveryDay(day)}
             />
             {!cart.deliveryDay && (
-              <p className="text-xs text-amber-600 mt-2 font-medium">Please select a delivery day to continue.</p>
+              <p className="text-xs text-amber-600 mt-2 font-medium">{t("cartSummary.selectDeliveryDay")}</p>
             )}
           </div>
 
           {/* Summary */}
           <div className="card p-5">
-            <h3 className="font-semibold text-charcoal mb-4">Order Summary</h3>
+            <h3 className="font-semibold text-charcoal mb-4">{t("cartSummary.title")}</h3>
             <div className="space-y-2.5 mb-4">
               <div className="flex justify-between text-sm text-gray-600">
-                <span>Subtotal ({itemCount} items)</span>
+                <span>{t("cartSummary.subtotal", { count: itemCount })}</span>
                 <span>RM{subtotal.toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-sm text-gray-600">
-                <span>Delivery fee</span>
+                <span>{t("cartSummary.deliveryFee")}</span>
                 <span className={deliveryFee === 0 ? 'text-jade-600 font-semibold' : ''}>
-                  {deliveryFee === 0 ? 'FREE' : `RM${deliveryFee.toFixed(2)}`}
+                  {deliveryFee === 0 ? t("cartSummary.free") : `RM${deliveryFee.toFixed(2)}`}
                 </span>
               </div>
               {deliveryFee > 0 && (
-                <p className="text-xs text-gray-400">Free delivery on orders RM50 and above</p>
+                <p className="text-xs text-gray-400">{t("cartSummary.freeDeliveryNote")}</p>
               )}
               <div className="border-t border-cream-200 pt-2.5 flex justify-between font-bold text-base">
-                <span>Total</span>
+                <span>{t("cartSummary.total")}</span>
                 <span className="text-forest-800">RM{total.toFixed(2)}</span>
               </div>
             </div>
@@ -150,13 +185,13 @@ export default function CartPage() {
               }`}
               aria-disabled={!cart.deliveryDay}
             >
-              Proceed to Checkout <ArrowRight size={16} />
+              {t("cartAction.proceedToCheckout")} <ArrowRight size={16} />
             </Link>
           </div>
 
           {/* Trust note */}
           <div className="bg-jade-50 border border-jade-200 rounded-2xl p-4 text-xs text-jade-800 leading-relaxed">
-            All items are prepared fresh the morning of your delivery. Never frozen.
+            {t("cart.trustNote")}
           </div>
         </div>
       </div>

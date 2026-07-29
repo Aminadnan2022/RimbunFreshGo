@@ -1,6 +1,7 @@
 import { Calendar } from 'lucide-react';
 import type { DeliveryDay } from '../../types';
 import { useDeliveryConfig } from '../../context/DeliveryConfigContext';
+import { useLanguage } from '../../context/LanguageContext';
 
 interface Props {
   selected: DeliveryDay | null;
@@ -26,11 +27,12 @@ function getNextDate(dayName: string): string {
 
 export default function DeliverySlotSelector({ selected, onChange, compact = false }: Props) {
   const { config } = useDeliveryConfig();
+  const { t } = useLanguage();
 
   const slots = config.days.map((day) => ({
     day: day.toLowerCase(),
-    label: day,
-    dayLabel: day.slice(0, 3),
+    label: t("days." + day.toLowerCase()),
+    dayLabel: t("days." + day.toLowerCase()).slice(0, 3),
     date: getNextDate(day),
   }));
 

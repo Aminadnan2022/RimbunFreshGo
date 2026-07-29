@@ -6,7 +6,9 @@ import {
 import { familyCombo, buildComboCartItem } from '../data/combos';
 import { fetchProductById } from '../data/products';
 import type { Product } from '../types';
+import { useLanguage } from '../context/LanguageContext';
 import { useCart } from '../context/CartContext';
+import ProductImage from '../components/ui/ProductImage';
 import { useAuth } from '../context/AuthContext';
 import { useAuthModal } from '../context/AuthModalContext';
 import { useDeliveryConfig } from '../context/DeliveryConfigContext';
@@ -16,6 +18,7 @@ export default function ComboDetailPage() {
   const { user } = useAuth();
   const { openSignIn } = useAuthModal();
   const { config } = useDeliveryConfig();
+  const { t } = useLanguage();
   const [qty, setQty] = useState(1);
   const [activeImg, setActiveImg] = useState(0);
   const [added, setAdded] = useState(false);
@@ -50,9 +53,9 @@ export default function ComboDetailPage() {
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       {/* Breadcrumb */}
       <nav className="flex items-center gap-2 text-xs text-gray-400 mb-8">
-        <Link to="/" className="hover:text-forest-600">Home</Link>
+        <Link to="/" className="hover:text-forest-600">{t("comboDetail.breadcrumbHome")}</Link>
         <ChevronRight size={12} />
-        <span className="text-gray-600">Family Combo</span>
+        <span className="text-gray-600">{t("comboDetail.breadcrumbCombo")}</span>
       </nav>
 
       {/* Hero section */}
@@ -60,14 +63,14 @@ export default function ComboDetailPage() {
         {/* Gallery */}
         <div>
           <div className="rounded-3xl overflow-hidden shadow-card mb-3 aspect-[4/3] relative">
-            <img
+            <ProductImage
               src={familyCombo.images[activeImg]}
               alt={familyCombo.name}
               className="w-full h-full object-cover"
             />
             <div className="absolute top-4 left-4">
               <span className="inline-flex items-center gap-1.5 bg-forest-700 text-white text-sm font-bold px-3 py-1.5 rounded-full shadow">
-                <Star size={13} className="fill-yellow-400 text-yellow-400" /> Best Value
+                <Star size={13} className="fill-yellow-400 text-yellow-400" /> {t("comboDetail.bestValue")}
               </span>
             </div>
           </div>
@@ -80,7 +83,7 @@ export default function ComboDetailPage() {
                   activeImg === i ? 'border-forest-600 shadow-green' : 'border-cream-300 hover:border-forest-400'
                 }`}
               >
-                <img src={img} alt="" className="w-full h-full object-cover" />
+                <ProductImage src={img} alt="" className="w-full h-full object-cover" />
               </button>
             ))}
           </div>
@@ -89,7 +92,7 @@ export default function ComboDetailPage() {
         {/* Details */}
         <div>
           <span className="inline-block bg-jade-100 text-jade-700 text-xs font-semibold px-3 py-1.5 rounded-full mb-3">
-            Signature Bundle
+            {t("comboDetail.signatureBundle")}
           </span>
           <h1 className="font-display text-4xl font-bold text-forest-950 mb-1">{familyCombo.name}</h1>
           <p className="text-lg text-gray-500 mb-4">{familyCombo.tagline}</p>
@@ -99,7 +102,7 @@ export default function ComboDetailPage() {
             <span className="text-5xl font-bold text-forest-800">RM{familyCombo.price}</span>
             <div>
               <p className="text-gray-400 line-through text-xl">RM{familyCombo.originalValue}</p>
-              <p className="text-jade-600 font-semibold text-sm">Save RM{savings} ({savingsPct}% off)</p>
+              <p className="text-jade-600 font-semibold text-sm">{t("comboDetail.savePrice", { savings, pct: savingsPct })}</p>
             </div>
           </div>
 
@@ -107,7 +110,7 @@ export default function ComboDetailPage() {
 
           {/* What's included */}
           <div className="bg-forest-50 rounded-3xl p-5 mb-6">
-            <h3 className="font-semibold text-forest-800 mb-3">What's Included</h3>
+            <h3 className="font-semibold text-forest-800 mb-3">{t("comboDetail.whatsIncluded")}</h3>
             <ul className="space-y-2.5">
               {familyCombo.items.map((item, i) => {
                 const product = comboProducts[item.productId];
@@ -123,7 +126,7 @@ export default function ComboDetailPage() {
               })}
             </ul>
             <div className="border-t border-forest-200 mt-3 pt-3 flex justify-between text-sm font-semibold">
-              <span className="text-gray-500">If bought separately</span>
+              <span className="text-gray-500">{t("comboDetail.ifBoughtSeparately")}</span>
               <span className="text-gray-500 line-through">RM{familyCombo.originalValue}</span>
             </div>
           </div>
@@ -141,9 +144,7 @@ export default function ComboDetailPage() {
           {/* Delivery */}
           <div className="flex items-center gap-2.5 bg-jade-50 border border-jade-200 rounded-2xl px-4 py-3 mb-6">
             <Clock size={16} className="text-jade-600 flex-shrink-0" />
-            <p className="text-jade-800 text-sm font-medium">
-              Delivered fresh every <strong>{config.days.join(' & ')}</strong>, {config.time}
-            </p>
+            <p className="text-jade-800 text-sm font-medium" dangerouslySetInnerHTML={{ __html: t("comboDetail.deliveryReminder", { days: config.days.join(' & '), time: config.time }) }} />
           </div>
 
           {/* Add to cart */}
@@ -152,7 +153,7 @@ export default function ComboDetailPage() {
               <button
                 onClick={() => setQty(Math.max(1, qty - 1))}
                 className="w-8 h-8 flex items-center justify-center rounded-full bg-white hover:bg-forest-50 text-forest-700 font-bold transition-colors"
-                aria-label="Decrease"
+                aria-label={t("comboDetail.decrease")}
               >
                 −
               </button>
@@ -160,7 +161,7 @@ export default function ComboDetailPage() {
               <button
                 onClick={() => setQty(Math.min(10, qty + 1))}
                 className="w-8 h-8 flex items-center justify-center rounded-full bg-white hover:bg-forest-50 text-forest-700 font-bold transition-colors"
-                aria-label="Increase"
+                aria-label={t("comboDetail.increase")}
               >
                 +
               </button>
@@ -174,7 +175,7 @@ export default function ComboDetailPage() {
               }`}
             >
               <ShoppingCart size={18} />
-              {added ? 'Added to Cart!' : `Add ${qty > 1 ? `${qty}x ` : ''}Combo — RM${familyCombo.price * qty}`}
+              {added ? t("comboDetail.addedToCart") : t("comboDetail.addCombo", { qty: qty > 1 ? `${qty}x ` : '', total: (familyCombo.price * qty).toFixed(2) })}
             </button>
           </div>
         </div>
@@ -183,14 +184,14 @@ export default function ComboDetailPage() {
       {/* Why the combo */}
       <section className="bg-forest-950 rounded-4xl p-8 sm:p-12 mb-14">
         <div className="text-center mb-10">
-          <h2 className="font-display text-3xl font-bold text-white mb-2">Why the Family Combo?</h2>
-          <p className="text-forest-300">Everything you need for a week of home-cooked meals.</p>
+          <h2 className="font-display text-3xl font-bold text-white mb-2">{t("comboDetail.whyTitle")}</h2>
+          <p className="text-forest-300">{t("comboDetail.whySubtitle")}</p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
           {[
-            { icon: TrendingDown, title: 'Maximum Savings', desc: `Save RM${savings} versus buying each item separately. That's ${savingsPct}% off the individual prices.` },
-            { icon: Users, title: 'Feeds the Family', desc: `Generously portioned for a family of ${familyCombo.servings}. Enough variety for 2–3 different meals.` },
-            { icon: CheckCircle2, title: 'Zero Effort', desc: 'All items are prepared fresh the morning of your delivery. Cleaned, descaled, and ready to cook.' },
+            { icon: TrendingDown, title: t("comboDetail.maxSavings"), desc: t("comboDetail.maxSavingsDesc", { savings, savingsPct }) },
+            { icon: Users, title: t("comboDetail.feedsFamily"), desc: t("comboDetail.feedsFamilyDesc", { servings: familyCombo.servings }) },
+            { icon: CheckCircle2, title: t("comboDetail.zeroEffort"), desc: t("comboDetail.zeroEffortDesc") },
           ].map(({ icon: Icon, title, desc }) => (
             <div key={title} className="bg-forest-900/60 rounded-3xl p-6 border border-forest-800 text-center">
               <div className="w-12 h-12 bg-jade-500/20 rounded-2xl flex items-center justify-center mx-auto mb-4">

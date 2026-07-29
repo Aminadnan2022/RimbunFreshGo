@@ -4,8 +4,9 @@ import type { Cart, CartItem, DeliveryDay } from '../types';
 
 type CartAction =
   | { type: 'ADD_ITEM'; item: CartItem }
-  | { type: 'REMOVE_ITEM'; productId: string; comboId?: string }
-  | { type: 'UPDATE_QTY'; productId: string; quantity: number; comboId?: string }
+  | { type: 'REMOVE_ITEM'; productId: string; comboId?: string; preparation?: string }
+  | { type: 'UPDATE_QTY'; productId: string; quantity: number; comboId?: string; preparation?: string }
+  | { type: 'UPDATE_ESTIMATED_WEIGHT'; productId: string; estimatedWeight: number; comboId?: string; preparation?: string }
   | { type: 'SET_DELIVERY_DAY'; day: DeliveryDay }
   | { type: 'CLEAR_CART' }
   | { type: 'LOAD_CART'; cart: Cart };
@@ -26,47 +27,90 @@ function loadCart(userId: string | null): Cart {
   }
 }
 
+function cartItemKey(item: CartItem): string {
+  const base = item.comboId ?? item.productId;
+  const prep = item.preparation ?? 'default';
+  const weight = item.pricingType === 'per_kg' ? `|${item.estimatedWeight ?? 0}` : '';
+  return `${base}|${prep}${weight}`;
+}
+
 function cartReducer(state: Cart, action: CartAction): Cart {
   switch (action.type) {
     case 'LOAD_CART':
       return action.cart;
     case 'ADD_ITEM': {
-      const key = action.item.comboId ?? action.item.productId;
-      const existing = state.items.find((i) =>
-        action.item.comboId ? i.comboId === key : i.productId === key
-      );
+      const key = cartItemKey(action.item);
+      const existing = state.items.find((i) => cartItemKey(i) === key);
       if (existing) {
+        if (existing.pricingType === 'per_kg') {
+          return state;
+        }
         return {
           ...state,
-          items: state.items.map((i) => {
-            const match = action.item.comboId ? i.comboId === key : i.productId === key;
-            return match ? { ...i, quantity: i.quantity + action.item.quantity } : i;
-          }),
+          items: state.items.map((i) =>
+            cartItemKey(i) === key ? { ...i, quantity: i.quantity + action.item.quantity } : i
+          ),
         };
       }
       return { ...state, items: [...state.items, action.item] };
     }
-    case 'REMOVE_ITEM':
+    case 'REMOVE_ITEM': {
+      const baseKey = action.comboId ?? action.productId;
+      const prep = action.preparation ?? 'default';
+      let removed = false;
       return {
         ...state,
-        items: state.items.filter((i) =>
-          action.comboId ? i.comboId !== action.comboId : i.productId !== action.productId
-        ),
+        items: state.items.filter((i) => {
+          const itemBase = i.comboId ?? i.productId;
+          const itemPrep = i.preparation ?? 'default';
+          const match = itemBase === baseKey && itemPrep === prep;
+          if (!match) return true;
+          if (i.pricingType === 'per_kg' && !removed) {
+            removed = true;
+            return false;
+          }
+          if (i.pricingType !== 'per_kg') return false;
+          return true;
+        }),
       };
+    }
     case 'UPDATE_QTY': {
+      const baseKey = action.comboId ?? action.productId;
+      const prep = action.preparation ?? 'default';
       if (action.quantity <= 0) {
         return {
           ...state,
-          items: state.items.filter((i) =>
-            action.comboId ? i.comboId !== action.comboId : i.productId !== action.productId
-          ),
+          items: state.items.filter((i) => {
+            const itemBase = i.comboId ?? i.productId;
+            const itemPrep = i.preparation ?? 'default';
+            return !(itemBase === baseKey && itemPrep === prep && i.pricingType !== 'per_kg');
+          }),
         };
       }
       return {
         ...state,
         items: state.items.map((i) => {
-          const match = action.comboId ? i.comboId === action.comboId : i.productId === action.productId;
-          return match ? { ...i, quantity: action.quantity } : i;
+          const itemBase = i.comboId ?? i.productId;
+          const itemPrep = i.preparation ?? 'default';
+          if (itemBase === baseKey && itemPrep === prep && i.pricingType !== 'per_kg') {
+            return { ...i, quantity: action.quantity };
+          }
+          return i;
+        }),
+      };
+    }
+    case 'UPDATE_ESTIMATED_WEIGHT': {
+      const baseKey = action.comboId ?? action.productId;
+      const prep = action.preparation ?? 'default';
+      return {
+        ...state,
+        items: state.items.map((i) => {
+          const itemBase = i.comboId ?? i.productId;
+          const itemPrep = i.preparation ?? 'default';
+          if (itemBase === baseKey && itemPrep === prep && i.pricingType === 'per_kg') {
+            return { ...i, estimatedWeight: action.estimatedWeight };
+          }
+          return i;
         }),
       };
     }
@@ -82,8 +126,9 @@ function cartReducer(state: Cart, action: CartAction): Cart {
 interface CartContextValue {
   cart: Cart;
   addItem: (item: CartItem) => void;
-  removeItem: (productId: string, comboId?: string) => void;
-  updateQty: (productId: string, quantity: number, comboId?: string) => void;
+  removeItem: (productId: string, comboId?: string, preparation?: string) => void;
+  updateQty: (productId: string, quantity: number, comboId?: string, preparation?: string) => void;
+  updateEstimatedWeight: (productId: string, estimatedWeight: number, comboId?: string, preparation?: string) => void;
   setDeliveryDay: (day: DeliveryDay) => void;
   clearCart: () => void;
   itemCount: number;
@@ -126,16 +171,24 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [cart]);
 
   const itemCount = cart.items.reduce((sum, i) => sum + i.quantity, 0);
-  const subtotal = cart.items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+  const subtotal = cart.items.reduce((sum, i) => {
+    if (i.pricingType === 'per_kg') {
+      return sum + i.price * (i.estimatedWeight ?? 0);
+    }
+    return sum + i.price * i.quantity;
+  }, 0);
 
   return (
     <CartContext.Provider
       value={{
         cart,
         addItem: (item) => dispatch({ type: 'ADD_ITEM', item }),
-        removeItem: (productId, comboId) => dispatch({ type: 'REMOVE_ITEM', productId, comboId }),
-        updateQty: (productId, quantity, comboId) =>
-          dispatch({ type: 'UPDATE_QTY', productId, quantity, comboId }),
+        removeItem: (productId, comboId, preparation) =>
+          dispatch({ type: 'REMOVE_ITEM', productId, comboId, preparation }),
+        updateQty: (productId, quantity, comboId, preparation) =>
+          dispatch({ type: 'UPDATE_QTY', productId, quantity, comboId, preparation }),
+        updateEstimatedWeight: (productId, estimatedWeight, comboId, preparation) =>
+          dispatch({ type: 'UPDATE_ESTIMATED_WEIGHT', productId, estimatedWeight, comboId, preparation }),
         setDeliveryDay: (day) => dispatch({ type: 'SET_DELIVERY_DAY', day }),
         clearCart: () => dispatch({ type: 'CLEAR_CART' }),
         itemCount,

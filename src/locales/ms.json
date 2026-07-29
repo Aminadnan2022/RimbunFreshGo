@@ -1,0 +1,1375 @@
+{
+  "common": {
+    "save": "Simpan",
+    "cancel": "Batal",
+    "edit": "Edit",
+    "delete": "Padam",
+    "search": "Cari"
+  },
+  "header": {
+    "shop": "Kedai",
+    "familyCombo": "Kombo Keluarga",
+    "ourSuppliers": "Pembekal Kami",
+    "recurringBasket": "Bakul Berulang",
+    "myOrders": "Pesanan Saya",
+    "profile": "Profil",
+    "admin": "Pentadbir",
+    "supplierPortal": "Portal Pembekal",
+    "login": "Log Masuk",
+    "logout": "Log Keluar",
+    "cart": "Troli",
+    "search": "Cari",
+    "signIn": {
+      "close": "Tutup",
+      "title": "Selamat kembali",
+      "subtitle": "Daftar masuk ke akaun anda",
+      "emailLabel": "Alamat E-mel",
+      "emailPlaceholder": "anda@contoh.com",
+      "passwordLabel": "Kata Laluan",
+      "forgotPassword": "Terlupa kata laluan?",
+      "passwordPlaceholder": "Kata laluan anda",
+      "hidePassword": "Sembunyi kata laluan",
+      "showPassword": "Tunjuk kata laluan",
+      "signingIn": "Sedang daftar masuk\u2026",
+      "signIn": "Daftar Masuk",
+      "noAccount": "Tiada akaun?",
+      "createOne": "Buat satu"
+    },
+    "createAccount": {
+      "close": "Tutup",
+      "title": "Buat Akaun",
+      "subtitle": "Sertai Rimbun FreshGo hari ini",
+      "nameLabel": "Nama Penuh",
+      "namePlaceholder": "cth. Ahmad Razif",
+      "emailLabel": "Alamat E-mel",
+      "emailPlaceholder": "anda@contoh.com",
+      "passwordLabel": "Kata Laluan",
+      "hide": "Sembunyi",
+      "show": "Tunjuk",
+      "passwordPlaceholder": "Sekurang-kurangnya 8 aksara",
+      "hidePassword": "Sembunyi kata laluan",
+      "showPassword": "Tunjuk kata laluan",
+      "creating": "Sedang buat akaun\u2026",
+      "createAccount": "Buat Akaun",
+      "hasAccount": "Sudah ada akaun?",
+      "signIn": "Daftar Masuk"
+    },
+    "join": "Sertai",
+    "menu": "Menu",
+    "searchPlaceholder": "Cari ayam, siakap, udang...",
+    "searchButton": "Cari",
+    "logOut": "Log Keluar",
+    "signInButton": "Daftar Masuk",
+    "createAccountButton": "Buat Akaun"
+  },
+  "footer": {
+    "description": "Protein segar yang disediakan setiap hari, dihantar ke pintu anda setiap {{days}}. Tidak pernah dibekukan. Sentiasa tempatan.",
+    "shop": "Kedai",
+    "chicken": "Ayam",
+    "fish": "Ikan",
+    "prawns": "Udang",
+    "squid": "Sotong",
+    "familyCombo": "Kombo Keluarga",
+    "information": "Maklumat",
+    "ourSuppliers": "Pembekal Kami",
+    "recurringBasket": "Bakul Berulang",
+    "howItWorks": "Cara Ia Berfungsi",
+    "faq": "FAQ",
+    "contact": "Hubungi",
+    "address": "Menghantar di seluruh Lembah Klang, Selangor",
+    "deliverySchedule": "Jadual Penghantaran",
+    "privacy": "Dasar Privasi",
+    "terms": "Terma Perkhidmatan",
+    "copyright": "\u00a9 {{year}} Rimbun FreshGo. Hak cipta terpelihara."
+  },
+  "homepage": {
+    "announcement": {
+      "loading": "Memuatkan..."
+    },
+    "hero": {
+      "badge": "Penghantaran segar {{days}} ini",
+      "title": "Disediakan segar.",
+      "titleHighlight": "Terus ke pintu anda.",
+      "description": "Protein segar premium \u2014 ayam keseluruhan, ikan tempatan, udang, dan sotong \u2014 disediakan setiap pagi dan dihantar pada hari yang sama. Tiada pembekuan. Tiada kompromi.",
+      "chooseSlot": "Pilih slot penghantaran anda",
+      "selectedSlot": "Hebat! Anda telah memilih penghantaran {{day}} {{time}}.",
+      "shopNow": "Beli Sekarang",
+      "viewFamilyCombo": "Lihat Kombo Keluarga"
+    },
+    "categories": {
+      "title": "Beli Mengikut Kategori",
+      "subtitle": "Semua segar, disediakan pagi yang sama.",
+      "viewAll": "Lihat semua",
+      "chicken": "Ayam",
+      "fish": "Ikan",
+      "prawns": "Udang",
+      "squid": "Sotong"
+    },
+    "combo": {
+      "badge": "Nilai Terbaik",
+      "title": "Kombo Keluarga",
+      "saveLabel": "Jimat RM33",
+      "addToCart": "Tambah Kombo ke Troli",
+      "addedToCart": "Ditambah ke Troli!",
+      "learnMore": "Ketahui lebih lanjut"
+    },
+    "popular": {
+      "title": "Item Popular",
+      "subtitle": "Kegemaran pelanggan, segar setiap hari penghantaran.",
+      "viewAll": "Lihat semua"
+    },
+    "recurring": {
+      "title": "Sediakan Bakul Berulang",
+      "description": "Pesan item yang sama setiap minggu atau dua minggu. Langkau pesanan semula \u2014 kami ingat kegemaran anda, anda hanya ambil di pintu.",
+      "cta": "Mula Sekarang"
+    },
+    "trust": {
+      "title": "Mengapa Rimbun FreshGo?",
+      "subtitle": "Kami membina perkhidmatan ini berdasarkan satu prinsip: kesegaran sebenar, tiada jalan pintas.",
+      "freshDaily": {
+        "title": "Disediakan Segar Setiap Hari",
+        "desc": "Setiap item disembelih, dibersihkan, atau ditangkap pada pagi yang sama dengan penghantaran anda."
+      },
+      "neverFrozen": {
+        "title": "Tidak Pernah Dibekukan",
+        "desc": "Kami tidak pernah membekukan produk kami. Apa yang anda terima adalah segar \u2014 bukan dicairkan."
+      },
+      "scheduledDelivery": {
+        "title": "Penghantaran Berjadual",
+        "desc": "{{days}}, {{time}} sahaja. Slot tetap bermakna kami merancang setiap penghantaran untuk kekal segar."
+      },
+      "cleanSafe": {
+        "title": "Pengendalian Bersih & Selamat",
+        "desc": "Pengendalian selaras HACCP, pembekal diperakui halal, dan beg penghantaran terkawal suhu."
+      }
+    }
+  },
+  "days": {
+    "monday": "Isnin",
+    "tuesday": "Selasa",
+    "wednesday": "Rabu",
+    "thursday": "Khamis",
+    "friday": "Jumaat",
+    "saturday": "Sabtu",
+    "sunday": "Ahad"
+  },
+  "vendors": {
+    "badge": "Pembekal Kami",
+    "title": "Kenali Orang Di Sebalik Makanan Anda",
+    "description": "Setiap item dalam tempahan anda datang dari pembekal tempatan yang dipercayai dan kami kenali secara peribadi. Tiada pengedar tanpa nama — hanya petani, nelayan, dan peniaga sebenar yang mengambil berat tentang kesegaran seperti kami.",
+    "since": "Sejak ",
+    "theirStory": "Kisah Mereka",
+    "certifications": "Pensijilan",
+    "qualityStandards": "Standard Kualiti",
+    "availableFrom": "Boleh didapati dari ",
+    "view": "Lihat"
+  },
+  "quantity": {
+    "decrease": "Kurangkan kuantiti",
+    "increase": "Tambah kuantiti"
+  },
+  "product": {
+    "status": {
+      "available": "Tersedia",
+      "limited": "Stok Terhad",
+      "soldOut": "Habis"
+    },
+    "badges": {
+      "popular": "Popular"
+    },
+    "labels": {
+      "preparation": "Pilihan penyediaan"
+    },
+    "buttons": {
+      "addToCart": "Tambah ke Troli",
+      "added": "Ditambah!"
+    },
+    "estimatedWeight": "Berat Anggaran",
+    "estimatedQuantity": "💡 Anggaran Kuantiti",
+    "estimationDisclaimer": "Ini adalah anggaran sahaja. Berat dan harga akhir akan disahkan selepas penyediaan.",
+    "wholeFish": "Ikan Utuh",
+    "byWeight": "Mengikut Berat",
+    "howToOrder": "Bagaimana anda mahu membuat pesanan?",
+    "prawnEstimation": {
+      "title": "💡 Anggaran Kuantiti",
+      "count": "{{weight}} ≈ {{min}}–{{max}} udang",
+      "disclaimer": "Ini hanya anggaran. Jumlah sebenar udang mungkin berbeza bergantung pada saiz dan berat semula jadi."
+    },
+    "preparation": {
+      "whole": "Tidak dipotong",
+      "cleaned": "Dibersihkan",
+      "descaled": "Dibuang sisik",
+      "gutted": "Dibuang isi perut",
+      "cut": "Dipotong",
+      "cut4": "Potong 4",
+      "cut12": "Potong 12",
+      "cut16": "Potong 16"
+    }
+  },
+  "shop": {
+    "breadcrumbHome": "Utama",
+    "breadcrumbShop": "Kedai",
+    "title": "Pasar Segar",
+    "resultCount": "{{count}} produk ditemui",
+    "resultCountPlural": "{{count}} produk ditemui",
+    "searchPlaceholder": "Cari ayam, siakap, udang, sotong...",
+    "filterButton": "Penapis",
+    "priceRange": "Julat Harga",
+    "availability": "Ketersediaan",
+    "clearAllFilters": "Kosongkan semua penapis",
+    "categories": {
+      "all": "Semua",
+      "chicken": "Ayam",
+      "fish": "Ikan",
+      "prawns": "Udang",
+      "squid": "Sotong"
+    },
+    "priceOptions": {
+      "all": "Mana-mana Harga",
+      "0-15": "Bawah RM15",
+      "15-25": "RM15 \u2013 RM25",
+      "25-50": "RM25 \u2013 RM50"
+    },
+    "availabilityOptions": {
+      "all": "Semua",
+      "available": "Tersedia",
+      "limited": "Terhad"
+    },
+    "empty": {
+      "title": "Tiada produk ditemui",
+      "description": "Cuba ubah carian atau penapis anda.",
+      "clearButton": "Kosongkan penapis"
+    }
+  },
+  "productDetail": {
+    "backToShop": "Kembali ke Kedai",
+    "productNotFound": "Produk tidak ditemui.",
+    "breadcrumbHome": "Utama",
+    "breadcrumbShop": "Kedai",
+    "editProduct": "Edit Produk",
+    "delete": "Padam",
+    "preparation": "Keutamaan Penyediaan",
+    "deliveryReminder": "Dihantar segar setiap",
+    "addToCart": "Tambah ke Troli",
+    "suppliedBy": "Dibekalkan oleh",
+    "moreFrom": "Lagi dari",
+    "fish": "ekor ikan",
+    "deleteFailed": "Padam gagal",
+    "deleteModal": {
+      "title": "Padam Produk",
+      "message": "Adakah anda pasti mahu memadam {{name}}? Tindakan ini tidak boleh dibatalkan.",
+      "cancel": "Batal",
+      "delete": "Padam",
+      "deleting": "Memadam..."
+    }
+  },
+  "cart": {
+    "emptyTitle": "Troli anda kosong",
+    "emptySubtitle": "Tambah beberapa protein segar untuk memulakan.",
+    "startShopping": "Mula Membeli-belah",
+    "title": "Troli Anda ({{count}} {{items}})",
+    "item": "item",
+    "items": "item",
+    "estimatedPrice": "Anggaran Harga",
+    "trustNote": "Semua item disediakan segar pada pagi penghantaran anda. Tidak pernah dibekukan."
+  },
+  "cartItem": {
+    "comboBundle": "Kombo Bundle",
+    "contains": "Mengandungi",
+    "remove": "Buang {{name}}",
+    "preparation": {
+      "whole": "Seekor",
+      "cleaned": "Dibersihkan",
+      "descaled": "Dibuang sisik",
+      "gutted": "Dibuang isi perut",
+      "cut": "Dipotong",
+      "cut4": "Potong 4",
+      "cut12": "Potong 12",
+      "cut16": "Potong 16"
+    }
+  },
+  "cartSummary": {
+    "title": "Ringkasan Pesanan",
+    "subtotal": "Subjumlah ({{count}} item)",
+    "deliveryFee": "Yuran penghantaran",
+    "free": "PERCUMA",
+    "freeDeliveryNote": "Penghantaran percuma untuk pesanan RM50 dan ke atas",
+    "total": "Jumlah",
+    "selectDeliveryDay": "Sila pilih hari penghantaran untuk meneruskan.",
+    "estimatedTotal": "Anggaran Jumlah",
+    "orderTotal": "Jumlah Pesanan",
+    "freeDelivery": "Penghantaran Percuma",
+    "minimumOrder": "Pesanan Minimum",
+    "maximumQuantity": "Kuantiti Maksimum",
+    "invalidQuantity": "Kuantiti Tidak Sah",
+    "outOfStock": "Kehabisan Stok",
+    "pleaseAddAtLeastOneItem": "Sila tambah sekurang-kurangnya satu item.",
+    "quantityCannotBeZero": "Kuantiti tidak boleh sifar.",
+    "productUnavailable": "Produk tidak tersedia."
+  },
+  "cartAction": {
+    "removeItem": "Buang Item",
+    "clearCart": "Kosongkan Troli",
+    "areYouSure": "Adakah anda pasti?",
+    "cancel": "Batal",
+    "confirm": "Sahkan",
+    "itemRemoved": "Item dibuang.",
+    "cartCleared": "Troli dikosongkan.",
+    "continueShopping": "Teruskan Membeli-belah",
+    "proceedToCheckout": "Teruskan ke Pembayaran"
+  },
+  "checkout": {
+    "title": "Pembayaran",
+    "subtitle": "Lengkapkan pesanan anda di bawah.",
+    "deliveryInformation": "Maklumat Penghantaran",
+    "customerInformation": "Maklumat Pelanggan",
+    "orderSummary": "Ringkasan Pesanan",
+    "paymentSummary": "Ringkasan Pembayaran",
+    "reviewYourOrder": "Semak Pesanan Anda",
+    "deliveryDetails": "Butiran Penghantaran",
+    "contactDetails": "Butiran Perhubungan",
+    "placeOrder": "Buat Pesanan — RM{{total}}",
+    "continueShopping": "Teruskan Membeli-belah",
+    "backToCart": "Kembali ke Troli",
+    "editCart": "Edit Troli",
+    "fullName": "Nama Penuh",
+    "fullNamePlaceholder": "Ahmad bin Abdullah",
+    "phoneNumber": "Nombor Telefon",
+    "phonePlaceholder": "012-345 6789",
+    "emailAddress": "Alamat Emel",
+    "apartment": "Apartmen / Blok (pilihan)",
+    "apartmentPlaceholder": "cth. Rimbun Apartment, Blok B",
+    "unitNumber": "Nombor Rumah / Unit",
+    "unitPlaceholder": "cth. A-18-08",
+    "pickupLocation": "Lokasi Ambilan",
+    "selectPickupLocation": "Pilih lokasi ambilan...",
+    "deliveryDate": "Tarikh Penghantaran",
+    "deliveryTime": "Masa Penghantaran",
+    "deliverySlot": "Slot Penghantaran",
+    "deliveryDay": "Hari Penghantaran",
+    "nextDelivery": "Penghantaran seterusnya:",
+    "orderNotes": "Nota Pesanan (pilihan)",
+    "orderNotesPlaceholder": "Sebarang permintaan khas atau keutamaan pembersihan...",
+    "specialInstructions": "Arahan Khas",
+    "products": "Produk",
+    "delivery": "Penghantaran",
+    "subtotal": "Subjumlah",
+    "estimatedTotal": "Anggaran Jumlah",
+    "total": "Jumlah",
+    "free": "PERCUMA",
+    "yourDetails": "Butiran Anda",
+    "payment": "Pembayaran",
+    "continueToPayment": "Teruskan ke Pembayaran",
+    "back": "Kembali",
+    "placingOrder": "Sedang membuat pesanan...",
+    "deliveryTo": "PENGHANTARAN KE",
+    "remarks": "Catatan / Nota",
+    "qty": "Kuantiti {{count}}",
+    "estimatedOnly": "anggaran sahaja",
+    "contains": "Mengandungi",
+    "preparation": "Penyediaan: {{prep}}",
+    "finalPriceAfterWeighing": "Harga akhir akan disahkan selepas ditimbang.",
+    "productImagesTitle": "Gambar Produk",
+    "productImagesBody": "Gambar produk adalah untuk tujuan ilustrasi sahaja. Oleh kerana produk kami segar dan semula jadi, saiz sebenar, warna, bentuk dan rupa mungkin berbeza. Setiap ikan, ayam dan makanan laut adalah unik.",
+    "estimatedPricingTitle": "Anggaran Harga",
+    "estimatedPricingBody": "Harga yang dipaparkan untuk produk yang dijual mengikut berat adalah anggaran harga sahaja. Harga jualan akhir akan dikira berdasarkan berat sebenar selepas penyediaan dan harga jualan terkini untuk hari penghantaran. Ini terpakai untuk ikan, udang, sotong dan semua produk yang dijual mengikut kilogram. Seekor Ayam dicaj pada harga tetap yang disenaraikan.",
+    "reviewOrderPrompt": "Sila semak pesanan anda sebelum membuat pesanan.",
+    "estimatedMayChange": "Anggaran jumlah mungkin berubah selepas ditimbang.",
+    "validation": {
+      "fullNameRequired": "Nama penama diperlukan.",
+      "phoneRequired": "Nombor telefon diperlukan.",
+      "phoneInvalid": "Masukkan nombor telefon Malaysia yang sah.",
+      "emailRequired": "Emel diperlukan.",
+      "emailInvalid": "Masukkan emel yang sah.",
+      "unitRequired": "Nombor rumah/unit diperlukan (cth. A-18-08).",
+      "pickupLocationRequired": "Sila pilih lokasi ambilan.",
+      "deliveryDayRequired": "Sila pilih hari penghantaran.",
+      "failedToPlaceOrder": "Gagal membuat pesanan. Sila cuba lagi.",
+      "orderNotesOptional": "Nota pesanan adalah pilihan."
+    }
+  },
+  "delivery": {
+    "deliveryDate": "Tarikh Penghantaran",
+    "slot": "Slot Penghantaran",
+    "slotLabel": "Slot Penghantaran",
+    "availableSlots": "Slot Tersedia",
+    "morning": "Pagi",
+    "afternoon": "Tengahari",
+    "evening": "Petang",
+    "pickupLocation": "Lokasi Ambilan",
+    "deliveryDetails": "Butiran Penghantaran",
+    "deliveryTo": "PENGHANTARAN KE",
+    "deliveryDay": "Hari Penghantaran",
+    "selectDeliveryDate": "Pilih Tarikh Penghantaran",
+    "selectPickupLocation": "Pilih lokasi ambilan...",
+    "noDeliveryAvailable": "Tiada penghantaran tersedia."
+  },
+  "payment": {
+    "title": "Pembayaran",
+    "status": "Status Pembayaran",
+    "method": "Kaedah Pembayaran",
+    "manualBankTransfer": "Pindahan Bank Manual",
+    "qrPayment": "Bayaran QR",
+    "uploadReceipt": "Muat Naik Resit",
+    "pending": "Menunggu",
+    "waitingForPayment": "Menunggu Pembayaran",
+    "readyToPay": "Sedia Untuk Bayar",
+    "paid": "Dibayar",
+    "amount": "Jumlah Akhir",
+    "referenceNumber": "Nombor Rujukan",
+    "instructions": "Arahan Pembayaran",
+    "cashOnDelivery": "Bayar Semasa Terima",
+    "codDescription": "Bayar RM{{total}} secara tunai apabila pesanan anda tiba. Penghantar kami akan mempunyai wang tepat.",
+    "continueToPayment": "Teruskan ke Pembayaran",
+    "readyToPayInstructions": "Pesanan anda telah ditimbang dan sedia untuk pembayaran. Sila buat pembayaran menggunakan kod QR yang dihantar melalui WhatsApp. Selepas pembayaran, balas dengan resit pembayaran anda."
+  },
+  "orderSuccess": {
+    "loading": "Memuatkan pesanan...",
+    "notFound": "Pesanan Tidak Ditemui",
+    "notFoundMessage": "Kami tidak dapat mencari pesanan #{{id}}.",
+    "backToHome": "Kembali ke Laman Utama",
+    "home": "Utama",
+    "pageTitle": "Penjejakan Pesanan",
+    "orderConfirmed": "Pesanan Disahkan!",
+    "thankYou": "Terima kasih, {{name}}.",
+    "yourOrderHasBeenReceived": "Pesanan anda telah diterima.",
+    "orderNumber": "ID Pesanan",
+    "deliveryDate": "Tarikh Penghantaran",
+    "deliveryTime": "Waktu Penghantaran",
+    "estimatedDelivery": "Anggaran Penghantaran",
+    "continueShopping": "Teruskan Membeli-belah",
+    "viewMyOrders": "Lihat Pesanan Saya"
+  },
+  "profile": {
+    "title": "Profil Saya",
+    "memberSince": "Ahli sejak",
+    "verifiedAccount": "Akaun disahkan",
+    "logOut": "Log Keluar",
+    "myOrders": "Pesanan Saya",
+    "myOrdersDesc": "Lihat sejarah pesanan dan jejak penghantaran",
+    "displayName": "Nama Paparan",
+    "fullName": "Nama Penuh",
+    "namePlaceholder": "cth. Ahmad Razif",
+    "saving": "Menyimpan…",
+    "saveName": "Simpan Nama",
+    "saved": "Disimpan",
+    "couldNotSave": "Tidak dapat menyimpan",
+    "emailAddress": "Alamat E-mel",
+    "emailHelp": "Hubungi sokongan untuk menukar alamat e-mel anda.",
+    "changePassword": "Tukar Kata Laluan",
+    "currentPassword": "Kata Laluan Semasa",
+    "newPassword": "Kata Laluan Baru",
+    "confirmPassword": "Sahkan Kata Laluan Baru",
+    "passwordPlaceholder": "Sekurang-kurangnya 8 aksara",
+    "hide": "Sembunyi",
+    "show": "Tunjuk",
+    "updating": "Mengemas kini…",
+    "updatePassword": "Kemas Kini Kata Laluan",
+    "updated": "Dikemas kini",
+    "errors": {
+      "passwordMismatch": "Kata laluan baru tidak sepadan.",
+      "passwordLength": "Kata laluan mesti sekurang-kurangnya 8 aksara.",
+      "incorrectPassword": "Kata laluan semasa tidak betul."
+    }
+  },
+  "myOrders": {
+    "title": "Pesanan Saya",
+    "pageTitle": "Pesanan Saya",
+    "profile": "Profil",
+    "orderHistory": "Sejarah Pesanan",
+    "recentOrders": "Pesanan Terkini",
+    "orderDetails": "Butiran Pesanan",
+    "viewOrder": "Lihat Pesanan",
+    "trackOrder": "Jejak Pesanan",
+    "reorder": "Pesan Semula",
+    "viewDetails": "Lihat",
+    "track": "Jejak",
+    "orderAgain": "Pesan Lagi",
+    "continueShopping": "Teruskan Membeli-belah",
+    "orderNumber": "Nombor Pesanan",
+    "orderDate": "Tarikh Pesanan",
+    "deliveryDate": "Tarikh Penghantaran",
+    "deliveryTime": "Waktu Penghantaran",
+    "total": "Jumlah",
+    "estimatedTotal": "Anggaran Jumlah",
+    "paymentStatus": "Status Pembayaran",
+    "deliveryStatus": "Status Penghantaran",
+    "emptyTitle": "Tiada pesanan lagi",
+    "emptyMessage": "Sejarah pesanan anda akan muncul di sini sebaik sahaja anda membuat pesanan pertama anda.",
+    "startShopping": "Mula Membeli-belah",
+    "failedToLoad": "Gagal memuatkan pesanan",
+    "status": {
+      "confirmed": "Disahkan",
+      "preparing": "Sedang Disediakan",
+      "out-for-delivery": "Sedang Dihantar",
+      "delivered": "Telah Dihantar"
+    }
+  },
+  "ordersPage": {
+    "confirmed": "Disahkan",
+    "preparing": "Sedang Disediakan",
+    "outForDelivery": "Sedang Dihantar",
+    "delivered": "Telah Dihantar"
+  },
+  "tracking": {
+    "trackOrder": "Jejak Pesanan",
+    "orderStatus": "Status Pesanan",
+    "estimatedDelivery": "Anggaran Penghantaran",
+    "deliveryDetails": "Butiran Penghantaran",
+    "currentStatus": "Status Semasa",
+    "trackingTimeline": "Garis Masa Penjejakan",
+    "pickupDetails": "Butiran Ambilan",
+    "orderContents": "Kandungan Pesanan",
+    "unit": "Unit",
+    "timeline": {
+      "Order Confirmed": "Pesanan Diterima",
+      "Being Prepared": "Sedang Disiapkan",
+      "Out for Delivery": "Sedang Dihantar",
+      "Delivered": "Telah Dihantar"
+    },
+    "messages": {
+      "orderBeingPrepared": "Pesanan anda sedang disediakan.",
+      "waitingForSupplier": "Menunggu pengesahan pembekal.",
+      "driverOnWay": "Pemandang sedang dalam perjalanan.",
+      "deliveredSuccessfully": "Telah dihantar dengan jayanya."
+    }
+  },
+  "supplierDashboard": {
+    "packingDashboard": "Papan Pemantauan Pembungkusan",
+    "prepareProducts": "Sediakan produk sebelum membuka pesanan pelanggan",
+    "todaysProgress": "Perkembangan Hari Ini",
+    "customersCompleted": "{{completed}} / {{total}} Pelanggan Selesai",
+    "pendingCount": "🟡 Menunggu: {{count}}",
+    "inProgressCount": "🔵 Dalam Proses: {{count}}",
+    "completedCount": "🟢 Selesai: {{count}}",
+    "todaysPackingCompleted": "Pembungkusan Hari Ini Selesai",
+    "ordersCompleted": "{{completed}} / {{total}} Pesanan Selesai",
+    "readyForDelivery": "Sedia untuk penghantaran.",
+    "viewCompletedOrders": "Lihat Pesanan Selesai",
+    "backToPackingDashboard": "← Kembali ke Papan Pemantauan",
+    "backToSchedule": "← Kembali ke Jadual",
+    "backToWorkspace": "← Kembali ke Ruang Kerja",
+    "backToDeliverySchedule": "← Kembali ke Jadual Penghantaran",
+    "customerQueue": "Barisan Pelanggan",
+    "backToQueue": "Kembali ke Barisan",
+    "backToQueueBtn": "KEMBALI KE BARISAN ➡",
+    "nextCustomerBtn": "PELANGGAN SETERUSNYA ➡",
+    "noOrdersFound": "Tiada pesanan ditemui.",
+    "searchPlaceholder": "Cari nama pelanggan, nombor telefon, atau rujukan pesanan...",
+    "inProgressSection": "🔵 DALAM PROSES ({{count}})",
+    "pendingSection": "🟡 MENUNGGU ({{count}})",
+    "allProcessed": "Semua pelanggan telah diproses.",
+    "completedSection": "🟢 SELESAI ({{count}})",
+    "productsCount": "{{count}} Produk",
+    "weighingInProgress": "⏳ Timbangan sedang dijalankan...",
+    "start": "MULA",
+    "viewDetails": "Lihat Butiran",
+    "locked": "✓ Terkunci",
+    "editWeight": "Edit Timbangan",
+    "noOrdersAvailable": "Tiada pesanan tersedia.",
+    "packingDashboardTitle": "📦 PAPAN PEMANTAUAN PEMBUNGKUSAN",
+    "ordersToday": "{{count}} Pesanan Hari Ini",
+    "todaysOverview": "Gambaran Keseluruhan Hari Ini",
+    "overviewOrders": "Pesanan",
+    "overviewPendingPayment": "Menunggu Pembayaran",
+    "overviewReadyToPay": "Sedia Untuk Bayar",
+    "overviewPaid": "Telah Dibayar",
+    "packingSummary": "Ringkasan Pembungkusan",
+    "itemCount": "{{count}} item",
+    "packingChecklist": "📦 Senarai Semak Pembungkusan",
+    "noItems": "Tiada item untuk disediakan.",
+    "deliveryLocationSummary": "Ringkasan Lokasi Penghantaran",
+    "orderCount": "{{count}} Pesanan",
+    "startPacking": "MULA MEMBUNGKUS",
+    "readyToProcess": "{{count}} Pelanggan — Sedia diproses",
+    "categoryChicken": "🐔 Ayam",
+    "categoryFish": "🐟 Ikan",
+    "categoryPrawns": "🦐 Udang",
+    "categorySquid": "🦑 Sotong",
+    "filterAll": "Semua Pesanan",
+    "filterPending": "Pesanan Menunggu Bayaran",
+    "filterReadyToPay": "Pesanan Sedia Dibayar",
+    "filterPaid": "Pesanan Telah Dibayar",
+    "filterOrderCount": "{{count}} Pesanan",
+    "noOrdersInCategory": "Tiada pesanan dalam kategori ini.",
+    "filterProducts": "Produk",
+    "contains": "Mengandungi",
+    "filterDeliveryFee": "Yuran Penghantaran",
+    "actualTotal": "Jumlah Sebenar",
+    "viewOrder": "Lihat Pesanan",
+    "viewReceipt": "Lihat Resit",
+    "weightNotEntered": "Berat belum dimasukkan",
+    "orderLocked": "Pesanan ini telah dibayar. Timbangan dikunci dan tidak boleh diedit.",
+    "enterWeightFor": "Masukkan berat sebenar untuk \"{{name}}\".",
+    "weightMustBePositive": "Berat untuk \"{{name}}\" mesti lebih daripada sifar.",
+    "failedToSaveWeight": "Gagal menyimpan timbangan",
+    "weightUpdated": "Timbangan Dikemas Kini",
+    "customerCompleted": "Pelanggan Selesai",
+    "weightSavedMsg": "Timbangan disimpan — status pembayaran dikekalkan.",
+    "allSavedMsg": "Semua timbangan disimpan — status pembayaran dikemas kini kepada Sedia Dibayar",
+    "completedBadge": "✅ Selesai",
+    "remainingCount": "⏳ {{count}} lagi",
+    "notes": "Nota",
+    "orderPaidTitle": "Pesanan ini telah dibayar.",
+    "weightsLockedMsg": "Timbangan dikunci dan tidak boleh diedit.",
+    "save": "Simpan",
+    "saved": "✔ Disimpan",
+    "fixedPrice": "✅ Harga Tetap",
+    "enterWeightHint": "Masukkan berat sebenar untuk mengira harga akhir.",
+    "deliveryFee": "Yuran Penghantaran",
+    "free": "PERCUMA",
+    "orderTotal": "Jumlah Pesanan",
+    "customerInfo": "Maklumat Pelanggan",
+    "unit": "Unit {{unit}}",
+    "pickup": "Ambilan: {{location}}",
+    "remarksNotes": "Komen / Nota",
+    "products": "Produk",
+    "qtyLine": "Kuantiti: {{qty}} × RM{{price}}{{suffix}}",
+    "perKg": "/kg",
+    "preparation": "Persediaan: {{prep}}",
+    "weightEntered": "Berat Dimasukkan: {{weight}}",
+    "total": "Jumlah",
+    "paymentStatus": "Status Pembayaran",
+    "completionTime": "Masa Selesai",
+    "close": "Tutup"
+  },
+  "packingSummary": {
+    "title": "Ringkasan Pembungkusan",
+    "categories": {
+      "chicken": "🐔 Ayam",
+      "fish": "🐟 Ikan",
+      "prawns": "🦐 Udang",
+      "squid": "🦑 Sotong"
+    },
+    "labels": {
+      "item": "item",
+      "items": "item",
+      "total": "Jumlah",
+      "preparation": "Persediaan"
+    },
+    "preparation": {
+      "whole": "Seekor",
+      "cleaned": "Dibersihkan",
+      "descaled": "Dibuang Sisik",
+      "gutted": "Dibuang Isi Perut & Dibersihkan",
+      "guttedCleaned": "Dibuang Isi Perut & Dibersihkan",
+      "cut4": "Potong 4",
+      "cut12": "Potong 12",
+      "cut16": "Potong 16"
+    },
+    "messages": {
+      "noProducts": "Tiada produk untuk disediakan.",
+      "noPacking": "Tiada pembungkusan diperlukan."
+    }
+  },
+  "customerQueue": {
+    "title": "Barisan Pelanggan",
+    "todaysCustomerQueue": "Barisan Pelanggan Hari Ini",
+    "pending": "Menunggu",
+    "inProgress": "Dalam Proses",
+    "completed": "Selesai",
+    "labels": {
+      "customers": "Pelanggan",
+      "orders": "Pesanan",
+      "products": "Produk"
+    },
+    "messages": {
+      "noPending": "Tiada pelanggan yang menunggu.",
+      "noProgress": "Tiada pelanggan dalam proses.",
+      "noCompleted": "Tiada pelanggan selesai.",
+      "noOrders": "Tiada pesanan hari ini.",
+      "loading": "Memuatkan pesanan...",
+      "weighingInProgress": "⏳ Timbangan sedang dijalankan...",
+      "searchPlaceholder": "Cari nama pelanggan, nombor telefon, atau rujukan pesanan...",
+      "completedAt": "Selesai pada {{time}}"
+    },
+    "buttons": {
+      "refresh": "Muat Semula",
+      "viewCustomer": "Lihat Pelanggan",
+      "continue": "Teruskan",
+      "back": "Kembali",
+      "locked": "✓ Terkunci",
+      "editWeight": "Edit Timbangan"
+    },
+    "status": {
+      "awaitingPacking": "🟠 Menunggu Pembungkusan",
+      "readyToPay": "🔵 Sedia Dibayar",
+      "paid": "🟢 Telah Dibayar"
+    },
+    "date": {
+      "today": "Hari Ini",
+      "tomorrow": "Esok",
+      "selectedDeliveryDate": "Tarikh Penghantaran Dipilih"
+    },
+    "summary": {
+      "totalCustomers": "Jumlah Pelanggan",
+      "completedCustomers": "Pelanggan Selesai",
+      "remainingCustomers": "Baki Pelanggan"
+    }
+  },
+  "supplierCard": {
+    "customer": "Pelanggan",
+    "customerName": "Nama Pelanggan",
+    "phone": "Nombor Telefon",
+    "apartment": "Apartmen",
+    "unit": "Unit",
+    "pickupLocation": "Lokasi Ambilan",
+    "deliveryDate": "Tarikh Penghantaran",
+    "deliveryTime": "Masa Penghantaran",
+    "products": "Produk",
+    "totalProducts": "Jumlah Produk",
+    "estimatedTotal": "Anggaran Jumlah",
+    "estimatedWeight": "Anggaran Berat",
+    "items": "Item",
+    "orderNotes": "Nota Pesanan",
+    "customerNotes": "Nota Pelanggan",
+    "specialRequest": "Permintaan Khas",
+    "buttons": {
+      "start": "MULA",
+      "continue": "Teruskan",
+      "continueWeighing": "Teruskan Timbangan",
+      "resume": "Sambung",
+      "save": "Simpan",
+      "saveProgress": "Simpan Kemajuan",
+      "completed": "Selesai",
+      "readyToPay": "Sedia Dibayar",
+      "waitingPayment": "Menunggu Bayaran",
+      "paid": "Telah Dibayar",
+      "back": "Kembali"
+    },
+    "messages": {
+      "noNotes": "Tiada Nota",
+      "noProducts": "Tiada Produk",
+      "waitingSupplier": "Menunggu pembekal",
+      "waitingPayment": "Menunggu pembayaran",
+      "completed": "Pembungkusan selesai",
+      "readyToPay": "Sedia untuk bayaran pelanggan"
+    },
+    "sections": {
+      "customerInfo": "Maklumat Pelanggan",
+      "orderInfo": "Maklumat Pesanan",
+      "packingProgress": "Kemajuan Pembungkusan"
+    }
+  },
+  "weightEntry": {
+    "title": "Masukan Berat",
+    "subtitle": "Penimbangan Produk",
+    "labels": {
+      "product": "Produk",
+      "quantity": "Kuantiti",
+      "preparation": "Penyediaan",
+      "estimatedWeight": "Anggaran Berat",
+      "actualWeight": "Berat Sebenar",
+      "weight": "Berat",
+      "unit": "Unit",
+      "price": "Harga",
+      "pricePerKg": "Harga Per KG",
+      "estimatedPrice": "Anggaran Harga",
+      "actualPrice": "Harga Sebenar",
+      "total": "Jumlah",
+      "grandTotal": "Jumlah Besar",
+      "deliveryFee": "Kos Penghantaran",
+      "free": "PERCUMA"
+    },
+    "input": {
+      "placeholder": "Masukkan berat"
+    },
+    "buttons": {
+      "save": "Simpan",
+      "saveProgress": "Simpan Kemajuan",
+      "saveWeight": "Simpan Berat",
+      "continue": "Teruskan",
+      "back": "Kembali",
+      "cancel": "Batal",
+      "readyToPay": "Sedia Untuk Bayar",
+      "completed": "Selesai",
+      "queue": "Senarai Pelanggan"
+    },
+    "messages": {
+      "saving": "Menyimpan...",
+      "saved": "✔ Disimpan",
+      "saveFailed": "Gagal menyimpan berat",
+      "calculating": "Mengira...",
+      "readyToPay": "Sedia Untuk Bayar",
+      "weightSavedMsg": "Berat disimpan — status pembayaran dikekalkan.",
+      "allSavedMsg": "Semua berat disimpan — status pembayaran dikemas kini ke Sedia Untuk Bayar",
+      "orderLocked": "Pesanan ini telah dibayar. Berat dikunci dan tidak boleh diedit.",
+      "orderLockedTitle": "Pesanan ini telah dibayar.",
+      "orderLockedMsg": "Berat dikunci dan tidak boleh diedit."
+    },
+    "validation": {
+      "required": "Masukkan berat sebenar untuk \"{{name}}\".",
+      "invalid": "Sila masukkan berat yang sah.",
+      "zero": "Berat untuk \"{{name}}\" mesti lebih besar daripada sifar."
+    },
+    "helper": {
+      "perKgOnly": "Hanya item per-KG memerlukan berat sebenar.",
+      "fixedPrice": "✅ Harga Tetap",
+      "autoCalculation": "Masukkan berat sebenar untuk mengira harga akhir."
+    },
+    "summary": {
+      "title": "Ringkasan Berat",
+      "completed": "Produk Selesai",
+      "pending": "⏳ {{count}} lagi"
+    }
+  },
+  "supplierOrder": {
+    "title": "Butiran Pesanan",
+    "sections": {
+      "customerInfo": "Maklumat Pelanggan",
+      "delivery": "Maklumat Penghantaran",
+      "order": "Maklumat Pesanan",
+      "products": "Produk Dipesan",
+      "orderNotes": "Nota Pesanan",
+      "summary": "Ringkasan Pesanan",
+      "payment": "Maklumat Pembayaran",
+      "packing": "Maklumat Pembungkusan"
+    },
+    "labels": {
+      "customerName": "Nama Pelanggan",
+      "phone": "Nombor Telefon",
+      "apartment": "Apartmen",
+      "unit": "Unit: {{unit}}",
+      "pickupLocation": "Lokasi Ambil: {{location}}",
+      "deliveryDate": "Tarikh Penghantaran",
+      "deliveryTime": "Masa Penghantaran",
+      "deliverySlot": "Slot Penghantaran",
+      "deliveryWindow": "Tetingkap Penghantaran",
+      "deliveryNotes": "Nota Penghantaran",
+      "orderNumber": "Nombor Pesanan",
+      "orderCreated": "Pesanan Dicipta",
+      "orderStatus": "Status Pesanan",
+      "paymentStatus": "Status Pembayaran",
+      "completionTime": "Masa Selesai",
+      "qtyLine": "Kuantiti: {{qty}} × RM{{price}}{{suffix}}",
+      "perKg": "/kg",
+      "quantity": "Kuantiti",
+      "preparation": "Penyediaan: {{prep}}",
+      "estimatedWeight": "Anggaran Berat",
+      "actualWeight": "Berat: {{weight}}",
+      "estimatedPrice": "Anggaran Harga",
+      "actualPrice": "Harga Sebenar",
+      "subtotal": "Jumlah Kecil",
+      "deliveryFee": "Kos Penghantaran",
+      "grandTotal": "Jumlah Besar",
+      "fixedPrice": "✅ Harga Tetap",
+      "totalProducts": "Jumlah Produk",
+      "totalQuantity": "Jumlah Kuantiti",
+      "estimatedTotal": "Anggaran Jumlah",
+      "actualTotal": "Jumlah Sebenar"
+    },
+    "buttons": {
+      "back": "Kembali",
+      "editWeight": "Edit Berat",
+      "continue": "Teruskan Menimbang",
+      "saveProgress": "Simpan Kemajuan",
+      "readyToPay": "Sedia Untuk Bayar",
+      "completed": "Selesai",
+      "close": "Tutup"
+    },
+    "messages": {
+      "noProducts": "Tiada produk dijumpai.",
+      "noNotes": "Tiada nota disediakan.",
+      "free": "PERCUMA",
+      "waitingSupplier": "Menunggu pembekal.",
+      "waitingPayment": "Menunggu pembayaran.",
+      "readyForPayment": "Sedia untuk bayaran.",
+      "paymentReceived": "Pembayaran diterima."
+    }
+  },
+  "deliverySchedule": {
+    "title": "Jadual Penghantaran",
+    "calendar": "Kalendar Penghantaran",
+    "today": "Penghantaran Hari Ini",
+    "upcoming": "Penghantaran Akan Datang",
+    "sections": {
+      "summary": "Ringkasan Penghantaran",
+      "orders": "Pesanan",
+      "customers": "Pelanggan",
+      "products": "Produk",
+      "checklist": "📦 Senarai Semak Pembungkusan",
+      "locations": "Ringkasan Lokasi Penghantaran"
+    },
+    "labels": {
+      "selectedDate": "Tarikh Dipilih",
+      "deliveryDay": "Hari Penghantaran",
+      "deliverySlot": "Slot Penghantaran",
+      "deliveryWindow": "Tetingkap Penghantaran",
+      "customer": "Pelanggan",
+      "apartment": "Apartmen",
+      "unit": "Nombor Unit",
+      "pickupLocation": "Lokasi Ambil",
+      "totalOrders": "Jumlah Pesanan",
+      "totalCustomers": "Jumlah Pelanggan",
+      "totalProducts": "Jumlah Produk",
+      "ordersToday": "{{count}} Pesanan Hari Ini",
+      "orderCount": "{{count}} Pesanan",
+      "filterOrderCount": "{{count}} Pesanan",
+      "products": "Produk",
+      "contains": "Mengandungi",
+      "deliveryFee": "Kos Penghantaran",
+      "actualTotal": "Jumlah Sebenar"
+    },
+    "buttons": {
+      "previous": "Tarikh Sebelum",
+      "next": "Tarikh Selepas",
+      "today": "Hari Ini",
+      "refresh": "Muat Semula",
+      "viewOrders": "Lihat Pesanan",
+      "viewReceipt": "Lihat Resit",
+      "back": "Kembali",
+      "startPacking": "MULA MEMBUNGKUS"
+    },
+    "messages": {
+      "noDeliveries": "Tiada pesanan tersedia.",
+      "noOrders": "Tiada pesanan dalam kategori ini.",
+      "noItems": "Tiada item untuk disediakan.",
+      "loading": "Memuatkan jadual penghantaran...",
+      "weightNotEntered": "Berat belum dimasukkan",
+      "free": "PERCUMA",
+      "readyToProcess": "{{count}} Pelanggan — Sedia untuk diproses"
+    },
+    "summary": {
+      "orders": "Pesanan",
+      "pending": "Pembayaran Tertangguh",
+      "ready": "Sedia Untuk Bayar",
+      "completed": "Dibayar",
+      "remaining": "Baki Pesanan"
+    },
+    "filters": {
+      "all": "Semua Pesanan",
+      "pending": "Pesanan Bayaran Tertangguh",
+      "ready": "Pesanan Sedia Dibayar",
+      "paid": "Pesanan Dibayar"
+    }
+  },
+  "packingChecklist": {
+    "title": "📦 Senarai Semak Pembungkusan",
+    "progress": "Kemajuan Pembungkusan",
+    "sections": {
+      "products": "Produk Untuk Disediakan",
+      "completed": "Item Selesai",
+      "remaining": "Item Tertinggal",
+      "summary": "Ringkasan Pembungkusan",
+      "preparation": "Ringkasan Penyediaan"
+    },
+    "labels": {
+      "completed": "Selesai",
+      "remaining": "Tertinggal",
+      "progress": "Kemajuan",
+      "preparation": "Penyediaan",
+      "quantity": "Kuantiti",
+      "products": "Produk",
+      "items": "Item",
+      "customer": "Pelanggan"
+    },
+    "buttons": {
+      "check": "Tanda",
+      "uncheck": "Nyah Tanda",
+      "markComplete": "Tanda Selesai",
+      "markAllComplete": "Tanda Semua Selesai",
+      "reset": "Set Semula",
+      "back": "Kembali",
+      "continue": "Teruskan"
+    },
+    "messages": {
+      "noPacking": "Tiada pembungkusan diperlukan.",
+      "noProducts": "Tiada item untuk disediakan.",
+      "completed": "Pembungkusan selesai dengan jayanya.",
+      "inProgress": "Pembungkusan sedang dijalankan.",
+      "waiting": "Menunggu produk yang tinggal."
+    },
+    "summary": {
+      "totalProducts": "Jumlah Produk",
+      "productsPacked": "Produk Dibungkus",
+      "productsRemaining": "Produk Tertinggal",
+      "completion": "Selesai"
+    },
+    "helper": {
+      "verify": "Sahkan kuantiti produk sebelum menandakan selesai.",
+      "completePreparation": "Selesaikan setiap penyediaan sebelum penghantaran."
+    }
+  },
+  "adminDashboard": {
+    "title": "Dashboard Admin",
+    "subtitle": "Urus produk dan tetapan laman",
+    "tabs": {
+      "products": "Produk",
+      "settings": "Tetapan",
+      "users": "Pengguna"
+    }
+  },
+  "adminOrders": {
+    "tabs": {
+      "orders": "Tempahan"
+    },
+    "filters": {
+      "all": "Semua",
+      "pending": "Menunggu",
+      "readyToPay": "Sedia Bayar",
+      "paid": "Dibayar"
+    },
+    "orderStatus": {
+      "confirmed": "Disahkan",
+      "preparing": "Sedang Disediakan",
+      "outForDelivery": "Sedang Dihantar",
+      "delivered": "Telah Dihantar"
+    },
+    "labels": {
+      "orderRef": "Rujukan Tempahan",
+      "customer": "Pelanggan",
+      "createdAt": "Dibuat Pada",
+      "deliveryDate": "Tarikh Hantaran",
+      "total": "Jumlah (RM)",
+      "orderStatus": "Status Tempahan",
+      "paymentStatus": "Status Bayaran",
+      "actions": "Tindakan",
+      "deliveryAddress": "Alamat Hantaran",
+      "unit": "Unit {{unit}}",
+      "item": "Item",
+      "prep": "Persediaan",
+      "qty": "Kuantiti",
+      "actualWeight": "Berat Sebenar (kg)",
+      "itemTotal": "Jumlah (RM)",
+      "fixed": "[Tetap]",
+      "contains": "Mengandungi:",
+      "subtotal": "Subjumlah",
+      "delivery": "Penghantaran",
+      "finalAmount": "Jumlah Akhir",
+      "customerNotes": "Nota Pelanggan",
+      "payment": "Pembayaran"
+    },
+    "buttons": {
+      "edit": "Sunting Tempahan",
+      "view": "Lihat",
+      "back": "Kembali ke Tempahan",
+      "whatsapp": "WhatsApp Pelanggan",
+      "copyPayment": "Salin Mesej Bayaran",
+      "markAsPaid": "Tanda sebagai Dibayar",
+      "cancel": "Batal",
+      "save": "Simpan Perubahan",
+      "delete": "Padam Tempahan"
+    },
+    "messages": {
+      "failedLoad": "Gagal memuat tempahan",
+      "noOrders": "Tiada tempahan lagi.",
+      "noOrdersFilter": "Tiada tempahan dengan status \"{{filter}}\".",
+      "failedConfirm": "Gagal mengesahkan bayaran",
+      "pendingWeighing": "Menunggu timbangan",
+      "free": "PERCUMA",
+      "confirmedOn": "Disahkan pada {{date}}",
+      "paymentConfirmed": "Bayaran berjaya disahkan.",
+      "copied": "Disalin!",
+      "confirming": "Mengesahkan...",
+      "failedUpdate": "Gagal mengemas kini tempahan",
+      "updated": "Perubahan berjaya disimpan",
+      "loading": "Memuat jadual penghantaran...",
+      "saving": "Menyimpan...",
+      "deleted": "Tempahan berjaya dipadam",
+      "failedDelete": "Gagal memadam tempahan",
+      "deleting": "Memadam...",
+      "cannotUndo": "Tindakan ini tidak boleh dibatalkan."
+    },
+    "modal": {
+      "confirmTitle": "Sahkan Bayaran",
+      "confirmBody": "Adakah anda telah mengesahkan bayaran telah diterima untuk tempahan <strong>{{ref}}</strong>?",
+      "deleteTitle": "Padam Tempahan",
+      "deleteBody": "Adakah anda pasti mahu memadam tempahan <strong>{{ref}}</strong>? Tindakan ini tidak boleh dibatalkan."
+    },
+    "edit": {
+      "title": "Sunting Tempahan",
+      "customerName": "Nama Pelanggan *",
+      "phone": "Nombor Telefon *",
+      "phonePlaceholder": "Cth. 012-3456789",
+      "apartment": "Apartmen",
+      "apartmentPlaceholder": "Cth. Rimbun Residence",
+      "houseUnit": "Unit Rumah",
+      "unitPlaceholder": "Cth. 12-3A",
+      "pickupLocation": "Lokasi Ambilan",
+      "pickupPlaceholder": "Cth. Lobi / Pondok Pengawal",
+      "deliveryDate": "Tarikh Hantaran",
+      "selectDate": "Pilih tarikh hantaran",
+      "deliveryWindow": "Waktu Hantaran",
+      "windowPlaceholder": "Cth. 10:00-12:00",
+      "orderNotes": "Nota Tempahan / Catatan",
+      "notesPlaceholder": "Arahan penghantaran pelanggan..."
+    },
+    "pagination": {
+      "showing": "Menunjukkan {{count}} daripada {{total}} tempahan"
+    }
+  },
+  "adminProducts": {
+    "products": {
+      "count": "{{count}} produk"
+    },
+    "search": {
+      "placeholder": "Cari mengikut nama, nama Melayu, atau kategori..."
+    },
+    "buttons": {
+      "add": "Tambah Produk",
+      "edit": "Sunting",
+      "delete": "Padam",
+      "cancel": "Batal",
+      "update": "Kemas Kini Produk",
+      "create": "Cipta Produk"
+    },
+    "labels": {
+      "productName": "Nama Produk",
+      "category": "Kategori",
+      "price": "Harga",
+      "status": "Status",
+      "actions": "Tindakan",
+      "chicken": "Ayam",
+      "fish": "Ikan",
+      "prawns": "Udang",
+      "squid": "Sotong",
+      "combo": "Kombo",
+      "available": "Tersedia",
+      "limited": "Terhad",
+      "soldOut": "Habis"
+    },
+    "messages": {
+      "noSearchResults": "Tiada produk yang sepadan dengan carian anda.",
+      "noProducts": "Tiada produk lagi.",
+      "deleteFailed": "Gagal memadam",
+      "deleting": "Memadam...",
+      "saving": "Menyimpan...",
+      "added": "Produk berjaya ditambah. Mengarah semula...",
+      "updated": "Produk berjaya dikemas kini. Mengarah semula...",
+      "operationFailed": "Operasi gagal"
+    },
+    "delete": {
+      "title": "Padam Produk",
+      "confirm": "Adakah anda pasti mahu memadam {{name}}? Tindakan ini tidak boleh dibatalkan."
+    },
+    "pagination": {
+      "showing": "Menunjukkan {{count}} daripada {{total}} produk",
+      "total": "Jumlah Produk: {{count}}"
+    },
+    "form": {
+      "addTitle": "Tambah Produk Baru",
+      "editTitle": "Sunting Produk",
+      "basicInfo": "Maklumat Asas",
+      "nameEn": "Nama (Inggeris) *",
+      "nameEnPlaceholder": "Cth. Siakap",
+      "nameMs": "Nama (Melayu) *",
+      "nameMsPlaceholder": "Cth. Ikan Siakap",
+      "category": "Kategori *",
+      "freshness": "Status Kesegaran",
+      "pricing": "Harga & Unit",
+      "price": "Harga (RM) *",
+      "pricePlaceholder": "Cth. 19.00",
+      "unit": "Unit *",
+      "unitPlaceholder": "Cth. per kg",
+      "priceNote": "Nota Harga",
+      "priceNotePlaceholder": "Cth. RM19/kg",
+      "weight": "Berat",
+      "weightPlaceholder": "Cth. 1.5-1.7 kg",
+      "descriptions": "Penerangan",
+      "shortDesc": "Penerangan Ringkas *",
+      "shortDescPlaceholder": "Penerangan kad ringkas",
+      "longDesc": "Penerangan Lengkap *",
+      "longDescPlaceholder": "Penerangan halaman penuh",
+      "images": "Imej Produk",
+      "currentImage": "Imej Semasa",
+      "primaryImage": "URL Imej Utama *",
+      "imagePlaceholder": "https://...",
+      "galleryUrls": "URL Galeri (satu setiap baris)",
+      "galleryPlaceholder": "https://url1.jpg\nhttps://url2.jpg",
+      "preparation": "Pilihan Persediaan",
+      "preparationHelper": "Ditentukan secara automatik oleh kategori yang dipilih. Kemas kini kategori di atas untuk menukar pilihan yang tersedia.",
+      "noPrepOptions": "Tiada pilihan persediaan untuk kategori ini. Anda boleh menambah sokongan dalam src/lib/preparationOptions.ts.",
+      "vendor": "Vendor & Metadata",
+      "vendorId": "ID Vendor *",
+      "vendorIdPlaceholder": "Cth. vendor-aminah",
+      "vendorName": "Nama Vendor *",
+      "vendorNamePlaceholder": "Cth. Aminah Seafood Trading",
+      "tags": "Tag (dipisahkan koma)",
+      "tagsPlaceholder": "Cth. premium, segar, omega-3",
+      "popular": "Tanda sebagai Popular",
+      "orderingMode": "Cara Pelanggan Membeli Produk Ini",
+      "orderingModeHelper": "Pilih cara pelanggan akan membeli produk ini di halaman kedai.",
+      "fixedQuantity": "🐔 Harga Tetap (Seekor / Satu Unit)",
+      "weightOnly": "⚖️ Ikut Berat (kg / gram)",
+      "wholeOrWeight": "🐟 Pilih Seekor atau Ikut Berat",
+      "combo": "📦 Kombo Keluarga"
+    },
+    "upload": {
+      "dragOrClick": "Seret & lepas gambar, atau klik untuk cari",
+      "acceptedFormats": "Diterima: JPG, PNG, WebP",
+      "maxSize": "Saiz maksimum: 3 MB",
+      "invalidType": "Hanya fail JPG, PNG, dan WebP diterima.",
+      "tooLarge": "Fail terlalu besar. Saiz maksimum ialah 3 MB.",
+      "setAsMain": "Tetapkan sebagai utama",
+      "moveLeft": "Gerak ke kiri",
+      "moveRight": "Gerak ke kanan",
+      "deleteImage": "Padam",
+      "noImages": "Belum ada gambar dimuat naik"
+    }
+  },
+  "adminUsers": {
+    "labels": {
+      "email": "E-mel",
+      "role": "Peranan",
+      "actions": "Tindakan",
+      "you": "(anda)"
+    },
+    "buttons": {
+      "promoteToSupplier": "Naikkan kepada Pembekal",
+      "promoteToAdmin": "Naikkan kepada Admin",
+      "makeCustomer": "Jadikan Pelanggan",
+      "makeSupplier": "Jadikan Pembekal"
+    },
+    "messages": {
+      "failedLoad": "Gagal memuat pengguna",
+      "failedUpdate": "Gagal mengemas kini peranan",
+      "cannotChangeOwnRole": "Tidak boleh menukar peranan anda sendiri"
+    }
+  },
+  "adminSettings": {
+    "sections": {
+      "delivery": "Konfigurasi Penghantaran",
+      "deliveryDays": "Hari Penghantaran",
+      "deliveryWindow": "Waktu Penghantaran",
+      "pickupLocations": "Lokasi Ambilan",
+      "businessInfo": "Maklumat Perniagaan",
+      "language": "Bahasa",
+      "notifications": "Pemberitahuan"
+    },
+    "delivery": {
+      "description": "Tetapan ini mempengaruhi keseluruhan laman -- bar pengumuman, halaman produk, checkout, dan footer",
+      "dayPlaceholder": "Taip nama hari (contohnya Isnin, Sabtu pertama)...",
+      "dayHelper": "Tambah sebarang nama hari tersuai. Ini akan muncul sebagai pilihan slot penghantaran di seluruh laman.",
+      "timePlaceholder": "Cth. 6:30-8:00 PTG",
+      "timeHelper": "Dipaparkan pada slot penghantaran, checkout, dan halaman produk.",
+      "announcementPlaceholder": "Cth. Kami hantar ke pintu anda setiap Selasa & Sabtu, 9:00 PG - 12:00 TGH",
+      "announcementHelper": "Mesej tersuai penuh dipaparkan di bar hijau di bahagian atas setiap halaman."
+    },
+    "pickup": {
+      "description": "Uruskan titik penghantaran yang dipaparkan kepada pelanggan semasa checkout",
+      "placeholder": "Cth. Penghantaran ke Lobi A Rimbun"
+    },
+    "labels": {
+      "announcement": "Mesej Bar Pengumuman",
+      "announcementPreview": "Pratonton Bar Pengumuman",
+      "livePreview": "Pratonton Langsung",
+      "businessName": "Nama Perniagaan",
+      "businessPhone": "Telefon Perniagaan",
+      "businessEmail": "E-mel Perniagaan",
+      "businessAddress": "Alamat Perniagaan",
+      "deliveryDay": "Hari Penghantaran",
+      "deliveryStart": "Masa Mula Penghantaran",
+      "deliveryEnd": "Masa Tamat Penghantaran",
+      "pickupLocation": "Lokasi Ambilan",
+      "deliveryFee": "Caj Penghantaran",
+      "minimumOrder": "Tempahan Minimum",
+      "maximumOrder": "Tempahan Maksimum",
+      "language": "Bahasa",
+      "timezone": "Zon Waktu",
+      "currency": "Mata Wang"
+    },
+    "days": {
+      "monday": "Isnin",
+      "tuesday": "Selasa",
+      "wednesday": "Rabu",
+      "thursday": "Khamis",
+      "friday": "Jumaat",
+      "saturday": "Sabtu",
+      "sunday": "Ahad"
+    },
+    "buttons": {
+      "save": "Simpan Perubahan",
+      "reset": "Set Semula",
+      "cancel": "Batal",
+      "add": "Tambah",
+      "remove": "Buang",
+      "edit": "Sunting",
+      "refresh": "Muat Semula",
+      "discard": "Kekalkan Semasa",
+      "confirm": "Teruskan Menyunting"
+    },
+    "messages": {
+      "saved": "Tetapan berjaya disimpan.",
+      "saving": "Menyimpan...",
+      "loading": "Memuat tetapan...",
+      "noDays": "Tiada hari ditambah lagi",
+      "noPickupLocations": "Tiada lokasi ambilan dikonfigurasi.",
+      "noLocationsAdded": "Tiada lokasi ditambah lagi."
+    },
+    "confirmation": {
+      "editTitle": "Sunting Tetapan Langsung",
+      "editBody": "Perubahan yang anda simpan di sini akan mengemas kini jadual penghantaran dan pengumuman yang dipaparkan di seluruh laman dengan serta-merta.",
+      "editScope": "Ini mempengaruhi bar pengumuman, halaman produk, aliran checkout, footer, dan pilihan slot penghantaran.",
+      "save": "Simpan Tetapan",
+      "discard": "Batal Perubahan",
+      "reset": "Set Semula Konfigurasi"
+    },
+    "warnings": {
+      "unsaved": "Perubahan tidak disimpan.",
+      "futureOrders": "Perubahan hanya akan mempengaruhi tempahan akan datang."
+    },
+    "errors": {
+      "saveFailed": "Gagal menyimpan tetapan.",
+      "saveLocationsFailed": "Gagal menyimpan lokasi.",
+      "noDay": "Tambah sekurang-kurangnya satu hari penghantaran.",
+      "noTime": "Masukkan waktu penghantaran.",
+      "noAnnouncement": "Mesej pengumuman tidak boleh kosong.",
+      "noLocation": "Tambah sekurang-kurangnya satu lokasi ambilan."
+    }
+  },
+  "comboDetail": {
+    "breadcrumbHome": "Laman Utama",
+    "breadcrumbCombo": "Kombo Keluarga",
+    "bestValue": "Nilai Terbaik",
+    "signatureBundle": "Pakej Signature",
+    "savePrice": "Jimat RM{{savings}} ({{pct}}% lebih murah)",
+    "whatsIncluded": "Apa yang Termasuk",
+    "ifBoughtSeparately": "Jika dibeli secara berasingan",
+    "deliveryReminder": "Dihantar segar setiap <strong>{{days}}</strong>, {{time}}",
+    "decrease": "Kurangkan",
+    "increase": "Tambah",
+    "addedToCart": "Ditambah ke Troli!",
+    "addCombo": "Tambah {{qty}}Kombo — RM{{total}}",
+    "whyTitle": "Kenapa Kombo Keluarga?",
+    "whySubtitle": "Semua yang anda perlukan untuk seminggu masakan rumah.",
+    "maxSavings": "Penjimatan Maksimum",
+    "maxSavingsDesc": "Jimat RM{{savings}} berbanding membeli setiap item secara berasingan. Itu {{savingsPct}}% lebih murah dari harga individu.",
+    "feedsFamily": "Makan Keluarga",
+    "feedsFamilyDesc": "Dibahagikan untuk keluarga seramai {{servings}} orang. Cukup variasi untuk 2-3 hidangan berbeza.",
+    "zeroEffort": "Sifar Usaha",
+    "zeroEffortDesc": "Semua item disediakan segar pada pagi penghantaran anda. Dibersihkan, dan sedia untuk dimasak."
+  },
+  "recurringBasket": {
+    "editBasket": "Sunting Bakul",
+    "basketName": "Nama Bakul",
+    "frequency": "Kekerapan",
+    "weekly": "Setiap Minggu",
+    "every2Weeks": "Setiap 2 Minggu",
+    "deliveryDay": "Hari Penghantaran",
+    "cancel": "Batal",
+    "saveChanges": "Simpan Perubahan",
+    "defaultName": "Pesanan Mingguan Saya",
+    "title": "Bakul Berulang",
+    "description": "Simpan pesanan kegemaran anda dan hantarkannya secara automatik setiap minggu atau setiap dua minggu. Langkau, jeda, atau batalkan pada bila-bila masa.",
+    "ctaTitle": "Tukar troli semasa anda menjadi pesanan berulang",
+    "ctaDesc": "Anda mempunyai {{count}} item dalam troli anda. Simpan sebagai bakul berulang.",
+    "saving": "Menyimpan...",
+    "saveCart": "Simpan Troli sebagai Bakul",
+    "saved": "Bakul berulang berjaya disimpan!",
+    "emptyTitle": "Tiada bakul berulang lagi",
+    "emptyDesc": "Tambah item ke troli anda, kemudian simpan di sini sebagai pesanan berulang. Kami akan menghantarnya setiap {{days}} secara automatik.",
+    "startShopping": "Mula Membeli-belah",
+    "active": "Aktif",
+    "paused": "Dijeda",
+    "more": "+{{count}} lagi",
+    "nextDelivery": "Penghantaran seterusnya",
+    "pause": "Jeda",
+    "resume": "Sambung",
+    "edit": "Sunting"
+  },
+  "language": {
+    "english": "English",
+    "melayu": "Bahasa Melayu",
+    "select": "Pilih bahasa"
+  }
+}

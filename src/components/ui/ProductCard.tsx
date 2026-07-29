@@ -1,31 +1,41 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ShoppingCart, Zap } from 'lucide-react';
-import { getPrepLabel } from '../../lib/preparationOptions';
 import type { Product, PreparationOption } from '../../types';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import { useAuthModal } from '../../context/AuthModalContext';
+import { useLanguage } from '../../context/LanguageContext';
 import QuantityStepper from './QuantityStepper';
+import EstimatedWeightStepper from './EstimatedWeightStepper';
+import EstimatedQuantityNote from './EstimatedQuantityNote';
+import ProductImage from './ProductImage';
 
 interface Props {
   product: Product;
 }
 
-const freshnessConfig = {
-  available: { label: 'Available', color: 'bg-jade-100 text-jade-700' },
-  limited: { label: 'Limited Stock', color: 'bg-amber-100 text-amber-700' },
-  'sold-out': { label: 'Sold Out', color: 'bg-red-100 text-red-600' },
-};
-
 export default function ProductCard({ product }: Props) {
   const { addItem } = useCart();
   const { user } = useAuth();
   const { openSignIn } = useAuthModal();
+  const { t, lang } = useLanguage();
   const [qty, setQty] = useState(1);
+  const [estimatedWeight, setEstimatedWeight] = useState(500);
   const [prep, setPrep] = useState<PreparationOption>(product.preparationOptions[0]);
   const [added, setAdded] = useState(false);
+  const [orderMode, setOrderMode] = useState<'whole' | 'weight'>('whole');
+
+  const freshnessConfig = {
+    available: { label: t("product.status.available"), color: 'bg-jade-100 text-jade-700' },
+    limited: { label: t("product.status.limited"), color: 'bg-amber-100 text-amber-700' },
+    'sold-out': { label: t("product.status.soldOut"), color: 'bg-red-100 text-red-600' },
+  };
   const freshness = freshnessConfig[product.freshness];
+
+  const productUnitLabel = product.weight
+    ? product.weight
+    : product.priceNote ?? product.unit;
 
   const handleAdd = () => {
     if (product.freshness === 'sold-out') return;
@@ -33,31 +43,124 @@ export default function ProductCard({ product }: Props) {
       openSignIn('/shop');
       return;
     }
-    const pricingType: 'per_kg' | 'fixed' =
-      product.unit === 'per kg' || product.priceNote?.includes('/kg') ? 'per_kg' : 'fixed';
-    addItem({
-      productId: product.id,
-      name: product.name,
-      image: product.image,
-      price: product.price,
-      unit: product.unit,
-      quantity: qty,
-      preparation: prep,
-      pricingType,
-    });
+
+    const mode = product.orderingMode ?? 'fixed_quantity';
+    let itemData: Parameters<typeof addItem>[0];
+
+    if (mode === 'whole_or_weight' && orderMode === 'whole') {
+      const estWeightKg = (qty * (product.averageWeight ?? 0)) / 1000;
+      itemData = {
+        productId: product.id,
+        name: product.name,
+        image: product.image,
+        price: product.price,
+        unit: product.unit,
+        category: product.category,
+        showEstimatedQuantity: product.showEstimatedQuantity,
+        orderingMode: product.orderingMode,
+        averageWeight: product.averageWeight,
+        quantity: qty,
+        estimatedWeight: estWeightKg > 0 ? estWeightKg : undefined,
+        preparation: prep,
+        pricingType: 'per_kg',
+      };
+    } else if (mode === 'weight_only' || (mode === 'whole_or_weight' && orderMode === 'weight')) {
+      itemData = {
+        productId: product.id,
+        name: product.name,
+        image: product.image,
+        price: product.price,
+        unit: product.unit,
+        category: product.category,
+        showEstimatedQuantity: product.showEstimatedQuantity,
+        orderingMode: product.orderingMode,
+        averageWeight: product.averageWeight,
+        quantity: 1,
+        estimatedWeight: estimatedWeight / 1000,
+        preparation: prep,
+        pricingType: 'per_kg',
+      };
+    } else {
+      itemData = {
+        productId: product.id,
+        name: product.name,
+        image: product.image,
+        price: product.price,
+        unit: product.unit,
+        category: product.category,
+        showEstimatedQuantity: product.showEstimatedQuantity,
+        orderingMode: product.orderingMode,
+        averageWeight: product.averageWeight,
+        quantity: qty,
+        estimatedWeight: undefined,
+        preparation: prep,
+        pricingType: 'fixed',
+      };
+    }
+
+    addItem(itemData);
     setAdded(true);
     setTimeout(() => setAdded(false), 1800);
   };
 
+  const renderStepper = () => {
+    const mode = product.orderingMode ?? 'fixed_quantity';
+
+    if (mode === 'whole_or_weight') {
+      if (orderMode === 'whole') {
+        return (
+          <div className="flex flex-col items-end gap-0.5">
+            <QuantityStepper value={qty} onChange={setQty} size="sm" />
+            {product.averageWeight && product.averageWeight > 0 && (
+              <span className="text-[10px] text-gray-400 whitespace-nowrap">
+                ≈ {((qty * product.averageWeight) / 1000).toFixed(2).replace(/\.?0+$/, '')}kg
+                {' · '}≈ RM{(qty * product.price * product.averageWeight / 1000).toFixed(2)}
+              </span>
+            )}
+          </div>
+        );
+      }
+      return (
+        <div className="flex flex-col items-end gap-0.5">
+          <EstimatedWeightStepper value={estimatedWeight} onChange={setEstimatedWeight} size="sm" />
+          <span className="text-[10px] text-gray-400 whitespace-nowrap">
+            ≈ RM{(product.price * estimatedWeight / 1000).toFixed(2)}
+          </span>
+        </div>
+      );
+    }
+
+    if (mode === 'weight_only') {
+      return (
+        <div className="flex flex-col items-end gap-0.5">
+          <EstimatedWeightStepper value={estimatedWeight} onChange={setEstimatedWeight} size="sm" />
+          <span className="text-[10px] text-gray-400 whitespace-nowrap">
+            ≈ RM{(product.price * estimatedWeight / 1000).toFixed(2)}
+          </span>
+        </div>
+      );
+    }
+
+    return <QuantityStepper value={qty} onChange={setQty} size="sm" />;
+  };
+
+  const estNoteMode =
+    product.orderingMode === 'weight_only' ||
+    (product.orderingMode === 'whole_or_weight' && orderMode === 'weight');
+
+  const unitLabel = product.id === 'udang-a'
+    ? 'prawns'
+    : product.category === 'fish'
+      ? (lang === 'ms' ? 'ekor' : 'fish')
+      : (lang === 'ms' ? 'ekor' : 'pieces');
+
   return (
     <article className="card card-hover flex flex-col h-full">
-      {/* Image */}
       <Link to={`/product/${product.id}`} className="block relative overflow-hidden rounded-t-3xl">
-        <img
+        <ProductImage
           src={product.image}
           alt={product.name}
           className="w-full h-48 sm:h-52 object-cover transition-transform duration-500 hover:scale-105"
-          loading="lazy"
         />
         <div className="absolute top-3 left-3">
           <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${freshness.color}`}>
@@ -67,13 +170,12 @@ export default function ProductCard({ product }: Props) {
         {product.isPopular && (
           <div className="absolute top-3 right-3">
             <span className="inline-flex items-center gap-1 bg-forest-700 text-white text-xs font-semibold px-2.5 py-1 rounded-full">
-              <Zap size={11} /> Popular
+              <Zap size={11} /> {t("product.badges.popular")}
             </span>
           </div>
         )}
       </Link>
 
-      {/* Content */}
       <div className="flex flex-col flex-1 p-4 gap-3">
         <div>
           <p className="text-xs text-forest-500 font-medium uppercase tracking-wide mb-0.5">
@@ -82,24 +184,20 @@ export default function ProductCard({ product }: Props) {
           <Link to={`/product/${product.id}`} className="hover:text-forest-700 transition-colors">
             <h3 className="font-semibold text-charcoal leading-snug">{product.name}</h3>
           </Link>
-          {product.weight && (
-            <p className="text-xs text-gray-400 mt-0.5">{product.weight}</p>
-          )}
           <p className="text-xs text-gray-500 mt-1.5 line-clamp-2 leading-relaxed">
             {product.description}
           </p>
         </div>
 
-        {/* Prep selector */}
         {product.preparationOptions.length > 1 && (
           <select
             value={prep}
             onChange={(e) => setPrep(e.target.value as PreparationOption)}
             className="text-xs bg-cream-50 border border-cream-300 rounded-xl px-3 py-1.5 text-gray-600 focus:outline-none focus:ring-2 focus:ring-forest-400"
-            aria-label="Preparation option"
+            aria-label={t("product.labels.preparation")}
           >
               {product.preparationOptions.map((o) => (
-                <option key={o} value={o}>{getPrepLabel(o)}</option>
+                <option key={o} value={o}>{t("product.preparation." + o)}</option>
             ))}
           </select>
         )}
@@ -107,10 +205,52 @@ export default function ProductCard({ product }: Props) {
         <div className="flex items-end justify-between mt-auto pt-1">
           <div>
             <p className="text-xl font-bold text-forest-800">RM{product.price}</p>
-            <p className="text-xs text-gray-400">{product.priceNote ?? product.unit}</p>
+            <p className="text-xs text-gray-400">{productUnitLabel}</p>
           </div>
-          <QuantityStepper value={qty} onChange={setQty} size="sm" />
+          <div className="flex flex-col items-end gap-1">
+            {(product.orderingMode === 'whole_or_weight') && (
+              <div className="flex gap-0.5 bg-cream-100 rounded-lg p-0.5 text-xs">
+                <button
+                  onClick={() => setOrderMode('whole')}
+                  className={`px-2 py-0.5 rounded-md transition-colors ${
+                    orderMode === 'whole'
+                      ? 'bg-white text-forest-800 font-semibold shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  {t("product.wholeFish")}
+                </button>
+                <button
+                  onClick={() => setOrderMode('weight')}
+                  className={`px-2 py-0.5 rounded-md transition-colors ${
+                    orderMode === 'weight'
+                      ? 'bg-white text-forest-800 font-semibold shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  {t("product.byWeight")}
+                </button>
+              </div>
+            )}
+            {renderStepper()}
+          </div>
         </div>
+
+        {product.orderingMode === 'whole_or_weight' && orderMode === 'whole' && product.showEstimatedQuantity && product.averageWeight && product.averageWeight > 0 && (
+          <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 leading-relaxed">
+            <p className="font-semibold">{t("product.estimatedQuantity")}</p>
+            <p>≈ {qty} {lang === 'ms' ? 'ekor ikan' : 'fish'}</p>
+            <p className="text-amber-500">{t("product.estimationDisclaimer")}</p>
+          </div>
+        )}
+
+        {estNoteMode && product.showEstimatedQuantity && product.averageWeight && product.averageWeight > 0 && (
+          <EstimatedQuantityNote
+            weightGrams={estimatedWeight}
+            averageWeight={product.averageWeight}
+            unitLabel={unitLabel}
+          />
+        )}
 
         <button
           onClick={handleAdd}
@@ -124,7 +264,7 @@ export default function ProductCard({ product }: Props) {
           }`}
         >
           <ShoppingCart size={15} />
-          {added ? 'Added!' : product.freshness === 'sold-out' ? 'Sold Out' : 'Add to Cart'}
+          {added ? t("product.buttons.added") : product.freshness === 'sold-out' ? t("product.status.soldOut") : t("product.buttons.addToCart")}
         </button>
       </div>
     </article>

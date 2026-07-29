@@ -1,0 +1,1375 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "edit": "Edit",
+    "delete": "Delete",
+    "search": "Search"
+  },
+  "header": {
+    "shop": "Shop",
+    "familyCombo": "Family Combo",
+    "ourSuppliers": "Our Suppliers",
+    "recurringBasket": "Recurring Basket",
+    "myOrders": "My Orders",
+    "profile": "Profile",
+    "admin": "Admin",
+    "supplierPortal": "Supplier Portal",
+    "login": "Login",
+    "logout": "Log Out",
+    "cart": "Cart",
+    "search": "Search",
+    "signIn": {
+      "close": "Close",
+      "title": "Welcome back",
+      "subtitle": "Sign in to your account",
+      "emailLabel": "Email Address",
+      "emailPlaceholder": "you@example.com",
+      "passwordLabel": "Password",
+      "forgotPassword": "Forgot password?",
+      "passwordPlaceholder": "Your password",
+      "hidePassword": "Hide password",
+      "showPassword": "Show password",
+      "signingIn": "Signing in\u2026",
+      "signIn": "Sign In",
+      "noAccount": "Don't have an account?",
+      "createOne": "Create one"
+    },
+    "createAccount": {
+      "close": "Close",
+      "title": "Create Account",
+      "subtitle": "Join Rimbun FreshGo today",
+      "nameLabel": "Full Name",
+      "namePlaceholder": "e.g. Ahmad Razif",
+      "emailLabel": "Email Address",
+      "emailPlaceholder": "you@example.com",
+      "passwordLabel": "Password",
+      "hide": "Hide",
+      "show": "Show",
+      "passwordPlaceholder": "At least 8 characters",
+      "hidePassword": "Hide password",
+      "showPassword": "Show password",
+      "creating": "Creating account\u2026",
+      "createAccount": "Create Account",
+      "hasAccount": "Already have an account?",
+      "signIn": "Sign in"
+    },
+    "join": "Join",
+    "menu": "Menu",
+    "searchPlaceholder": "Search chicken, siakap, udang...",
+    "searchButton": "Search",
+    "logOut": "Log Out",
+    "signInButton": "Sign In",
+    "createAccountButton": "Create Account"
+  },
+  "footer": {
+    "description": "Freshly prepared daily proteins, delivered to your door every {{days}}. Never frozen. Always local.",
+    "shop": "Shop",
+    "chicken": "Chicken",
+    "fish": "Fish",
+    "prawns": "Prawns",
+    "squid": "Squid",
+    "familyCombo": "Family Combo",
+    "information": "Information",
+    "ourSuppliers": "Our Suppliers",
+    "recurringBasket": "Recurring Baskets",
+    "howItWorks": "How It Works",
+    "faq": "FAQ",
+    "contact": "Contact",
+    "address": "Delivering across Klang Valley, Selangor",
+    "deliverySchedule": "Delivery Schedule",
+    "privacy": "Privacy Policy",
+    "terms": "Terms of Service",
+    "copyright": "\u00a9 {{year}} Rimbun FreshGo. All rights reserved."
+  },
+  "homepage": {
+    "announcement": {
+      "loading": "Loading..."
+    },
+    "hero": {
+      "badge": "Fresh deliveries this {{days}}",
+      "title": "Freshly prepared.",
+      "titleHighlight": "Straight to your door.",
+      "description": "Premium fresh proteins \u2014 whole chicken, local fish, prawns, and squid \u2014 prepared every morning and delivered same day. No freezing. No compromise.",
+      "chooseSlot": "Choose your delivery slot",
+      "selectedSlot": "Great! You've selected {{day}} {{time}} delivery.",
+      "shopNow": "Shop Now",
+      "viewFamilyCombo": "View Family Combo"
+    },
+    "categories": {
+      "title": "Shop by Category",
+      "subtitle": "Everything fresh, prepared the same morning.",
+      "viewAll": "View all",
+      "chicken": "Chicken",
+      "fish": "Fish",
+      "prawns": "Prawns",
+      "squid": "Squid"
+    },
+    "combo": {
+      "badge": "Best Value",
+      "title": "Family Combo",
+      "saveLabel": "Save RM33",
+      "addToCart": "Add Combo to Cart",
+      "addedToCart": "Added to Cart!",
+      "learnMore": "Learn more"
+    },
+    "popular": {
+      "title": "Popular Items",
+      "subtitle": "Customer favourites, fresh every delivery day.",
+      "viewAll": "View all"
+    },
+    "recurring": {
+      "title": "Set Up a Recurring Basket",
+      "description": "Order the same items every week or fortnight. Skip the reordering \u2014 we remember your favourites, you just pick them up at the door.",
+      "cta": "Get Started"
+    },
+    "trust": {
+      "title": "Why Rimbun FreshGo?",
+      "subtitle": "We built this service around one principle: real freshness, no shortcuts.",
+      "freshDaily": {
+        "title": "Prepared Fresh Daily",
+        "desc": "Every item is slaughtered, cleaned, or caught the same morning as your delivery."
+      },
+      "neverFrozen": {
+        "title": "Never Frozen",
+        "desc": "We never freeze our products. What you receive is genuinely fresh \u2014 not defrosted."
+      },
+      "scheduledDelivery": {
+        "title": "Scheduled Delivery",
+        "desc": "{{days}}, {{time}} only. Fixed slots mean we plan every delivery to stay fresh."
+      },
+      "cleanSafe": {
+        "title": "Clean & Safe Handling",
+        "desc": "HACCP-aligned handling, halal-certified suppliers, and temperature-controlled delivery bags."
+      }
+    }
+  },
+  "days": {
+    "monday": "Monday",
+    "tuesday": "Tuesday",
+    "wednesday": "Wednesday",
+    "thursday": "Thursday",
+    "friday": "Friday",
+    "saturday": "Saturday",
+    "sunday": "Sunday"
+  },
+  "vendors": {
+    "badge": "Our Suppliers",
+    "title": "Meet the People Behind Your Food",
+    "description": "Every item in your order comes from a trusted local supplier we know personally. No anonymous distributors — just real farmers, fishermen, and traders who take freshness as seriously as we do.",
+    "since": "Since ",
+    "theirStory": "Their Story",
+    "certifications": "Certifications",
+    "qualityStandards": "Quality Standards",
+    "availableFrom": "Available from ",
+    "view": "View"
+  },
+  "quantity": {
+    "decrease": "Decrease quantity",
+    "increase": "Increase quantity"
+  },
+  "product": {
+    "status": {
+      "available": "Available",
+      "limited": "Limited Stock",
+      "soldOut": "Sold Out"
+    },
+    "badges": {
+      "popular": "Popular"
+    },
+    "labels": {
+      "preparation": "Preparation option"
+    },
+    "buttons": {
+      "addToCart": "Add to Cart",
+      "added": "Added!"
+    },
+    "estimatedWeight": "Estimated Weight",
+    "estimatedQuantity": "💡 Estimated Quantity",
+    "estimationDisclaimer": "This is an estimate only. Final weight and price will be confirmed after preparation.",
+    "wholeFish": "Whole Fish",
+    "byWeight": "By Weight",
+    "howToOrder": "How would you like to order?",
+    "prawnEstimation": {
+      "title": "💡 Estimated Quantity",
+      "count": "{{weight}} ≈ {{min}}–{{max}} prawns",
+      "disclaimer": "This is only an estimate. The actual number of prawns may vary depending on their natural size and weight."
+    },
+    "preparation": {
+      "whole": "Whole",
+      "cleaned": "Cleaned",
+      "descaled": "Descaled",
+      "gutted": "Gutted & Cleaned",
+      "cut": "Cut into pieces",
+      "cut4": "Cut into 4",
+      "cut12": "Cut into 12",
+      "cut16": "Cut into 16"
+    }
+  },
+  "shop": {
+    "breadcrumbHome": "Home",
+    "breadcrumbShop": "Shop",
+    "title": "Fresh Market",
+    "resultCount": "{{count}} product found",
+    "resultCountPlural": "{{count}} products found",
+    "searchPlaceholder": "Search chicken, siakap, udang, sotong...",
+    "filterButton": "Filters",
+    "priceRange": "Price Range",
+    "availability": "Availability",
+    "clearAllFilters": "Clear all filters",
+    "categories": {
+      "all": "All",
+      "chicken": "Chicken",
+      "fish": "Fish",
+      "prawns": "Prawns",
+      "squid": "Squid"
+    },
+    "priceOptions": {
+      "all": "Any Price",
+      "0-15": "Under RM15",
+      "15-25": "RM15 \u2013 RM25",
+      "25-50": "RM25 \u2013 RM50"
+    },
+    "availabilityOptions": {
+      "all": "All",
+      "available": "Available",
+      "limited": "Limited"
+    },
+    "empty": {
+      "title": "No products found",
+      "description": "Try adjusting your search or filters.",
+      "clearButton": "Clear filters"
+    }
+  },
+  "productDetail": {
+    "backToShop": "Back to Shop",
+    "productNotFound": "Product not found.",
+    "breadcrumbHome": "Home",
+    "breadcrumbShop": "Shop",
+    "editProduct": "Edit Product",
+    "delete": "Delete",
+    "preparation": "Preparation Preference",
+    "deliveryReminder": "Delivered fresh every",
+    "addToCart": "Add to Cart",
+    "suppliedBy": "Supplied by",
+    "moreFrom": "More from",
+    "fish": "fish",
+    "deleteFailed": "Delete failed",
+    "deleteModal": {
+      "title": "Delete Product",
+      "message": "Are you sure you want to delete {{name}}? This action cannot be undone.",
+      "cancel": "Cancel",
+      "delete": "Delete",
+      "deleting": "Deleting..."
+    }
+  },
+  "cart": {
+    "emptyTitle": "Your cart is empty",
+    "emptySubtitle": "Add some fresh proteins to get started.",
+    "startShopping": "Start Shopping",
+    "title": "Your Cart ({{count}} {{items}})",
+    "item": "item",
+    "items": "items",
+    "estimatedPrice": "Estimated Price",
+    "trustNote": "All items are prepared fresh the morning of your delivery. Never frozen."
+  },
+  "cartItem": {
+    "comboBundle": "Combo Bundle",
+    "contains": "Contains",
+    "remove": "Remove {{name}}",
+    "preparation": {
+      "whole": "Whole",
+      "cleaned": "Cleaned",
+      "descaled": "Descaled",
+      "gutted": "Gutted & Cleaned",
+      "cut": "Cut into pieces",
+      "cut4": "Cut into 4",
+      "cut12": "Cut into 12",
+      "cut16": "Cut into 16"
+    }
+  },
+  "cartSummary": {
+    "title": "Order Summary",
+    "subtotal": "Subtotal ({{count}} items)",
+    "deliveryFee": "Delivery fee",
+    "free": "FREE",
+    "freeDeliveryNote": "Free delivery on orders RM50 and above",
+    "total": "Total",
+    "selectDeliveryDay": "Please select a delivery day to continue.",
+    "estimatedTotal": "Estimated Total",
+    "orderTotal": "Order Total",
+    "freeDelivery": "Free Delivery",
+    "minimumOrder": "Minimum Order",
+    "maximumQuantity": "Maximum Quantity",
+    "invalidQuantity": "Invalid Quantity",
+    "outOfStock": "Out Of Stock",
+    "pleaseAddAtLeastOneItem": "Please add at least one item.",
+    "quantityCannotBeZero": "Quantity cannot be zero.",
+    "productUnavailable": "Product unavailable."
+  },
+  "cartAction": {
+    "removeItem": "Remove Item",
+    "clearCart": "Clear Cart",
+    "areYouSure": "Are you sure?",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "itemRemoved": "Item removed.",
+    "cartCleared": "Cart cleared.",
+    "continueShopping": "Continue Shopping",
+    "proceedToCheckout": "Proceed to Checkout"
+  },
+  "checkout": {
+    "title": "Checkout",
+    "subtitle": "Complete your order below.",
+    "deliveryInformation": "Delivery Information",
+    "customerInformation": "Customer Information",
+    "orderSummary": "Order Summary",
+    "paymentSummary": "Payment Summary",
+    "reviewYourOrder": "Review Your Order",
+    "deliveryDetails": "Delivery Details",
+    "contactDetails": "Contact Details",
+    "placeOrder": "Place Order — RM{{total}}",
+    "continueShopping": "Continue Shopping",
+    "backToCart": "Back to Cart",
+    "editCart": "Edit Cart",
+    "fullName": "Full Name",
+    "fullNamePlaceholder": "Ahmad bin Abdullah",
+    "phoneNumber": "Phone Number",
+    "phonePlaceholder": "012-345 6789",
+    "emailAddress": "Email Address",
+    "apartment": "Apartment / Block (optional)",
+    "apartmentPlaceholder": "e.g. Rimbun Apartment, Block B",
+    "unitNumber": "House / Unit Number",
+    "unitPlaceholder": "e.g. A-18-08",
+    "pickupLocation": "Pickup Location",
+    "selectPickupLocation": "Select a pickup location...",
+    "deliveryDate": "Delivery Date",
+    "deliveryTime": "Delivery Time",
+    "deliverySlot": "Delivery Slot",
+    "deliveryDay": "Delivery Day",
+    "nextDelivery": "Next delivery:",
+    "orderNotes": "Order Notes (optional)",
+    "orderNotesPlaceholder": "Any special requests or cleaning preferences...",
+    "specialInstructions": "Special Instructions",
+    "products": "Products",
+    "delivery": "Delivery",
+    "subtotal": "Subtotal",
+    "estimatedTotal": "Estimated Total",
+    "total": "Total",
+    "free": "FREE",
+    "yourDetails": "Your Details",
+    "payment": "Payment",
+    "continueToPayment": "Continue to Payment",
+    "back": "Back",
+    "placingOrder": "Placing Order...",
+    "deliveryTo": "DELIVERY TO",
+    "remarks": "Remarks / Notes",
+    "qty": "Qty {{count}}",
+    "estimatedOnly": "est. only",
+    "contains": "Contains",
+    "preparation": "Preparation: {{prep}}",
+    "finalPriceAfterWeighing": "Final price will be confirmed after weighing.",
+    "productImagesTitle": "Product Images",
+    "productImagesBody": "Product images are for illustration purposes only. As our products are fresh and natural, the actual size, colour, shape and appearance may vary. Every fish, chicken and seafood item is unique.",
+    "estimatedPricingTitle": "Estimated Pricing",
+    "estimatedPricingBody": "Prices displayed for products sold by weight are estimated prices only. The final selling price will be calculated based on the actual weight after preparation and the latest selling price for the delivery day. This applies to fish, prawns, squid and all products sold by kilogram. Whole Chicken is charged at the listed fixed price.",
+    "reviewOrderPrompt": "Please review your order before placing it.",
+    "estimatedMayChange": "Estimated total may change after weighing.",
+    "validation": {
+      "fullNameRequired": "Full name is required.",
+      "phoneRequired": "Phone number is required.",
+      "phoneInvalid": "Enter a valid Malaysian phone number.",
+      "emailRequired": "Email is required.",
+      "emailInvalid": "Enter a valid email.",
+      "unitRequired": "House unit number is required (e.g. A-18-08).",
+      "pickupLocationRequired": "Please select a pickup location.",
+      "deliveryDayRequired": "Please select a delivery day.",
+      "failedToPlaceOrder": "Failed to place order. Please try again.",
+      "orderNotesOptional": "Order notes are optional."
+    }
+  },
+  "delivery": {
+    "deliveryDate": "Delivery Date",
+    "slot": "Delivery Slot",
+    "slotLabel": "Delivery Slot",
+    "availableSlots": "Available Slots",
+    "morning": "Morning",
+    "afternoon": "Afternoon",
+    "evening": "Evening",
+    "pickupLocation": "Pickup Location",
+    "deliveryDetails": "Delivery Details",
+    "deliveryTo": "DELIVERY TO",
+    "deliveryDay": "Delivery Day",
+    "selectDeliveryDate": "Select Delivery Date",
+    "selectPickupLocation": "Select a pickup location...",
+    "noDeliveryAvailable": "No delivery available."
+  },
+  "payment": {
+    "title": "Payment",
+    "status": "Payment Status",
+    "method": "Payment Method",
+    "manualBankTransfer": "Manual Bank Transfer",
+    "qrPayment": "QR Payment",
+    "uploadReceipt": "Upload Receipt",
+    "pending": "Pending",
+    "waitingForPayment": "Waiting for Payment",
+    "readyToPay": "Ready To Pay",
+    "paid": "Paid",
+    "amount": "Final Amount",
+    "referenceNumber": "Reference Number",
+    "instructions": "Payment Instructions",
+    "cashOnDelivery": "Cash on Delivery",
+    "codDescription": "Pay RM{{total}} in cash when your order arrives. Our rider will have exact change.",
+    "continueToPayment": "Continue to Payment",
+    "readyToPayInstructions": "Your order has been weighed and is ready for payment. Please make payment using the QR code sent via WhatsApp. After payment, reply with your payment receipt."
+  },
+  "orderSuccess": {
+    "loading": "Loading order...",
+    "notFound": "Order Not Found",
+    "notFoundMessage": "We couldn't find order #{{id}}.",
+    "backToHome": "Back to Home",
+    "home": "Home",
+    "pageTitle": "Order Tracking",
+    "orderConfirmed": "Order Confirmed!",
+    "thankYou": "Thank you, {{name}}.",
+    "yourOrderHasBeenReceived": "Your order has been received.",
+    "orderNumber": "Order ID",
+    "deliveryDate": "Delivery Date",
+    "deliveryTime": "Delivery Window",
+    "estimatedDelivery": "Estimated Delivery",
+    "continueShopping": "Continue Shopping",
+    "viewMyOrders": "View My Orders"
+  },
+  "profile": {
+    "title": "My Profile",
+    "memberSince": "Member since",
+    "verifiedAccount": "Verified account",
+    "logOut": "Log Out",
+    "myOrders": "My Orders",
+    "myOrdersDesc": "View your order history and track deliveries",
+    "displayName": "Display Name",
+    "fullName": "Full Name",
+    "namePlaceholder": "e.g. Ahmad Razif",
+    "saving": "Saving…",
+    "saveName": "Save Name",
+    "saved": "Saved",
+    "couldNotSave": "Could not save",
+    "emailAddress": "Email Address",
+    "emailHelp": "Contact support to change your email address.",
+    "changePassword": "Change Password",
+    "currentPassword": "Current Password",
+    "newPassword": "New Password",
+    "confirmPassword": "Confirm New Password",
+    "passwordPlaceholder": "At least 8 characters",
+    "hide": "Hide",
+    "show": "Show",
+    "updating": "Updating…",
+    "updatePassword": "Update Password",
+    "updated": "Updated",
+    "errors": {
+      "passwordMismatch": "New passwords do not match.",
+      "passwordLength": "Password must be at least 8 characters.",
+      "incorrectPassword": "Current password is incorrect."
+    }
+  },
+  "myOrders": {
+    "title": "My Orders",
+    "pageTitle": "My Orders",
+    "profile": "Profile",
+    "orderHistory": "Order History",
+    "recentOrders": "Recent Orders",
+    "orderDetails": "Order Details",
+    "viewOrder": "View Order",
+    "trackOrder": "Track Order",
+    "reorder": "Reorder",
+    "viewDetails": "View",
+    "track": "Track",
+    "orderAgain": "Order Again",
+    "continueShopping": "Continue Shopping",
+    "orderNumber": "Order Number",
+    "orderDate": "Order Date",
+    "deliveryDate": "Delivery Date",
+    "deliveryTime": "Delivery Time",
+    "total": "Total",
+    "estimatedTotal": "Estimated Total",
+    "paymentStatus": "Payment Status",
+    "deliveryStatus": "Delivery Status",
+    "emptyTitle": "No orders yet",
+    "emptyMessage": "Your order history will appear here once you place your first order.",
+    "startShopping": "Start Shopping",
+    "failedToLoad": "Failed to load orders",
+    "status": {
+      "confirmed": "Confirmed",
+      "preparing": "Being Prepared",
+      "out-for-delivery": "Out for Delivery",
+      "delivered": "Delivered"
+    }
+  },
+  "ordersPage": {
+    "confirmed": "Confirmed",
+    "preparing": "Being Prepared",
+    "outForDelivery": "Out for Delivery",
+    "delivered": "Delivered"
+  },
+  "tracking": {
+    "trackOrder": "Track Order",
+    "orderStatus": "Order Status",
+    "estimatedDelivery": "Estimated Delivery",
+    "deliveryDetails": "Delivery Details",
+    "currentStatus": "Current Status",
+    "trackingTimeline": "Tracking Timeline",
+    "pickupDetails": "Pickup Details",
+    "orderContents": "Order Contents",
+    "unit": "Unit",
+    "timeline": {
+      "Order Confirmed": "Order Received",
+      "Being Prepared": "Preparing",
+      "Out for Delivery": "Out For Delivery",
+      "Delivered": "Delivered"
+    },
+    "messages": {
+      "orderBeingPrepared": "Your order is being prepared.",
+      "waitingForSupplier": "Waiting for supplier confirmation.",
+      "driverOnWay": "Driver is on the way.",
+      "deliveredSuccessfully": "Delivered successfully."
+    }
+  },
+  "supplierDashboard": {
+    "packingDashboard": "Packing Dashboard",
+    "prepareProducts": "Prepare products before opening customer orders",
+    "todaysProgress": "Today's Progress",
+    "customersCompleted": "{{completed}} / {{total}} Customers Completed",
+    "pendingCount": "🟡 Pending: {{count}}",
+    "inProgressCount": "🔵 In Progress: {{count}}",
+    "completedCount": "🟢 Completed: {{count}}",
+    "todaysPackingCompleted": "Today's Packing Completed",
+    "ordersCompleted": "{{completed}} / {{total}} Orders Completed",
+    "readyForDelivery": "Ready for delivery.",
+    "viewCompletedOrders": "View Completed Orders",
+    "backToPackingDashboard": "← Back to Packing Dashboard",
+    "backToSchedule": "← Back to Schedule",
+    "backToWorkspace": "← Back to Workspace",
+    "backToDeliverySchedule": "← Back to Delivery Schedule",
+    "customerQueue": "Customer Queue",
+    "backToQueue": "Back to Queue",
+    "backToQueueBtn": "BACK TO QUEUE ➡",
+    "nextCustomerBtn": "NEXT CUSTOMER ➡",
+    "noOrdersFound": "No orders found.",
+    "searchPlaceholder": "Search customer name, phone, or order ref...",
+    "inProgressSection": "🔵 IN PROGRESS ({{count}})",
+    "pendingSection": "🟡 PENDING ({{count}})",
+    "allProcessed": "All customers processed.",
+    "completedSection": "🟢 COMPLETED ({{count}})",
+    "productsCount": "{{count}} Product(s)",
+    "weighingInProgress": "⏳ Weighing in progress...",
+    "start": "START",
+    "viewDetails": "View Details",
+    "locked": "✓ Locked",
+    "editWeight": "Edit Weight",
+    "noOrdersAvailable": "No orders available.",
+    "packingDashboardTitle": "📦 PACKING DASHBOARD",
+    "ordersToday": "{{count}} Order(s) Today",
+    "todaysOverview": "Today's Overview",
+    "overviewOrders": "Orders",
+    "overviewPendingPayment": "Pending Payment",
+    "overviewReadyToPay": "Ready To Pay",
+    "overviewPaid": "Paid",
+    "packingSummary": "Packing Summary",
+    "itemCount": "{{count}} item(s)",
+    "packingChecklist": "📦 Packing Checklist",
+    "noItems": "No items to prepare.",
+    "deliveryLocationSummary": "Delivery Location Summary",
+    "orderCount": "{{count}} Order(s)",
+    "startPacking": "START PACKING",
+    "readyToProcess": "{{count}} Customer(s) — Ready to process",
+    "categoryChicken": "🐔 Chicken",
+    "categoryFish": "🐟 Fish",
+    "categoryPrawns": "🦐 Prawns",
+    "categorySquid": "🦑 Squid",
+    "filterAll": "All Orders",
+    "filterPending": "Pending Payment Orders",
+    "filterReadyToPay": "Ready To Pay Orders",
+    "filterPaid": "Paid Orders",
+    "filterOrderCount": "{{count}} Order(s)",
+    "noOrdersInCategory": "No orders in this category.",
+    "filterProducts": "Products",
+    "contains": "Contains",
+    "filterDeliveryFee": "Delivery Fee",
+    "actualTotal": "Actual Total",
+    "viewOrder": "View Order",
+    "viewReceipt": "View Receipt",
+    "weightNotEntered": "Weight not yet entered",
+    "orderLocked": "This order has been paid. Weights are locked and cannot be edited.",
+    "enterWeightFor": "Enter actual weight for \"{{name}}\".",
+    "weightMustBePositive": "Weight for \"{{name}}\" must be greater than zero.",
+    "failedToSaveWeight": "Failed to save weight",
+    "weightUpdated": "Weight Updated",
+    "customerCompleted": "Customer Completed",
+    "weightSavedMsg": "Weights saved — payment status preserved.",
+    "allSavedMsg": "All weights saved — payment status updated to Ready To Pay",
+    "completedBadge": "✅ Completed",
+    "remainingCount": "⏳ {{count}} remaining",
+    "notes": "Notes",
+    "orderPaidTitle": "This order has been paid.",
+    "weightsLockedMsg": "Weights are locked and cannot be edited.",
+    "save": "Save",
+    "saved": "✔ Saved",
+    "fixedPrice": "✅ Fixed Price",
+    "enterWeightHint": "Enter actual weight to calculate final price.",
+    "deliveryFee": "Delivery Fee",
+    "free": "FREE",
+    "orderTotal": "Order Total",
+    "customerInfo": "Customer Information",
+    "unit": "Unit {{unit}}",
+    "pickup": "Pickup: {{location}}",
+    "remarksNotes": "Remarks / Notes",
+    "products": "Products",
+    "qtyLine": "Qty: {{qty}} × RM{{price}}{{suffix}}",
+    "perKg": "/kg",
+    "preparation": "Preparation: {{prep}}",
+    "weightEntered": "Weight Entered: {{weight}}",
+    "total": "Total",
+    "paymentStatus": "Payment Status",
+    "completionTime": "Completion Time",
+    "close": "Close"
+  },
+  "packingSummary": {
+    "title": "Packing Summary",
+    "categories": {
+      "chicken": "🐔 Chicken",
+      "fish": "🐟 Fish",
+      "prawns": "🦐 Prawns",
+      "squid": "🦑 Squid"
+    },
+    "labels": {
+      "item": "item",
+      "items": "items",
+      "total": "Total",
+      "preparation": "Preparation"
+    },
+    "preparation": {
+      "whole": "Whole",
+      "cleaned": "Cleaned",
+      "descaled": "Descaled",
+      "gutted": "Gutted & Cleaned",
+      "guttedCleaned": "Gutted & Cleaned",
+      "cut4": "Cut Into 4",
+      "cut12": "Cut Into 12",
+      "cut16": "Cut Into 16"
+    },
+    "messages": {
+      "noProducts": "No products to prepare.",
+      "noPacking": "No packing required."
+    }
+  },
+  "customerQueue": {
+    "title": "Customer Queue",
+    "todaysCustomerQueue": "Today's Customer Queue",
+    "pending": "Pending",
+    "inProgress": "In Progress",
+    "completed": "Completed",
+    "labels": {
+      "customers": "Customers",
+      "orders": "Orders",
+      "products": "Products"
+    },
+    "messages": {
+      "noPending": "No pending customers.",
+      "noProgress": "No customers in progress.",
+      "noCompleted": "No completed customers.",
+      "noOrders": "No orders today.",
+      "loading": "Loading orders...",
+      "weighingInProgress": "⏳ Weighing in progress...",
+      "searchPlaceholder": "Search customer name, phone, or order ref...",
+      "completedAt": "Completed at {{time}}"
+    },
+    "buttons": {
+      "refresh": "Refresh",
+      "viewCustomer": "View Customer",
+      "continue": "Continue",
+      "back": "Back",
+      "locked": "✓ Locked",
+      "editWeight": "Edit Weight"
+    },
+    "status": {
+      "awaitingPacking": "🟠 Awaiting Packing",
+      "readyToPay": "🔵 Ready To Pay",
+      "paid": "🟢 Paid"
+    },
+    "date": {
+      "today": "Today",
+      "tomorrow": "Tomorrow",
+      "selectedDeliveryDate": "Selected Delivery Date"
+    },
+    "summary": {
+      "totalCustomers": "Total Customers",
+      "completedCustomers": "Completed Customers",
+      "remainingCustomers": "Remaining Customers"
+    }
+  },
+  "supplierCard": {
+    "customer": "Customer",
+    "customerName": "Customer Name",
+    "phone": "Phone Number",
+    "apartment": "Apartment",
+    "unit": "Unit",
+    "pickupLocation": "Pickup Location",
+    "deliveryDate": "Delivery Date",
+    "deliveryTime": "Delivery Time",
+    "products": "Products",
+    "totalProducts": "Total Products",
+    "estimatedTotal": "Estimated Total",
+    "estimatedWeight": "Estimated Weight",
+    "items": "Items",
+    "orderNotes": "Order Notes",
+    "customerNotes": "Customer Notes",
+    "specialRequest": "Special Request",
+    "buttons": {
+      "start": "START",
+      "continue": "Continue",
+      "continueWeighing": "Continue Weighing",
+      "resume": "Resume",
+      "save": "Save",
+      "saveProgress": "Save Progress",
+      "completed": "Completed",
+      "readyToPay": "Ready To Pay",
+      "waitingPayment": "Waiting Payment",
+      "paid": "Paid",
+      "back": "Back"
+    },
+    "messages": {
+      "noNotes": "No Notes",
+      "noProducts": "No Products",
+      "waitingSupplier": "Waiting for supplier",
+      "waitingPayment": "Waiting for payment",
+      "completed": "Packing completed",
+      "readyToPay": "Ready for customer payment"
+    },
+    "sections": {
+      "customerInfo": "Customer Information",
+      "orderInfo": "Order Information",
+      "packingProgress": "Packing Progress"
+    }
+  },
+  "weightEntry": {
+    "title": "Weight Entry",
+    "subtitle": "Product Weighing",
+    "labels": {
+      "product": "Product",
+      "quantity": "Quantity",
+      "preparation": "Preparation",
+      "estimatedWeight": "Estimated Weight",
+      "actualWeight": "Actual Weight",
+      "weight": "Weight",
+      "unit": "Unit",
+      "price": "Price",
+      "pricePerKg": "Price Per KG",
+      "estimatedPrice": "Estimated Price",
+      "actualPrice": "Actual Price",
+      "total": "Total",
+      "grandTotal": "Grand Total",
+      "deliveryFee": "Delivery Fee",
+      "free": "FREE"
+    },
+    "input": {
+      "placeholder": "Enter weight"
+    },
+    "buttons": {
+      "save": "Save",
+      "saveProgress": "Save Progress",
+      "saveWeight": "Save Weight",
+      "continue": "Continue",
+      "back": "Back",
+      "cancel": "Cancel",
+      "readyToPay": "Ready To Pay",
+      "completed": "Completed",
+      "queue": "Customer Queue"
+    },
+    "messages": {
+      "saving": "Saving...",
+      "saved": "✔ Saved",
+      "saveFailed": "Failed to save weight",
+      "calculating": "Calculating...",
+      "readyToPay": "Ready To Pay",
+      "weightSavedMsg": "Weights saved — payment status preserved.",
+      "allSavedMsg": "All weights saved — payment status updated to Ready To Pay",
+      "orderLocked": "This order has been paid. Weights are locked and cannot be edited.",
+      "orderLockedTitle": "This order has been paid.",
+      "orderLockedMsg": "Weights are locked and cannot be edited."
+    },
+    "validation": {
+      "required": "Enter actual weight for \"{{name}}\".",
+      "invalid": "Please enter a valid weight.",
+      "zero": "Weight for \"{{name}}\" must be greater than zero."
+    },
+    "helper": {
+      "perKgOnly": "Only per-KG items require actual weight.",
+      "fixedPrice": "✅ Fixed Price",
+      "autoCalculation": "Enter actual weight to calculate final price."
+    },
+    "summary": {
+      "title": "Weight Summary",
+      "completed": "Products Completed",
+      "pending": "⏳ {{count}} remaining"
+    }
+  },
+  "supplierOrder": {
+    "title": "Order Details",
+    "sections": {
+      "customerInfo": "Customer Information",
+      "delivery": "Delivery Information",
+      "order": "Order Information",
+      "products": "Products Ordered",
+      "orderNotes": "Order Notes",
+      "summary": "Order Summary",
+      "payment": "Payment Information",
+      "packing": "Packing Information"
+    },
+    "labels": {
+      "customerName": "Customer Name",
+      "phone": "Phone Number",
+      "apartment": "Apartment",
+      "unit": "Unit: {{unit}}",
+      "pickupLocation": "Pickup: {{location}}",
+      "deliveryDate": "Delivery Date",
+      "deliveryTime": "Delivery Time",
+      "deliverySlot": "Delivery Slot",
+      "deliveryWindow": "Delivery Window",
+      "deliveryNotes": "Delivery Notes",
+      "orderNumber": "Order Number",
+      "orderCreated": "Order Created",
+      "orderStatus": "Order Status",
+      "paymentStatus": "Payment Status",
+      "completionTime": "Completion Time",
+      "qtyLine": "Qty: {{qty}} × RM{{price}}{{suffix}}",
+      "perKg": "/kg",
+      "quantity": "Quantity",
+      "preparation": "Preparation: {{prep}}",
+      "estimatedWeight": "Estimated Weight",
+      "actualWeight": "Weight: {{weight}}",
+      "estimatedPrice": "Estimated Price",
+      "actualPrice": "Actual Price",
+      "subtotal": "Subtotal",
+      "deliveryFee": "Delivery Fee",
+      "grandTotal": "Grand Total",
+      "fixedPrice": "✅ Fixed Price",
+      "totalProducts": "Total Products",
+      "totalQuantity": "Total Quantity",
+      "estimatedTotal": "Estimated Total",
+      "actualTotal": "Actual Total"
+    },
+    "buttons": {
+      "back": "Back",
+      "editWeight": "Edit Weight",
+      "continue": "Continue Weighing",
+      "saveProgress": "Save Progress",
+      "readyToPay": "Ready To Pay",
+      "completed": "Completed",
+      "close": "Close"
+    },
+    "messages": {
+      "noProducts": "No products found.",
+      "noNotes": "No notes provided.",
+      "free": "FREE",
+      "waitingSupplier": "Waiting for supplier.",
+      "waitingPayment": "Waiting for payment.",
+      "readyForPayment": "Ready for payment.",
+      "paymentReceived": "Payment received."
+    }
+  },
+  "deliverySchedule": {
+    "title": "Delivery Schedule",
+    "calendar": "Delivery Calendar",
+    "today": "Today's Deliveries",
+    "upcoming": "Upcoming Deliveries",
+    "sections": {
+      "summary": "Delivery Summary",
+      "orders": "Orders",
+      "customers": "Customers",
+      "products": "Products",
+      "checklist": "📦 Packing Checklist",
+      "locations": "Delivery Location Summary"
+    },
+    "labels": {
+      "selectedDate": "Selected Date",
+      "deliveryDay": "Delivery Day",
+      "deliverySlot": "Delivery Slot",
+      "deliveryWindow": "Delivery Window",
+      "customer": "Customer",
+      "apartment": "Apartment",
+      "unit": "Unit Number",
+      "pickupLocation": "Pickup Location",
+      "totalOrders": "Total Orders",
+      "totalCustomers": "Total Customers",
+      "totalProducts": "Total Products",
+      "ordersToday": "{{count}} Order(s) Today",
+      "orderCount": "{{count}} Order(s)",
+      "filterOrderCount": "{{count}} Order(s)",
+      "products": "Products",
+      "contains": "Contains",
+      "deliveryFee": "Delivery Fee",
+      "actualTotal": "Actual Total"
+    },
+    "buttons": {
+      "previous": "Previous Date",
+      "next": "Next Date",
+      "today": "Today",
+      "refresh": "Refresh",
+      "viewOrders": "View Orders",
+      "viewReceipt": "View Receipt",
+      "back": "Back",
+      "startPacking": "START PACKING"
+    },
+    "messages": {
+      "noDeliveries": "No orders available.",
+      "noOrders": "No orders in this category.",
+      "noItems": "No items to prepare.",
+      "loading": "Loading delivery schedule...",
+      "weightNotEntered": "Weight not yet entered",
+      "free": "FREE",
+      "readyToProcess": "{{count}} Customer(s) — Ready to process"
+    },
+    "summary": {
+      "orders": "Orders",
+      "pending": "Pending Payment",
+      "ready": "Ready To Pay",
+      "completed": "Paid",
+      "remaining": "Remaining Orders"
+    },
+    "filters": {
+      "all": "All Orders",
+      "pending": "Pending Payment Orders",
+      "ready": "Ready To Pay Orders",
+      "paid": "Paid Orders"
+    }
+  },
+  "packingChecklist": {
+    "title": "📦 Packing Checklist",
+    "progress": "Packing Progress",
+    "sections": {
+      "products": "Products To Prepare",
+      "completed": "Completed Items",
+      "remaining": "Remaining Items",
+      "summary": "Packing Summary",
+      "preparation": "Preparation Summary"
+    },
+    "labels": {
+      "completed": "Completed",
+      "remaining": "Remaining",
+      "progress": "Progress",
+      "preparation": "Preparation",
+      "quantity": "Quantity",
+      "products": "Products",
+      "items": "Items",
+      "customer": "Customer"
+    },
+    "buttons": {
+      "check": "Check",
+      "uncheck": "Uncheck",
+      "markComplete": "Mark Complete",
+      "markAllComplete": "Mark All Complete",
+      "reset": "Reset Checklist",
+      "back": "Back",
+      "continue": "Continue"
+    },
+    "messages": {
+      "noPacking": "No packing required.",
+      "noProducts": "No items to prepare.",
+      "completed": "Packing completed successfully.",
+      "inProgress": "Packing in progress.",
+      "waiting": "Waiting for remaining products."
+    },
+    "summary": {
+      "totalProducts": "Total Products",
+      "productsPacked": "Products Packed",
+      "productsRemaining": "Products Remaining",
+      "completion": "Completion"
+    },
+    "helper": {
+      "verify": "Verify product quantities before marking complete.",
+      "completePreparation": "Complete every preparation before delivery."
+    }
+  },
+  "adminDashboard": {
+    "title": "Admin Dashboard",
+    "subtitle": "Manage products and site settings",
+    "tabs": {
+      "products": "Products",
+      "settings": "Settings",
+      "users": "Users"
+    }
+  },
+  "adminOrders": {
+    "tabs": {
+      "orders": "Orders"
+    },
+    "filters": {
+      "all": "All",
+      "pending": "Pending",
+      "readyToPay": "Ready To Pay",
+      "paid": "Paid"
+    },
+    "orderStatus": {
+      "confirmed": "Confirmed",
+      "preparing": "Being Prepared",
+      "outForDelivery": "Out for Delivery",
+      "delivered": "Delivered"
+    },
+    "labels": {
+      "orderRef": "Order Ref",
+      "customer": "Customer",
+      "createdAt": "Created At",
+      "deliveryDate": "Delivery Date",
+      "total": "Total (RM)",
+      "orderStatus": "Order Status",
+      "paymentStatus": "Payment Status",
+      "actions": "Actions",
+      "deliveryAddress": "Delivery Address",
+      "unit": "Unit {{unit}}",
+      "item": "Item",
+      "prep": "Prep",
+      "qty": "Qty",
+      "actualWeight": "Actual Weight (kg)",
+      "itemTotal": "Total (RM)",
+      "fixed": "[Fixed]",
+      "contains": "Contains:",
+      "subtotal": "Subtotal",
+      "delivery": "Delivery",
+      "finalAmount": "Final Amount",
+      "customerNotes": "Customer Notes",
+      "payment": "Payment"
+    },
+"buttons": {
+      "edit": "Edit Order",
+      "view": "View",
+      "back": "Back to Orders",
+      "whatsapp": "WhatsApp Customer",
+      "copyPayment": "Copy Payment Message",
+      "markAsPaid": "Mark as Paid",
+      "cancel": "Cancel",
+      "save": "Save Changes",
+      "delete": "Delete Order"
+    },
+"messages": {
+      "failedLoad": "Failed to load orders",
+      "noOrders": "No orders yet.",
+      "noOrdersFilter": "No orders with status \"{{filter}}\".",
+      "failedConfirm": "Failed to confirm payment",
+      "pendingWeighing": "Pending weighing",
+      "free": "FREE",
+      "confirmedOn": "Confirmed on {{date}}",
+      "paymentConfirmed": "Payment confirmed successfully.",
+      "copied": "Copied!",
+      "confirming": "Confirming...",
+      "failedUpdate": "Failed to update order",
+      "updated": "Changes saved successfully",
+      "loading": "Loading delivery schedule...",
+      "saving": "Saving...",
+      "deleted": "Order deleted successfully",
+      "failedDelete": "Failed to delete order",
+      "deleting": "Deleting...",
+      "cannotUndo": "This action cannot be undone."
+    },
+    "modal": {
+      "confirmTitle": "Confirm Payment",
+      "confirmBody": "Have you confirmed payment has been received for order <strong>{{ref}}</strong>?",
+      "deleteTitle": "Delete Order",
+      "deleteBody": "Are you sure you want to permanently delete order <strong>{{ref}}</strong>? This action cannot be undone."
+    },
+    "edit": {
+      "title": "Edit Order",
+      "customerName": "Customer Name *",
+      "phone": "Phone Number *",
+      "phonePlaceholder": "e.g. 012-3456789",
+      "apartment": "Apartment",
+      "apartmentPlaceholder": "e.g. Rimbun Residence",
+      "houseUnit": "House Unit",
+      "unitPlaceholder": "e.g. 12-3A",
+      "pickupLocation": "Pickup Location",
+      "pickupPlaceholder": "e.g. Lobby / Guard House",
+      "deliveryDate": "Delivery Date",
+      "selectDate": "Select delivery date",
+      "deliveryWindow": "Delivery Window",
+      "windowPlaceholder": "e.g. 10:00-12:00",
+      "orderNotes": "Order Notes / Remarks",
+      "notesPlaceholder": "Customer delivery instructions..."
+    },
+    "pagination": {
+      "showing": "Showing {{count}} of {{total}} orders"
+    }
+  },
+  "adminProducts": {
+    "products": {
+      "count": "{{count}} products"
+    },
+    "search": {
+      "placeholder": "Search by name, Malay name, or category..."
+    },
+    "buttons": {
+      "add": "Add Product",
+      "edit": "Edit",
+      "delete": "Delete",
+      "cancel": "Cancel",
+      "update": "Update Product",
+      "create": "Create Product"
+    },
+    "labels": {
+      "productName": "Product Name",
+      "category": "Category",
+      "price": "Price",
+      "status": "Status",
+      "actions": "Actions",
+      "chicken": "Chicken",
+      "fish": "Fish",
+      "prawns": "Prawns",
+      "squid": "Squid",
+      "combo": "Combo",
+      "available": "Available",
+      "limited": "Limited",
+      "soldOut": "Sold Out"
+    },
+    "messages": {
+      "noSearchResults": "No products match your search.",
+      "noProducts": "No products yet.",
+      "deleteFailed": "Delete failed",
+      "deleting": "Deleting...",
+      "saving": "Saving...",
+      "added": "Product added successfully. Redirecting...",
+      "updated": "Product updated successfully. Redirecting...",
+      "operationFailed": "Operation failed"
+    },
+    "delete": {
+      "title": "Delete Product",
+      "confirm": "Are you sure you want to delete {{name}}? This action cannot be undone."
+    },
+    "pagination": {
+      "showing": "Showing {{count}} of {{total}} products",
+      "total": "Total Products: {{count}}"
+    },
+    "form": {
+      "addTitle": "Add New Product",
+      "editTitle": "Edit Product",
+      "basicInfo": "Basic Information",
+      "nameEn": "Name (English) *",
+      "nameEnPlaceholder": "e.g. Siakap",
+      "nameMs": "Name (Malay) *",
+      "nameMsPlaceholder": "e.g. Ikan Siakap",
+      "category": "Category *",
+      "freshness": "Freshness Status",
+      "pricing": "Pricing & Units",
+      "price": "Price (RM) *",
+      "pricePlaceholder": "e.g. 19.00",
+      "unit": "Unit *",
+      "unitPlaceholder": "e.g. per kg",
+      "priceNote": "Price Note",
+      "priceNotePlaceholder": "e.g. RM19/kg",
+      "weight": "Weight",
+      "weightPlaceholder": "e.g. 1.5-1.7 kg",
+      "descriptions": "Descriptions",
+      "shortDesc": "Short Description *",
+      "shortDescPlaceholder": "Short card description",
+      "longDesc": "Long Description *",
+      "longDescPlaceholder": "Full detail page description",
+      "images": "Product Image",
+      "currentImage": "Current Image",
+      "primaryImage": "Primary Image URL *",
+      "imagePlaceholder": "https://...",
+      "galleryUrls": "Gallery URLs (one per line)",
+      "galleryPlaceholder": "https://url1.jpg\nhttps://url2.jpg",
+      "preparation": "Preparation Options",
+      "preparationHelper": "Automatically determined by the selected category. Update the category above to change available options.",
+      "noPrepOptions": "No preparation options for this category. You can add support in src/lib/preparationOptions.ts.",
+      "vendor": "Vendor & Metadata",
+      "vendorId": "Vendor ID *",
+      "vendorIdPlaceholder": "e.g. vendor-aminah",
+      "vendorName": "Vendor Name *",
+      "vendorNamePlaceholder": "e.g. Aminah Seafood Trading",
+      "tags": "Tags (comma-separated)",
+      "tagsPlaceholder": "e.g. premium, fresh, omega-3",
+      "popular": "Mark as Popular",
+      "orderingMode": "How Customers Order This Product",
+      "orderingModeHelper": "Choose how customers will purchase this product on the shop page.",
+      "fixedQuantity": "🐔 Fixed Price (Per Item)",
+      "weightOnly": "⚖️ By Weight (kg / gram)",
+      "wholeOrWeight": "🐟 Whole Fish or By Weight",
+      "combo": "📦 Family Combo"
+    },
+    "upload": {
+      "dragOrClick": "Drag & drop an image, or click to browse",
+      "acceptedFormats": "Accepted: JPG, PNG, WebP",
+      "maxSize": "Maximum size: 3 MB",
+      "invalidType": "Only JPG, PNG, and WebP files are accepted.",
+      "tooLarge": "File is too large. Maximum size is 3 MB.",
+      "setAsMain": "Set as main",
+      "moveLeft": "Move left",
+      "moveRight": "Move right",
+      "deleteImage": "Delete",
+      "noImages": "No images uploaded yet"
+    }
+  },
+  "adminUsers": {
+    "labels": {
+      "email": "Email",
+      "role": "Role",
+      "actions": "Actions",
+      "you": "(you)"
+    },
+    "buttons": {
+      "promoteToSupplier": "Promote to Supplier",
+      "promoteToAdmin": "Promote to Admin",
+      "makeCustomer": "Make Customer",
+      "makeSupplier": "Make Supplier"
+    },
+    "messages": {
+      "failedLoad": "Failed to load users",
+      "failedUpdate": "Failed to update role",
+      "cannotChangeOwnRole": "Cannot change your own role"
+    }
+  },
+  "adminSettings": {
+    "sections": {
+      "delivery": "Delivery Configuration",
+      "deliveryDays": "Delivery Days",
+      "deliveryWindow": "Delivery Window",
+      "pickupLocations": "Pickup Locations",
+      "businessInfo": "Business Information",
+      "language": "Language",
+      "notifications": "Notifications"
+    },
+    "delivery": {
+      "description": "These settings affect the entire site -- announcement bar, product pages, checkout, and footer",
+      "dayPlaceholder": "Type a day name (e.g. Monday, 1st Saturday)...",
+      "dayHelper": "Add any custom day names. These will appear as delivery slot options across the site.",
+      "timePlaceholder": "e.g. 6:30-8:00 PM",
+      "timeHelper": "Shown on delivery slots, checkout, and product pages.",
+      "announcementPlaceholder": "e.g. We deliver to your door every Tuesday & Saturday, 9:00 AM - 12:00 PM",
+      "announcementHelper": "Full custom message shown in the green bar at the top of every page."
+    },
+    "pickup": {
+      "description": "Manage the delivery drop-off points shown to customers during checkout",
+      "placeholder": "e.g. Delivery to Lobby A Rimbun"
+    },
+    "labels": {
+      "announcement": "Announcement Bar Message",
+      "announcementPreview": "Announcement Bar Preview",
+      "livePreview": "Live Preview",
+      "businessName": "Business Name",
+      "businessPhone": "Business Phone",
+      "businessEmail": "Business Email",
+      "businessAddress": "Business Address",
+      "deliveryDay": "Delivery Day",
+      "deliveryStart": "Delivery Start Time",
+      "deliveryEnd": "Delivery End Time",
+      "pickupLocation": "Pickup Location",
+      "deliveryFee": "Delivery Fee",
+      "minimumOrder": "Minimum Order",
+      "maximumOrder": "Maximum Order",
+      "language": "Language",
+      "timezone": "Timezone",
+      "currency": "Currency"
+    },
+    "days": {
+      "monday": "Monday",
+      "tuesday": "Tuesday",
+      "wednesday": "Wednesday",
+      "thursday": "Thursday",
+      "friday": "Friday",
+      "saturday": "Saturday",
+      "sunday": "Sunday"
+    },
+    "buttons": {
+      "save": "Save Changes",
+      "reset": "Reset",
+      "cancel": "Cancel",
+      "add": "Add",
+      "remove": "Remove",
+      "edit": "Edit",
+      "refresh": "Refresh",
+      "discard": "Keep Current",
+      "confirm": "Continue Editing"
+    },
+    "messages": {
+      "saved": "Settings saved successfully.",
+      "saving": "Saving...",
+      "loading": "Loading settings...",
+      "noDays": "No days added yet",
+      "noPickupLocations": "No pickup locations configured.",
+      "noLocationsAdded": "No locations added yet."
+    },
+    "confirmation": {
+      "editTitle": "Edit Live Settings",
+      "editBody": "Changes you save here will immediately update the delivery schedule and announcement shown across the entire site.",
+      "editScope": "This affects the announcement bar, product pages, checkout flow, footer, and delivery slot options.",
+      "save": "Save Settings",
+      "discard": "Discard Changes",
+      "reset": "Reset Configuration"
+    },
+    "warnings": {
+      "unsaved": "Unsaved changes.",
+      "futureOrders": "Changes will affect future orders only."
+    },
+    "errors": {
+      "saveFailed": "Failed to save settings.",
+      "saveLocationsFailed": "Failed to save locations.",
+      "noDay": "Add at least one delivery day.",
+      "noTime": "Enter a delivery time window.",
+      "noAnnouncement": "Announcement message cannot be empty.",
+      "noLocation": "Add at least one pickup location."
+    }
+  },
+  "comboDetail": {
+    "breadcrumbHome": "Home",
+    "breadcrumbCombo": "Family Combo",
+    "bestValue": "Best Value",
+    "signatureBundle": "Signature Bundle",
+    "savePrice": "Save RM{{savings}} ({{pct}}% off)",
+    "whatsIncluded": "What's Included",
+    "ifBoughtSeparately": "If bought separately",
+    "deliveryReminder": "Delivered fresh every <strong>{{days}}</strong>, {{time}}",
+    "decrease": "Decrease",
+    "increase": "Increase",
+    "addedToCart": "Added to Cart!",
+    "addCombo": "Add {{qty}}Combo — RM{{total}}",
+    "whyTitle": "Why the Family Combo?",
+    "whySubtitle": "Everything you need for a week of home-cooked meals.",
+    "maxSavings": "Maximum Savings",
+    "maxSavingsDesc": "Save RM{{savings}} versus buying each item separately. That's {{savingsPct}}% off the individual prices.",
+    "feedsFamily": "Feeds the Family",
+    "feedsFamilyDesc": "Generously portioned for a family of {{servings}}. Enough variety for 2–3 different meals.",
+    "zeroEffort": "Zero Effort",
+    "zeroEffortDesc": "All items are prepared fresh the morning of your delivery. Cleaned, descaled, and ready to cook."
+  },
+  "recurringBasket": {
+    "editBasket": "Edit Basket",
+    "basketName": "Basket Name",
+    "frequency": "Frequency",
+    "weekly": "Every week",
+    "every2Weeks": "Every 2 weeks",
+    "deliveryDay": "Delivery Day",
+    "cancel": "Cancel",
+    "saveChanges": "Save Changes",
+    "defaultName": "My Weekly Order",
+    "title": "Recurring Baskets",
+    "description": "Save your favourite order and have it delivered automatically every week or fortnight. Skip, pause, or cancel anytime.",
+    "ctaTitle": "Turn your current cart into a recurring order",
+    "ctaDesc": "You have {{count}} item in your cart. Save them as a recurring basket.",
+    "saving": "Saving...",
+    "saveCart": "Save Cart as Basket",
+    "saved": "Recurring basket saved successfully!",
+    "emptyTitle": "No recurring baskets yet",
+    "emptyDesc": "Add items to your cart, then save them here as a recurring order. We'll deliver them every {{days}} automatically.",
+    "startShopping": "Start Shopping",
+    "active": "Active",
+    "paused": "Paused",
+    "more": "+{{count}} more",
+    "nextDelivery": "Next delivery",
+    "pause": "Pause",
+    "resume": "Resume",
+    "edit": "Edit"
+  },
+  "language": {
+    "english": "English",
+    "melayu": "Bahasa Melayu",
+    "select": "Select language"
+  }
+}

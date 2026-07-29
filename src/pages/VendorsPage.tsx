@@ -1,11 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Shield, Award, ChevronRight, MapPin, Calendar } from 'lucide-react';
+import { useLanguage } from '../context/LanguageContext';
 import { vendors } from '../data/vendors';
 import { fetchProductById } from '../data/products';
 import type { Product } from '../types';
+import ProductImage from '../components/ui/ProductImage';
 
 export default function VendorsPage() {
+  const { t } = useLanguage();
   const [productMap, setProductMap] = useState<Record<string, Product | null>>({});
 
   useEffect(() => {
@@ -22,11 +25,11 @@ export default function VendorsPage() {
       {/* Header */}
       <div className="text-center max-w-2xl mx-auto mb-14">
         <span className="inline-block bg-forest-100 text-forest-700 text-xs font-semibold px-3 py-1.5 rounded-full mb-4">
-          Our Suppliers
+          {t("vendors.badge")}
         </span>
-        <h1 className="section-title text-4xl mb-3">Meet the People Behind Your Food</h1>
+        <h1 className="section-title text-4xl mb-3">{t("vendors.title")}</h1>
         <p className="text-gray-500 leading-relaxed">
-          Every item in your order comes from a trusted local supplier we know personally. No anonymous distributors — just real farmers, fishermen, and traders who take freshness as seriously as we do.
+          {t("vendors.description")}
         </p>
       </div>
 
@@ -55,7 +58,7 @@ export default function VendorsPage() {
                     {vendor.location}
                     <span className="mx-1.5 opacity-50">·</span>
                     <Calendar size={13} />
-                    Since {vendor.since}
+                    {t("vendors.since")}{vendor.since}
                   </div>
                 </div>
               </div>
@@ -64,7 +67,7 @@ export default function VendorsPage() {
             <div className="p-6 sm:p-8 grid md:grid-cols-3 gap-8">
               {/* Story */}
               <div className="md:col-span-2">
-                <h3 className="font-semibold text-forest-800 mb-2">Their Story</h3>
+                <h3 className="font-semibold text-forest-800 mb-2">{t("vendors.theirStory")}</h3>
                 <p className="text-gray-600 leading-relaxed">{vendor.story}</p>
               </div>
 
@@ -74,7 +77,7 @@ export default function VendorsPage() {
                 <div>
                   <div className="flex items-center gap-2 mb-2">
                     <Award size={15} className="text-jade-600" />
-                    <h4 className="text-sm font-semibold text-charcoal">Certifications</h4>
+                    <h4 className="text-sm font-semibold text-charcoal">{t("vendors.certifications")}</h4>
                   </div>
                   <ul className="space-y-1.5">
                     {vendor.certifications.map((c) => (
@@ -90,7 +93,7 @@ export default function VendorsPage() {
                 <div>
                   <div className="flex items-center gap-2 mb-2">
                     <Shield size={15} className="text-jade-600" />
-                    <h4 className="text-sm font-semibold text-charcoal">Quality Standards</h4>
+                    <h4 className="text-sm font-semibold text-charcoal">{t("vendors.qualityStandards")}</h4>
                   </div>
                   <ul className="space-y-1.5">
                     {vendor.qualityStandards.map((s) => (
@@ -106,7 +109,7 @@ export default function VendorsPage() {
 
             {/* Products from this vendor */}
             <div className="px-6 sm:px-8 pb-8">
-              <h3 className="font-semibold text-charcoal mb-4">Available from {vendor.name}</h3>
+              <h3 className="font-semibold text-charcoal mb-4">{t("vendors.availableFrom")}{vendor.name}</h3>
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
                 {vendor.products.map((pid) => {
                   const product = productMap[pid];
@@ -117,7 +120,7 @@ export default function VendorsPage() {
                       to={`/product/${pid}`}
                       className="flex flex-col gap-2 group p-3 rounded-2xl border border-cream-200 hover:border-forest-300 hover:bg-forest-50 transition-all"
                     >
-                      <img
+                      <ProductImage
                         src={product.image}
                         alt={product.name}
                         className="w-full h-20 rounded-xl object-cover"
@@ -129,7 +132,7 @@ export default function VendorsPage() {
                         <p className="text-xs font-bold text-forest-700 mt-0.5">RM{product.price}</p>
                       </div>
                       <span className="flex items-center gap-1 text-xs text-forest-500 font-medium group-hover:gap-2 transition-all">
-                        View <ChevronRight size={12} />
+                        {t("vendors.view")} <ChevronRight size={12} />
                       </span>
                     </Link>
                   );
