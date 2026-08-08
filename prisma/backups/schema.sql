@@ -56,6 +56,205 @@ CREATE TYPE "public"."delivery_method" AS ENUM (
 ALTER TYPE "public"."delivery_method" OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."_line_cost"("item" "jsonb") RETURNS numeric
+    LANGUAGE "sql" IMMUTABLE
+    AS $$
+  SELECT round(COALESCE((item->>'costPrice')::numeric,0) * public._line_qty(item), 2);
+$$;
+
+
+ALTER FUNCTION "public"."_line_cost"("item" "jsonb") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."_line_margin"("item" "jsonb") RETURNS numeric
+    LANGUAGE "sql" IMMUTABLE
+    AS $$
+  SELECT CASE WHEN public._line_selling(item) > 0
+    THEN round((public._line_selling(item) - public._line_cost(item)) / public._line_selling(item) * 100, 2)
+    ELSE 0 END;
+$$;
+
+
+ALTER FUNCTION "public"."_line_margin"("item" "jsonb") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."_line_profit"("item" "jsonb") RETURNS numeric
+    LANGUAGE "sql" IMMUTABLE
+    AS $$
+  SELECT round(public._line_selling(item) - public._line_cost(item), 2);
+$$;
+
+
+ALTER FUNCTION "public"."_line_profit"("item" "jsonb") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."_line_qty"("item" "jsonb") RETURNS numeric
+    LANGUAGE "sql" IMMUTABLE
+    AS $$
+  SELECT CASE
+    WHEN (item->>'pricingType') IN ('per_kg','slice')
+      THEN COALESCE((item->>'actualWeight')::numeric, (item->>'estimatedWeight')::numeric, 0)
+    ELSE COALESCE((item->>'quantity')::numeric, 0)
+  END;
+$$;
+
+
+ALTER FUNCTION "public"."_line_qty"("item" "jsonb") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."_line_selling"("item" "jsonb") RETURNS numeric
+    LANGUAGE "sql" IMMUTABLE
+    AS $$
+  SELECT round(COALESCE((item->>'price')::numeric,0) * public._line_qty(item), 2);
+$$;
+
+
+ALTER FUNCTION "public"."_line_selling"("item" "jsonb") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."_pricing_set_selling"("p_product_id" "text", "p_selling_price" numeric, "p_effective_at" timestamp with time zone) RETURNS "void"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public', 'pg_temp'
+    AS $$
+DECLARE
+  v_eff  timestamptz := COALESCE(p_effective_at, now());
+  v_same boolean;
+BEGIN
+  IF NOT public.is_admin() THEN RAISE EXCEPTION 'Not authorized'; END IF;
+  IF p_product_id IS NULL OR btrim(p_product_id) = '' THEN
+    RAISE EXCEPTION 'Invalid product id.';
+  END IF;
+  IF p_selling_price IS NULL OR p_selling_price < 0 THEN
+    RAISE EXCEPTION 'Invalid selling price.';
+  END IF;
+
+  -- Deterministic per-product lock; released at transaction end.
+  PERFORM pg_advisory_xact_lock(hashtext('sell_price_v2_2_2:' || p_product_id));
+
+  -- Idempotent NO-OP: an ACTIVE row already holds this numeric price.
+  SELECT EXISTS (
+    SELECT 1 FROM public.selling_price_history
+     WHERE product_id    = p_product_id
+       AND is_active     = true
+       AND selling_price = p_selling_price
+  ) INTO v_same;
+  IF v_same THEN
+    -- Only mirror sync; history row stays as-is (no close, no insert).
+    UPDATE public."Product" SET price = p_selling_price WHERE id = p_product_id;
+    RETURN;
+  END IF;
+
+  -- Real price change: close the current active row, insert exactly ONE new.
+  UPDATE public.selling_price_history
+     SET effective_to = v_eff,
+         is_active    = false,
+         updated_by   = auth.uid(),
+         updated_at   = now()
+   WHERE product_id   = p_product_id
+     AND is_active    = true;
+
+  INSERT INTO public.selling_price_history
+    (product_id, selling_price, effective_from, effective_to, is_active,
+     created_by, updated_by)
+  VALUES
+    (p_product_id, p_selling_price, v_eff, NULL, true, auth.uid(), auth.uid());
+
+  UPDATE public."Product" SET price = p_selling_price WHERE id = p_product_id;
+
+  -- Note: open-order repricing is owned by the public wrapper set_product_*()
+  -- (one call site), which skips Paid/completed/delivered orders.
+END;
+$$;
+
+
+ALTER FUNCTION "public"."_pricing_set_selling"("p_product_id" "text", "p_selling_price" numeric, "p_effective_at" timestamp with time zone) OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."_pricing_set_supplier"("p_product_id" "text", "p_cost_price" numeric, "p_supplier_name" "text", "p_supplier_id" bigint, "p_effective_at" timestamp with time zone) RETURNS "void"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public', 'pg_temp'
+    AS $$
+DECLARE
+  v_supplier_id bigint := p_supplier_id;
+  v_supplier    text   := COALESCE(btrim(p_supplier_name), '');
+  v_eff         timestamptz := COALESCE(p_effective_at, now());
+  v_canon_new   text;
+  v_same        boolean;
+BEGIN
+  IF NOT public.is_admin() THEN RAISE EXCEPTION 'Not authorized'; END IF;
+  IF p_product_id IS NULL OR btrim(p_product_id) = '' THEN
+    RAISE EXCEPTION 'Invalid product id.';
+  END IF;
+  IF p_cost_price IS NULL OR p_cost_price < 0 THEN
+    RAISE EXCEPTION 'Invalid cost price.';
+  END IF;
+
+  -- Serialise per-product; distinct prefix ⇒ no collision with selling lock.
+  PERFORM pg_advisory_xact_lock(hashtext('supplier:v2_2_2:' || p_product_id));
+
+  -- Resolve supplier: explicit id wins, else find-or-create by canonical name.
+  IF v_supplier_id IS NULL AND v_supplier <> '' THEN
+    SELECT s.id INTO v_supplier_id
+      FROM public.suppliers s
+     WHERE lower(s.name) = lower(v_supplier)
+     ORDER BY s.id LIMIT 1;
+    IF v_supplier_id IS NULL THEN
+      INSERT INTO public.suppliers (name) VALUES (v_supplier)
+        RETURNING id INTO v_supplier_id;
+    END IF;
+  END IF;
+
+  v_canon_new := lower(coalesce(
+    (SELECT s.name FROM public.suppliers s WHERE s.id = v_supplier_id),
+    v_supplier, ''));
+
+  -- IDEMPOTENT NOOP: unchanged = identical supplier identity AND identical cost.
+  SELECT EXISTS (
+    SELECT 1
+      FROM public.supplier_price_history h
+     WHERE h.product_id  = p_product_id
+       AND h.is_active   = true
+       AND h.cost_price  = p_cost_price
+       AND lower(coalesce(
+             (SELECT s2.name FROM public.suppliers s2 WHERE s2.id = h.supplier_id),
+             coalesce(h.supplier_name,''), '')) = v_canon_new
+  ) INTO v_same;
+  IF v_same THEN
+    UPDATE public."Product" SET cost_price = p_cost_price,
+           cost_supplier_name = coalesce((SELECT s.name FROM public.suppliers s WHERE s.id = v_supplier_id), v_supplier)
+     WHERE id = p_product_id;
+    RETURN;
+  END IF;
+
+  -- Real change: close active row, append exactly ONE new one.
+  UPDATE public.supplier_price_history
+     SET effective_to = v_eff,
+         is_active    = false,
+         updated_by   = auth.uid(),
+         updated_at   = now()
+   WHERE product_id   = p_product_id
+     AND is_active    = true;
+
+  INSERT INTO public.supplier_price_history
+    (product_id, supplier_id, supplier_name, cost_price,
+     effective_from, effective_to, is_active, created_by, updated_by)
+  VALUES
+    (p_product_id, v_supplier_id,
+     coalesce((SELECT s.name FROM public.suppliers s WHERE s.id = v_supplier_id), v_supplier),
+     p_cost_price, v_eff, NULL, true, auth.uid(), auth.uid());
+
+  UPDATE public."Product" SET cost_price = p_cost_price,
+         cost_supplier_name = coalesce((SELECT s.name FROM public.suppliers s WHERE s.id = v_supplier_id), v_supplier)
+   WHERE id = p_product_id;
+
+  -- Wrapper reprice (V2.1) handles open-order re-stamp; Paid orders locked.
+END;
+$$;
+
+
+ALTER FUNCTION "public"."_pricing_set_supplier"("p_product_id" "text", "p_cost_price" numeric, "p_supplier_name" "text", "p_supplier_id" bigint, "p_effective_at" timestamp with time zone) OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."admin_confirm_hub_arrival"("p_batch_id" "uuid") RETURNS "void"
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'public'
@@ -159,6 +358,126 @@ $$;
 
 
 ALTER FUNCTION "public"."admin_mark_ready_for_rider"("p_batch_id" "uuid") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."ensure_product_first_price_history"() RETURNS "trigger"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public', 'pg_temp'
+    AS $$
+BEGIN
+  -- Seed the first selling price if none exists yet
+  IF NOT EXISTS (
+      SELECT 1 FROM public.selling_price_history
+       WHERE product_id = NEW.id
+  ) THEN
+    INSERT INTO public.selling_price_history
+      (product_id, selling_price, effective_from, is_active, created_by)
+    VALUES
+      (NEW.id, NEW.price, now(), true, auth.uid());
+  END IF;
+
+  -- Seed the first supplier cost only when a cost is provided
+  IF NEW.cost_price > 0
+     AND NOT EXISTS (
+        SELECT 1 FROM public.supplier_price_history
+         WHERE product_id = NEW.id
+     ) THEN
+    INSERT INTO public.supplier_price_history
+      (product_id, supplier_name, cost_price, effective_from, is_active, created_by)
+    VALUES
+      (NEW.id, NEW.cost_supplier_name, NEW.cost_price, now(), true, auth.uid());
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."ensure_product_first_price_history"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."freeze_order_pricing"() RETURNS "trigger"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public', 'pg_temp'
+    AS $$
+DECLARE
+  it              jsonb;
+  item_pos        integer;
+  new_item        jsonb;
+  items_new       jsonb := '[]'::jsonb;
+  weights         jsonb := COALESCE(NEW.supplier_weights, '{}'::jsonb);
+  line_qty        numeric;
+  line_price      numeric;
+  line_cost       numeric;
+  selling_total   numeric;
+  supplier_total  numeric;
+  line_profit     numeric;
+  margin_pct      numeric;
+  order_revenue   numeric := 0;
+  order_cost      numeric := 0;
+BEGIN
+  -- LOCKED once Paid (snapshot already exists): never touch money again.
+  IF COALESCE(NEW.payment_status,'') = 'Paid' AND NEW.pricing_snapshot_timestamp IS NOT NULL THEN
+    RETURN NEW;
+  END IF;
+
+  FOR it, item_pos IN
+    SELECT el, pos - 1
+    FROM jsonb_array_elements(COALESCE(NEW.order_items,'[]'::jsonb))
+         WITH ORDINALITY AS t(el, pos)
+  LOOP
+    line_price := COALESCE((it->>'price')::numeric, 0);
+    line_cost  := COALESCE((it->>'costPrice')::numeric, 0);
+
+    IF (it->>'pricingType') IN ('per_kg','slice') THEN
+      -- weight / whole-fish / slice: use ACTUAL kg from the supplier weight map,
+      -- then the item's own weight, then the checkout estimate. Slice count is
+      -- deliberately never used for money.
+      line_qty := COALESCE((weights ->> item_pos::text)::numeric,
+                           (it->>'actual_weight')::numeric,
+                           (it->>'actualWeight')::numeric,
+                           (it->>'estimatedWeight')::numeric, 0);
+    ELSE
+      line_qty := COALESCE((it->>'quantity')::numeric, 0);
+    END IF;
+
+    selling_total  := round(line_price * line_qty, 2);
+    supplier_total := round(line_cost  * line_qty, 2);
+    line_profit    := round(selling_total - supplier_total, 2);
+    margin_pct     := CASE WHEN selling_total > 0
+                       THEN round(line_profit / selling_total * 100, 2) ELSE 0 END;
+
+    new_item := it || jsonb_build_object(
+      'selling_price_per_unit',      line_price,
+      'supplier_cost_per_unit',      line_cost,
+      'actual_weight',               line_qty,
+      'selling_total',               selling_total,
+      'supplier_total',              supplier_total,
+      'gross_profit',                line_profit,
+      'profit_margin_percent',       margin_pct,
+      'pricing_snapshot_timestamp',  now()
+    );
+
+    items_new     := items_new || jsonb_build_array(new_item);
+    order_revenue := order_revenue + selling_total;
+    order_cost    := order_cost + supplier_total;
+  END LOOP;
+
+  NEW.order_items           := items_new;
+  NEW.revenue               := round(order_revenue, 2);
+  NEW.supplier_cost         := round(order_cost, 2);
+  NEW.gross_profit          := round(order_revenue - order_cost, 2);
+  NEW.profit_margin_percent := CASE WHEN order_revenue > 0
+                                 THEN round((order_revenue - order_cost) / order_revenue * 100, 2)
+                                 ELSE 0 END;
+  NEW.pricing_snapshot_timestamp := now();
+  NEW.frozen_total          := COALESCE(NEW.total, order_revenue);
+  RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."freeze_order_pricing"() OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."is_admin"() RETURNS boolean
@@ -388,6 +707,22 @@ $$;
 ALTER FUNCTION "public"."normalize_product_order"() OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."refresh_monthly_report_mv"() RETURNS "void"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public', 'pg_temp'
+    AS $$
+BEGIN
+  -- Non-concurrent: safe inside a function/transaction. For zero-downtime
+  -- refreshes from a cron job use `REFRESH MATERIALIZED VIEW CONCURRENTLY`
+  -- directly (outside a transaction block); it requires the unique index.
+  REFRESH MATERIALIZED VIEW public.mv_sales_summary_monthly;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."refresh_monthly_report_mv"() OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."reorder_combos"("p_ids" "text"[]) RETURNS "void"
     LANGUAGE "plpgsql"
     AS $$
@@ -424,6 +759,84 @@ $$;
 
 
 ALTER FUNCTION "public"."reorder_products"("p_ids" "text"[]) OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."reprice_open_orders_for_product"("p_product_id" "text") RETURNS integer
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public', 'pg_temp'
+    AS $$
+DECLARE
+  n          integer := 0;
+  v_id       bigint;
+  v_items    jsonb;
+  v_new      jsonb;
+  v_price    numeric;
+  v_cost     numeric;
+  v_supplier text;
+  v_el       jsonb;
+  v_pos      integer;
+  v_item     jsonb;
+BEGIN
+  IF NOT (public.is_admin() OR public.is_supplier()) THEN
+    RAISE EXCEPTION 'Not authorized';
+  END IF;
+
+  SELECT COALESCE(
+           (SELECT selling_price FROM public.selling_price_history
+             WHERE product_id = p_product_id AND is_active
+             ORDER BY effective_from DESC LIMIT 1),
+           (SELECT price FROM public."Product" WHERE id = p_product_id),
+           0) INTO v_price;
+  SELECT COALESCE(
+           (SELECT cost_price FROM public.supplier_price_history
+             WHERE product_id = p_product_id AND is_active
+             ORDER BY effective_from DESC LIMIT 1),
+           (SELECT cost_price FROM public."Product" WHERE id = p_product_id),
+           0) INTO v_cost;
+  SELECT COALESCE(
+           (SELECT supplier_name FROM public.supplier_price_history
+             WHERE product_id = p_product_id AND is_active
+             ORDER BY effective_from DESC LIMIT 1),
+           (SELECT cost_supplier_name FROM public."Product" WHERE id = p_product_id),
+           '') INTO v_supplier;
+
+  FOR v_id, v_items IN
+    SELECT o.id, o.order_items
+    FROM public."Orders" o
+    WHERE COALESCE(o.payment_status,'') <> 'Paid'
+      AND EXISTS (
+        SELECT 1 FROM jsonb_array_elements(COALESCE(o.order_items,'[]'::jsonb)) it
+        WHERE it->>'productId' = p_product_id
+      )
+  LOOP
+    v_new := '[]'::jsonb;
+    FOR v_el, v_pos IN
+      SELECT el, pos
+      FROM jsonb_array_elements(COALESCE(v_items,'[]'::jsonb))
+           WITH ORDINALITY AS t(el, pos)
+    LOOP
+      IF (v_el->>'productId') = p_product_id THEN
+        v_item := v_el || jsonb_build_object(
+          'price',        v_price,
+          'costPrice',    v_cost,
+          'supplierName', v_supplier
+        );
+      ELSE
+        v_item := v_el;
+      END IF;
+      v_new := v_new || jsonb_build_array(v_item);
+    END LOOP;
+
+    UPDATE public."Orders" SET order_items = v_new WHERE id = v_id; -- freeze trigger recomputes
+    n := n + 1;
+  END LOOP;
+
+  RETURN n;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."reprice_open_orders_for_product"("p_product_id" "text") OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."rider_complete_batch_if_done"("p_batch_id" "uuid") RETURNS "void"
@@ -557,6 +970,62 @@ $$;
 
 
 ALTER FUNCTION "public"."rider_update_delivery_status"("p_order_id" bigint, "p_status" "text") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."set_product_selling_price"("p_product_id" "text", "p_selling_price" numeric) RETURNS "void"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public', 'pg_temp'
+    AS $$
+BEGIN
+  PERFORM public._pricing_set_selling(p_product_id, p_selling_price, now());
+  PERFORM public.reprice_open_orders_for_product(p_product_id);
+END;
+$$;
+
+
+ALTER FUNCTION "public"."set_product_selling_price"("p_product_id" "text", "p_selling_price" numeric) OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."set_product_selling_price_at"("p_product_id" "text", "p_selling_price" numeric, "p_effective_at" timestamp with time zone) RETURNS "void"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public', 'pg_temp'
+    AS $$
+BEGIN
+  PERFORM public._pricing_set_selling(p_product_id, p_selling_price, p_effective_at);
+  PERFORM public.reprice_open_orders_for_product(p_product_id);
+END;
+$$;
+
+
+ALTER FUNCTION "public"."set_product_selling_price_at"("p_product_id" "text", "p_selling_price" numeric, "p_effective_at" timestamp with time zone) OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."set_product_supplier_price"("p_product_id" "text", "p_cost_price" numeric, "p_supplier_name" "text") RETURNS "void"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public', 'pg_temp'
+    AS $$
+BEGIN
+  PERFORM public._pricing_set_supplier(p_product_id, p_cost_price, p_supplier_name, NULL, now());
+  PERFORM public.reprice_open_orders_for_product(p_product_id);
+END;
+$$;
+
+
+ALTER FUNCTION "public"."set_product_supplier_price"("p_product_id" "text", "p_cost_price" numeric, "p_supplier_name" "text") OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."set_product_supplier_price_at"("p_product_id" "text", "p_cost_price" numeric, "p_supplier_name" "text", "p_supplier_id" bigint, "p_effective_at" timestamp with time zone) RETURNS "void"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public', 'pg_temp'
+    AS $$
+BEGIN
+  PERFORM public._pricing_set_supplier(p_product_id, p_cost_price, p_supplier_name, p_supplier_id, p_effective_at);
+  PERFORM public.reprice_open_orders_for_product(p_product_id);
+END;
+$$;
+
+
+ALTER FUNCTION "public"."set_product_supplier_price_at"("p_product_id" "text", "p_cost_price" numeric, "p_supplier_name" "text", "p_supplier_id" bigint, "p_effective_at" timestamp with time zone) OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."supplier_book_lalamove"("p_batch_id" "uuid", "p_tracking_url" "text", "p_booking_reference" "text") RETURNS "void"
@@ -747,6 +1216,20 @@ $$;
 ALTER FUNCTION "public"."supplier_start_packing_order"("p_order_id" bigint) OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."touch_updated_at"() RETURNS "trigger"
+    LANGUAGE "plpgsql"
+    AS $$
+BEGIN
+  NEW.updated_at = now();
+  NEW.updated_by = coalesce(auth.uid(), NEW.updated_by);
+  RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."touch_updated_at"() OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."tracking_rider_name"("p_delivery_date" "date") RETURNS "text"
     LANGUAGE "plpgsql" SECURITY DEFINER
     SET "search_path" TO 'public'
@@ -830,7 +1313,14 @@ CREATE TABLE IF NOT EXISTS "public"."Orders" (
     "booking_reference" "text",
     "lalamove_booked_at" timestamp with time zone,
     "delivery_status" "text",
-    "delivered_at" timestamp with time zone
+    "delivered_at" timestamp with time zone,
+    "gross_profit" numeric(10,2) DEFAULT 0 NOT NULL,
+    "revenue" numeric(12,2) DEFAULT 0 NOT NULL,
+    "supplier_cost" numeric(12,2) DEFAULT 0 NOT NULL,
+    "profit_margin_percent" numeric(8,2) DEFAULT 0 NOT NULL,
+    "pricing_snapshot_timestamp" timestamp with time zone,
+    "frozen_total" numeric(12,2) DEFAULT 0 NOT NULL,
+    "currency" "text" DEFAULT 'MYR'::"text" NOT NULL
 );
 
 
@@ -838,6 +1328,22 @@ ALTER TABLE "public"."Orders" OWNER TO "postgres";
 
 
 COMMENT ON TABLE "public"."Orders" IS 'This will store customers orders';
+
+
+
+COMMENT ON COLUMN "public"."Orders"."revenue" IS 'Gross revenue of line items (excl. delivery fee). Frozen at checkout / weight-confirm.';
+
+
+
+COMMENT ON COLUMN "public"."Orders"."supplier_cost" IS 'Total supplier cost of line items. Frozen — never recomputed from Product.';
+
+
+
+COMMENT ON COLUMN "public"."Orders"."profit_margin_percent" IS 'Gross margin %% (gross_profit / revenue). Frozen.';
+
+
+
+COMMENT ON COLUMN "public"."Orders"."pricing_snapshot_timestamp" IS 'When the current frozen financial snapshot was captured.';
 
 
 
@@ -882,6 +1388,8 @@ CREATE TABLE IF NOT EXISTS "public"."Product" (
     "default_slice" integer DEFAULT 2 NOT NULL,
     "slice_increment" integer DEFAULT 1 NOT NULL,
     "slice_instruction" "text" DEFAULT ''::"text" NOT NULL,
+    "cost_price" numeric(10,2) DEFAULT 0 NOT NULL,
+    "cost_supplier_name" "text" DEFAULT ''::"text" NOT NULL,
     CONSTRAINT "Product_category_check" CHECK (("category" = ANY (ARRAY['chicken'::"text", 'fish'::"text", 'prawns'::"text", 'squid'::"text", 'combo'::"text"]))),
     CONSTRAINT "Product_freshness_check" CHECK (("freshness" = ANY (ARRAY['available'::"text", 'limited'::"text", 'sold-out'::"text"]))),
     CONSTRAINT "chk_product_slice_limits" CHECK ((("min_slice" >= 1) AND ("max_slice" >= "min_slice") AND ("slice_increment" >= 1)))
@@ -889,6 +1397,14 @@ CREATE TABLE IF NOT EXISTS "public"."Product" (
 
 
 ALTER TABLE "public"."Product" OWNER TO "postgres";
+
+
+COMMENT ON COLUMN "public"."Product"."cost_price" IS 'DEPRECATED v1 compatibility mirror. Source of truth is supplier_price_history active row. Never used for reports.';
+
+
+
+COMMENT ON COLUMN "public"."Product"."cost_supplier_name" IS 'DEPRECATED v1 compatibility mirror. New code uses suppliers / supplier_id.';
+
 
 
 CREATE TABLE IF NOT EXISTS "public"."combo_items" (
@@ -1041,6 +1557,147 @@ ALTER TABLE "public"."delivery_points" ALTER COLUMN "id" ADD GENERATED ALWAYS AS
 
 
 
+CREATE TABLE IF NOT EXISTS "public"."historical_business_daily" (
+    "id" bigint NOT NULL,
+    "business_date" "date" NOT NULL,
+    "order_count" integer DEFAULT 0 NOT NULL,
+    "revenue_amount" numeric(12,2) DEFAULT 0 NOT NULL,
+    "supplier_cost_amount" numeric(12,2) DEFAULT 0 NOT NULL,
+    "delivery_income_amount" numeric(12,2) DEFAULT 0 NOT NULL,
+    "gross_profit_amount" numeric(12,2) DEFAULT 0 NOT NULL,
+    "source" "text" DEFAULT 'historical_import'::"text" NOT NULL,
+    "notes" "text",
+    "created_by" "uuid",
+    "updated_by" "uuid",
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    CONSTRAINT "historical_business_daily_delivery_income_amount_check" CHECK (("delivery_income_amount" >= (0)::numeric)),
+    CONSTRAINT "historical_business_daily_order_count_check" CHECK (("order_count" >= 0)),
+    CONSTRAINT "historical_business_daily_revenue_amount_check" CHECK (("revenue_amount" >= (0)::numeric)),
+    CONSTRAINT "historical_business_daily_supplier_cost_amount_check" CHECK (("supplier_cost_amount" >= (0)::numeric))
+);
+
+
+ALTER TABLE "public"."historical_business_daily" OWNER TO "postgres";
+
+
+ALTER TABLE "public"."historical_business_daily" ALTER COLUMN "id" ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME "public"."historical_business_daily_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+
+CREATE OR REPLACE VIEW "public"."vw_order_item_flat" AS
+ SELECT "o"."id" AS "order_id",
+    "o"."created_at" AS "order_created_at",
+    ("o"."created_at")::"date" AS "order_date",
+    "o"."delivery_slot",
+    COALESCE("o"."payment_status", ''::"text") AS "payment_status",
+    ("o"."order_summary" ->> 'status'::"text") AS "order_status",
+    "t"."pos" AS "item_index",
+    ("t"."it" ->> 'productId'::"text") AS "product_id",
+    COALESCE(("t"."it" ->> 'name'::"text"), ''::"text") AS "product_name",
+    COALESCE("p"."category", ("t"."it" ->> 'category'::"text"), 'Others'::"text") AS "category",
+    COALESCE(("t"."it" ->> 'supplierName'::"text"), "p"."vendor_name", 'Unknown'::"text") AS "supplier_name",
+    ("t"."it" ->> 'pricingType'::"text") AS "pricing_type",
+    COALESCE((("t"."it" ->> 'selling_price_per_unit'::"text"))::numeric, (("t"."it" ->> 'price'::"text"))::numeric, (0)::numeric) AS "selling_price_per_unit",
+    COALESCE((("t"."it" ->> 'supplier_cost_per_unit'::"text"))::numeric, (("t"."it" ->> 'costPrice'::"text"))::numeric, (0)::numeric) AS "supplier_cost_per_unit",
+    COALESCE((("t"."it" ->> 'actual_weight'::"text"))::numeric,
+        CASE
+            WHEN (("t"."it" ->> 'pricingType'::"text") = ANY (ARRAY['per_kg'::"text", 'slice'::"text"])) THEN (("t"."it" ->> 'actualWeight'::"text"))::numeric
+            ELSE NULL::numeric
+        END, (0)::numeric) AS "actual_weight",
+        CASE
+            WHEN (("t"."it" ->> 'pricingType'::"text") = ANY (ARRAY['per_kg'::"text", 'slice'::"text"])) THEN COALESCE((("t"."it" ->> 'actual_weight'::"text"))::numeric, (("t"."it" ->> 'actualWeight'::"text"))::numeric, (("t"."it" ->> 'estimatedWeight'::"text"))::numeric, (0)::numeric)
+            ELSE COALESCE((("t"."it" ->> 'quantity'::"text"))::numeric, (0)::numeric)
+        END AS "qty_sold",
+    COALESCE((("t"."it" ->> 'selling_total'::"text"))::numeric, "public"."_line_selling"("t"."it")) AS "selling_total",
+    COALESCE((("t"."it" ->> 'supplier_total'::"text"))::numeric, "public"."_line_cost"("t"."it")) AS "supplier_total",
+    COALESCE((("t"."it" ->> 'gross_profit'::"text"))::numeric, "public"."_line_profit"("t"."it")) AS "gross_profit",
+    COALESCE((("t"."it" ->> 'profit_margin_percent'::"text"))::numeric, "public"."_line_margin"("t"."it")) AS "profit_margin_percent"
+   FROM (("public"."Orders" "o"
+     CROSS JOIN LATERAL "jsonb_array_elements"(COALESCE("o"."order_items", '[]'::"jsonb")) WITH ORDINALITY "t"("it", "pos"))
+     LEFT JOIN "public"."Product" "p" ON (("p"."id" = ("t"."it" ->> 'productId'::"text"))));
+
+
+ALTER VIEW "public"."vw_order_item_flat" OWNER TO "postgres";
+
+
+CREATE OR REPLACE VIEW "public"."vw_sales_summary_monthly" AS
+ SELECT "to_char"(("order_date")::timestamp with time zone, 'YYYY-MM'::"text") AS "report_month",
+    "count"(DISTINCT "order_id") AS "order_count",
+    "round"("sum"("qty_sold"), 2) AS "quantity_sold",
+    "round"("sum"("selling_total"), 2) AS "revenue",
+    "round"("sum"("supplier_total"), 2) AS "supplier_cost",
+    "round"("sum"("gross_profit"), 2) AS "profit",
+    "round"(
+        CASE
+            WHEN ("sum"("selling_total") > (0)::numeric) THEN (("sum"("gross_profit") / "sum"("selling_total")) * (100)::numeric)
+            ELSE (0)::numeric
+        END, 2) AS "margin_percent",
+    "round"(("sum"("selling_total") / NULLIF("sum"("qty_sold"), (0)::numeric)), 2) AS "avg_selling_price",
+    "round"(("sum"("supplier_total") / NULLIF("sum"("qty_sold"), (0)::numeric)), 2) AS "avg_supplier_cost",
+    "round"(("sum"("gross_profit") / NULLIF("sum"("qty_sold"), (0)::numeric)), 2) AS "avg_profit"
+   FROM "public"."vw_order_item_flat"
+  GROUP BY ("to_char"(("order_date")::timestamp with time zone, 'YYYY-MM'::"text"));
+
+
+ALTER VIEW "public"."vw_sales_summary_monthly" OWNER TO "postgres";
+
+
+CREATE MATERIALIZED VIEW "public"."mv_sales_summary_monthly" AS
+ SELECT "report_month",
+    "order_count",
+    "quantity_sold",
+    "revenue",
+    "supplier_cost",
+    "profit",
+    "margin_percent",
+    "avg_selling_price",
+    "avg_supplier_cost",
+    "avg_profit"
+   FROM "public"."vw_sales_summary_monthly"
+  WITH NO DATA;
+
+
+ALTER MATERIALIZED VIEW "public"."mv_sales_summary_monthly" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."selling_price_history" (
+    "id" bigint NOT NULL,
+    "product_id" "text" NOT NULL,
+    "selling_price" numeric(10,2) NOT NULL,
+    "effective_from" timestamp with time zone DEFAULT CURRENT_DATE NOT NULL,
+    "effective_to" timestamp with time zone,
+    "is_active" boolean DEFAULT true NOT NULL,
+    "created_by" "uuid",
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_by" "uuid",
+    CONSTRAINT "chk_selling_price_positive" CHECK (("selling_price" >= (0)::numeric)),
+    CONSTRAINT "chk_selling_price_range" CHECK ((("effective_to" IS NULL) OR ("effective_from" <= "effective_to")))
+);
+
+
+ALTER TABLE "public"."selling_price_history" OWNER TO "postgres";
+
+
+ALTER TABLE "public"."selling_price_history" ALTER COLUMN "id" ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME "public"."selling_price_history_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+
 CREATE TABLE IF NOT EXISTS "public"."site_settings" (
     "key" "text" NOT NULL,
     "value" "jsonb" NOT NULL,
@@ -1049,6 +1706,42 @@ CREATE TABLE IF NOT EXISTS "public"."site_settings" (
 
 
 ALTER TABLE "public"."site_settings" OWNER TO "postgres";
+
+
+CREATE TABLE IF NOT EXISTS "public"."supplier_price_history" (
+    "id" bigint NOT NULL,
+    "product_id" "text" NOT NULL,
+    "supplier_id" bigint,
+    "supplier_name" "text",
+    "cost_price" numeric(10,2) NOT NULL,
+    "effective_from" timestamp with time zone DEFAULT CURRENT_DATE NOT NULL,
+    "effective_to" timestamp with time zone,
+    "is_active" boolean DEFAULT true NOT NULL,
+    "created_by" "uuid",
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_by" "uuid",
+    CONSTRAINT "chk_supplier_price_positive" CHECK (("cost_price" >= (0)::numeric)),
+    CONSTRAINT "chk_supplier_price_range" CHECK ((("effective_to" IS NULL) OR ("effective_from" <= "effective_to")))
+);
+
+
+ALTER TABLE "public"."supplier_price_history" OWNER TO "postgres";
+
+
+COMMENT ON COLUMN "public"."supplier_price_history"."supplier_name" IS 'Deprecated v1-compat alias of supplier_id. Do NOT use for new logic.';
+
+
+
+ALTER TABLE "public"."supplier_price_history" ALTER COLUMN "id" ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME "public"."supplier_price_history_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
 
 
 CREATE TABLE IF NOT EXISTS "public"."supplier_profiles" (
@@ -1063,6 +1756,38 @@ CREATE TABLE IF NOT EXISTS "public"."supplier_profiles" (
 ALTER TABLE "public"."supplier_profiles" OWNER TO "postgres";
 
 
+CREATE TABLE IF NOT EXISTS "public"."suppliers" (
+    "id" bigint NOT NULL,
+    "name" "text" NOT NULL,
+    "contact_person" "text",
+    "phone" "text",
+    "email" "text",
+    "address" "text",
+    "is_active" boolean DEFAULT true NOT NULL,
+    "created_by" "uuid",
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "currency" "text" DEFAULT 'MYR'::"text" NOT NULL,
+    "payment_terms" "text",
+    "tax_id" "text",
+    "account_ref" "text"
+);
+
+
+ALTER TABLE "public"."suppliers" OWNER TO "postgres";
+
+
+ALTER TABLE "public"."suppliers" ALTER COLUMN "id" ADD GENERATED ALWAYS AS IDENTITY (
+    SEQUENCE NAME "public"."suppliers_id_seq"
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1
+);
+
+
+
 CREATE TABLE IF NOT EXISTS "public"."user_roles" (
     "id" "uuid" NOT NULL,
     "role" "text" DEFAULT 'admin'::"text" NOT NULL,
@@ -1071,6 +1796,199 @@ CREATE TABLE IF NOT EXISTS "public"."user_roles" (
 
 
 ALTER TABLE "public"."user_roles" OWNER TO "postgres";
+
+
+CREATE OR REPLACE VIEW "public"."vw_category_profit" AS
+ SELECT "category",
+    "count"(DISTINCT "order_id") AS "order_count",
+    "round"("sum"("qty_sold"), 2) AS "quantity_sold",
+    "round"("sum"("selling_total"), 2) AS "revenue",
+    "round"("sum"("supplier_total"), 2) AS "supplier_cost",
+    "round"("sum"("gross_profit"), 2) AS "profit",
+    "round"(
+        CASE
+            WHEN ("sum"("selling_total") > (0)::numeric) THEN (("sum"("gross_profit") / "sum"("selling_total")) * (100)::numeric)
+            ELSE (0)::numeric
+        END, 2) AS "margin_percent"
+   FROM "public"."vw_order_item_flat"
+  GROUP BY "category";
+
+
+ALTER VIEW "public"."vw_category_profit" OWNER TO "postgres";
+
+
+CREATE OR REPLACE VIEW "public"."vw_product_profit" AS
+ SELECT "product_id",
+    "max"("product_name") AS "product_name",
+    "max"("category") AS "category",
+    "count"(DISTINCT "order_id") AS "order_count",
+    "round"("sum"("qty_sold"), 2) AS "quantity_sold",
+    "round"("avg"(
+        CASE
+            WHEN ("pricing_type" = ANY (ARRAY['per_kg'::"text", 'slice'::"text"])) THEN "actual_weight"
+            ELSE NULL::numeric
+        END), 3) AS "avg_weight",
+    "round"("avg"("selling_price_per_unit"), 2) AS "avg_selling_price",
+    "round"("avg"("supplier_cost_per_unit"), 2) AS "avg_supplier_cost",
+    "round"(("sum"("gross_profit") / NULLIF("sum"("qty_sold"), (0)::numeric)), 2) AS "avg_profit",
+    "round"("sum"("selling_total"), 2) AS "revenue",
+    "round"("sum"("supplier_total"), 2) AS "supplier_cost",
+    "round"("sum"("gross_profit"), 2) AS "profit",
+    "round"(
+        CASE
+            WHEN ("sum"("selling_total") > (0)::numeric) THEN (("sum"("gross_profit") / "sum"("selling_total")) * (100)::numeric)
+            ELSE (0)::numeric
+        END, 2) AS "margin_percent"
+   FROM "public"."vw_order_item_flat"
+  GROUP BY "product_id";
+
+
+ALTER VIEW "public"."vw_product_profit" OWNER TO "postgres";
+
+
+CREATE OR REPLACE VIEW "public"."vw_dashboard_kpis" AS
+ SELECT ( SELECT "round"("sum"("vw_order_item_flat"."selling_total"), 2) AS "round"
+           FROM "public"."vw_order_item_flat"
+          WHERE ("vw_order_item_flat"."order_date" = CURRENT_DATE)) AS "today_revenue",
+    ( SELECT "round"("sum"("vw_order_item_flat"."supplier_total"), 2) AS "round"
+           FROM "public"."vw_order_item_flat"
+          WHERE ("vw_order_item_flat"."order_date" = CURRENT_DATE)) AS "today_supplier_cost",
+    ( SELECT "round"("sum"("vw_order_item_flat"."gross_profit"), 2) AS "round"
+           FROM "public"."vw_order_item_flat"
+          WHERE ("vw_order_item_flat"."order_date" = CURRENT_DATE)) AS "today_profit",
+    ( SELECT "round"(
+                CASE
+                    WHEN ("sum"("vw_order_item_flat"."selling_total") > (0)::numeric) THEN (("sum"("vw_order_item_flat"."gross_profit") / "sum"("vw_order_item_flat"."selling_total")) * (100)::numeric)
+                    ELSE (0)::numeric
+                END, 2) AS "round"
+           FROM "public"."vw_order_item_flat"
+          WHERE ("vw_order_item_flat"."order_date" = CURRENT_DATE)) AS "today_margin_percent",
+    ( SELECT "round"("sum"("vw_order_item_flat"."selling_total"), 2) AS "round"
+           FROM "public"."vw_order_item_flat"
+          WHERE ("to_char"(("vw_order_item_flat"."order_date")::timestamp with time zone, 'YYYY-MM'::"text") = "to_char"((CURRENT_DATE)::timestamp with time zone, 'YYYY-MM'::"text"))) AS "monthly_revenue",
+    ( SELECT "round"("sum"("vw_order_item_flat"."gross_profit"), 2) AS "round"
+           FROM "public"."vw_order_item_flat"
+          WHERE ("to_char"(("vw_order_item_flat"."order_date")::timestamp with time zone, 'YYYY-MM'::"text") = "to_char"((CURRENT_DATE)::timestamp with time zone, 'YYYY-MM'::"text"))) AS "monthly_profit",
+    ( SELECT "round"("avg"("Orders"."total"), 2) AS "round"
+           FROM "public"."Orders"
+          WHERE ("Orders"."created_at" >= (CURRENT_DATE - '30 days'::interval))) AS "avg_order_value_30d",
+    ( SELECT "vw_product_profit"."product_name"
+           FROM "public"."vw_product_profit"
+          ORDER BY "vw_product_profit"."revenue" DESC
+         LIMIT 1) AS "top_selling_product",
+    ( SELECT "vw_product_profit"."product_name"
+           FROM "public"."vw_product_profit"
+          ORDER BY "vw_product_profit"."profit" DESC
+         LIMIT 1) AS "most_profitable_product",
+    ( SELECT "vw_category_profit"."category"
+           FROM "public"."vw_category_profit"
+          ORDER BY "vw_category_profit"."profit" DESC
+         LIMIT 1) AS "most_profitable_category";
+
+
+ALTER VIEW "public"."vw_dashboard_kpis" OWNER TO "postgres";
+
+
+CREATE OR REPLACE VIEW "public"."vw_order_profit" AS
+ SELECT "f"."order_id",
+    ("max"("o"."created_at"))::"date" AS "order_date",
+    "max"(("o"."order_summary" ->> 'status'::"text")) AS "order_status",
+    "max"(COALESCE("o"."payment_status", ''::"text")) AS "payment_status",
+    "max"("o"."full_name") AS "customer_name",
+    "count"(*) AS "item_count",
+    "round"("sum"("f"."selling_total"), 2) AS "revenue",
+    "round"("sum"("f"."supplier_total"), 2) AS "supplier_cost",
+    "round"("sum"("f"."gross_profit"), 2) AS "gross_profit",
+    "round"(
+        CASE
+            WHEN ("sum"("f"."selling_total") > (0)::numeric) THEN (("sum"("f"."gross_profit") / "sum"("f"."selling_total")) * (100)::numeric)
+            ELSE (0)::numeric
+        END, 2) AS "margin_percent",
+    "max"("o"."delivery_fee") AS "delivery_fee",
+    "max"("o"."total") AS "total"
+   FROM ("public"."vw_order_item_flat" "f"
+     JOIN "public"."Orders" "o" ON (("o"."id" = "f"."order_id")))
+  GROUP BY "f"."order_id";
+
+
+ALTER VIEW "public"."vw_order_profit" OWNER TO "postgres";
+
+
+CREATE OR REPLACE VIEW "public"."vw_sales_summary_daily" AS
+ SELECT "order_date" AS "report_date",
+    "count"(DISTINCT "order_id") AS "order_count",
+    "round"("sum"("qty_sold"), 2) AS "quantity_sold",
+    "round"("sum"("selling_total"), 2) AS "revenue",
+    "round"("sum"("supplier_total"), 2) AS "supplier_cost",
+    "round"("sum"("gross_profit"), 2) AS "profit",
+    "round"(
+        CASE
+            WHEN ("sum"("selling_total") > (0)::numeric) THEN (("sum"("gross_profit") / "sum"("selling_total")) * (100)::numeric)
+            ELSE (0)::numeric
+        END, 2) AS "margin_percent",
+    "round"(("sum"("selling_total") / NULLIF("sum"("qty_sold"), (0)::numeric)), 2) AS "avg_selling_price",
+    "round"(("sum"("supplier_total") / NULLIF("sum"("qty_sold"), (0)::numeric)), 2) AS "avg_supplier_cost",
+    "round"(("sum"("gross_profit") / NULLIF("sum"("qty_sold"), (0)::numeric)), 2) AS "avg_profit"
+   FROM "public"."vw_order_item_flat"
+  GROUP BY "order_date";
+
+
+ALTER VIEW "public"."vw_sales_summary_daily" OWNER TO "postgres";
+
+
+CREATE OR REPLACE VIEW "public"."vw_supplier_profit" AS
+ SELECT "supplier_name",
+    "count"(DISTINCT "order_id") AS "order_count",
+    "count"(DISTINCT "product_id") AS "products_sold",
+    "round"("sum"("selling_total"), 2) AS "revenue",
+    "round"("sum"("supplier_total"), 2) AS "supplier_cost",
+    "round"("sum"("gross_profit"), 2) AS "profit",
+    "round"(
+        CASE
+            WHEN ("sum"("selling_total") > (0)::numeric) THEN (("sum"("gross_profit") / "sum"("selling_total")) * (100)::numeric)
+            ELSE (0)::numeric
+        END, 2) AS "avg_margin_percent"
+   FROM "public"."vw_order_item_flat"
+  GROUP BY "supplier_name";
+
+
+ALTER VIEW "public"."vw_supplier_profit" OWNER TO "postgres";
+
+
+CREATE OR REPLACE VIEW "public"."vw_top_products" AS
+ SELECT "product_id",
+    "product_name",
+    "category",
+    "order_count",
+    "quantity_sold",
+    "revenue",
+    "supplier_cost",
+    "profit",
+    "margin_percent"
+   FROM "public"."vw_product_profit"
+  ORDER BY "revenue" DESC
+ LIMIT 10;
+
+
+ALTER VIEW "public"."vw_top_products" OWNER TO "postgres";
+
+
+CREATE OR REPLACE VIEW "public"."vw_top_profit_products" AS
+ SELECT "product_id",
+    "product_name",
+    "category",
+    "order_count",
+    "quantity_sold",
+    "revenue",
+    "supplier_cost",
+    "profit",
+    "margin_percent"
+   FROM "public"."vw_product_profit"
+  ORDER BY "profit" DESC
+ LIMIT 10;
+
+
+ALTER VIEW "public"."vw_top_profit_products" OWNER TO "postgres";
 
 
 ALTER TABLE ONLY "public"."Orders"
@@ -1133,8 +2051,28 @@ ALTER TABLE ONLY "public"."delivery_points"
 
 
 
+ALTER TABLE ONLY "public"."historical_business_daily"
+    ADD CONSTRAINT "historical_business_daily_business_date_key" UNIQUE ("business_date");
+
+
+
+ALTER TABLE ONLY "public"."historical_business_daily"
+    ADD CONSTRAINT "historical_business_daily_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."selling_price_history"
+    ADD CONSTRAINT "selling_price_history_pkey" PRIMARY KEY ("id");
+
+
+
 ALTER TABLE ONLY "public"."site_settings"
     ADD CONSTRAINT "site_settings_pkey" PRIMARY KEY ("key");
+
+
+
+ALTER TABLE ONLY "public"."supplier_price_history"
+    ADD CONSTRAINT "supplier_price_history_pkey" PRIMARY KEY ("id");
 
 
 
@@ -1145,6 +2083,11 @@ ALTER TABLE ONLY "public"."supplier_profiles"
 
 ALTER TABLE ONLY "public"."supplier_profiles"
     ADD CONSTRAINT "supplier_profiles_user_id_key" UNIQUE ("user_id");
+
+
+
+ALTER TABLE ONLY "public"."suppliers"
+    ADD CONSTRAINT "suppliers_pkey" PRIMARY KEY ("id");
 
 
 
@@ -1197,7 +2140,27 @@ CREATE INDEX "idx_manifest_batch" ON "public"."delivery_batch_manifest" USING "b
 
 
 
+CREATE INDEX "idx_orders_created_at" ON "public"."Orders" USING "btree" ("created_at" DESC);
+
+
+
+CREATE INDEX "idx_orders_currency" ON "public"."Orders" USING "btree" ("currency");
+
+
+
 CREATE INDEX "idx_orders_delivery_batch_id" ON "public"."Orders" USING "btree" ("delivery_batch_id");
+
+
+
+CREATE INDEX "idx_orders_delivery_slot_created" ON "public"."Orders" USING "btree" ("delivery_slot", "created_at" DESC);
+
+
+
+CREATE INDEX "idx_orders_payment_status_created" ON "public"."Orders" USING "btree" ("payment_status", "created_at" DESC);
+
+
+
+CREATE INDEX "idx_orders_status" ON "public"."Orders" USING "btree" ((("order_summary" ->> 'status'::"text")));
 
 
 
@@ -1214,6 +2177,98 @@ CREATE INDEX "idx_product_is_pinned" ON "public"."Product" USING "btree" ("is_pi
 
 
 CREATE INDEX "idx_product_vendor_id" ON "public"."Product" USING "btree" ("vendor_id");
+
+
+
+CREATE INDEX "idx_selling_price_history_eff" ON "public"."selling_price_history" USING "btree" ("effective_from");
+
+
+
+CREATE INDEX "idx_supplier_price_history_eff" ON "public"."supplier_price_history" USING "btree" ("effective_from");
+
+
+
+CREATE INDEX "idx_suppliers_currency" ON "public"."suppliers" USING "btree" ("currency");
+
+
+
+CREATE UNIQUE INDEX "mv_sales_summary_monthly_pk" ON "public"."mv_sales_summary_monthly" USING "btree" ("report_month");
+
+
+
+CREATE UNIQUE INDEX "selling_price_history_active_uniq" ON "public"."selling_price_history" USING "btree" ("product_id") WHERE ("is_active" = true);
+
+
+
+CREATE INDEX "selling_price_history_created_idx" ON "public"."selling_price_history" USING "btree" ("created_at" DESC);
+
+
+
+CREATE INDEX "selling_price_history_eff_idx" ON "public"."selling_price_history" USING "btree" ("effective_from");
+
+
+
+CREATE INDEX "selling_price_history_product_idx" ON "public"."selling_price_history" USING "btree" ("product_id", "effective_from" DESC);
+
+
+
+CREATE INDEX "selling_price_history_valid_idx" ON "public"."selling_price_history" USING "btree" ("product_id", "effective_from" DESC, "effective_to");
+
+
+
+CREATE UNIQUE INDEX "supplier_price_history_active_uniq" ON "public"."supplier_price_history" USING "btree" ("product_id") WHERE ("is_active" = true);
+
+
+
+CREATE INDEX "supplier_price_history_created_idx" ON "public"."supplier_price_history" USING "btree" ("created_at" DESC);
+
+
+
+CREATE INDEX "supplier_price_history_eff_idx" ON "public"."supplier_price_history" USING "btree" ("effective_from");
+
+
+
+CREATE INDEX "supplier_price_history_product_idx" ON "public"."supplier_price_history" USING "btree" ("product_id", "effective_from" DESC);
+
+
+
+CREATE INDEX "supplier_price_history_supplier_idx" ON "public"."supplier_price_history" USING "btree" ("supplier_id");
+
+
+
+CREATE INDEX "supplier_price_history_valid_idx" ON "public"."supplier_price_history" USING "btree" ("product_id", "effective_from" DESC, "effective_to");
+
+
+
+CREATE UNIQUE INDEX "suppliers_name_unique_idx" ON "public"."suppliers" USING "btree" ("lower"("name"));
+
+
+
+CREATE OR REPLACE TRIGGER "trg_freeze_order_pricing" BEFORE UPDATE OF "order_items", "supplier_weights", "gross_profit", "payment_status" ON "public"."Orders" FOR EACH ROW EXECUTE FUNCTION "public"."freeze_order_pricing"();
+
+
+
+CREATE OR REPLACE TRIGGER "trg_freeze_order_pricing_insert" BEFORE INSERT ON "public"."Orders" FOR EACH ROW EXECUTE FUNCTION "public"."freeze_order_pricing"();
+
+
+
+CREATE OR REPLACE TRIGGER "trg_historical_daily_touch" BEFORE UPDATE ON "public"."historical_business_daily" FOR EACH ROW EXECUTE FUNCTION "public"."touch_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "trg_product_first_price_history" AFTER INSERT ON "public"."Product" FOR EACH ROW EXECUTE FUNCTION "public"."ensure_product_first_price_history"();
+
+
+
+CREATE OR REPLACE TRIGGER "trg_selling_price_history_touch" BEFORE UPDATE ON "public"."selling_price_history" FOR EACH ROW EXECUTE FUNCTION "public"."touch_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "trg_supplier_price_history_touch" BEFORE UPDATE ON "public"."supplier_price_history" FOR EACH ROW EXECUTE FUNCTION "public"."touch_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "trg_suppliers_touch" BEFORE UPDATE ON "public"."suppliers" FOR EACH ROW EXECUTE FUNCTION "public"."touch_updated_at"();
 
 
 
@@ -1267,8 +2322,58 @@ ALTER TABLE ONLY "public"."delivery_batches"
 
 
 
+ALTER TABLE ONLY "public"."historical_business_daily"
+    ADD CONSTRAINT "historical_business_daily_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "auth"."users"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."historical_business_daily"
+    ADD CONSTRAINT "historical_business_daily_updated_by_fkey" FOREIGN KEY ("updated_by") REFERENCES "auth"."users"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."selling_price_history"
+    ADD CONSTRAINT "selling_price_history_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "auth"."users"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."selling_price_history"
+    ADD CONSTRAINT "selling_price_history_product_id_fkey" FOREIGN KEY ("product_id") REFERENCES "public"."Product"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."selling_price_history"
+    ADD CONSTRAINT "selling_price_history_updated_by_fkey" FOREIGN KEY ("updated_by") REFERENCES "auth"."users"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."supplier_price_history"
+    ADD CONSTRAINT "supplier_price_history_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "auth"."users"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."supplier_price_history"
+    ADD CONSTRAINT "supplier_price_history_product_id_fkey" FOREIGN KEY ("product_id") REFERENCES "public"."Product"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."supplier_price_history"
+    ADD CONSTRAINT "supplier_price_history_supplier_id_fkey" FOREIGN KEY ("supplier_id") REFERENCES "public"."suppliers"("id") ON DELETE SET NULL;
+
+
+
+ALTER TABLE ONLY "public"."supplier_price_history"
+    ADD CONSTRAINT "supplier_price_history_updated_by_fkey" FOREIGN KEY ("updated_by") REFERENCES "auth"."users"("id") ON DELETE SET NULL;
+
+
+
 ALTER TABLE ONLY "public"."supplier_profiles"
     ADD CONSTRAINT "supplier_profiles_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
+
+
+
+ALTER TABLE ONLY "public"."suppliers"
+    ADD CONSTRAINT "suppliers_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "auth"."users"("id") ON DELETE SET NULL;
 
 
 
@@ -1469,7 +2574,34 @@ ALTER TABLE "public"."delivery_batches" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "public"."delivery_points" ENABLE ROW LEVEL SECURITY;
 
 
+ALTER TABLE "public"."historical_business_daily" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "historical_daily_admin_delete" ON "public"."historical_business_daily" FOR DELETE TO "authenticated" USING (("public"."is_admin"() = true));
+
+
+
+CREATE POLICY "historical_daily_admin_insert" ON "public"."historical_business_daily" FOR INSERT TO "authenticated" WITH CHECK (("public"."is_admin"() = true));
+
+
+
+CREATE POLICY "historical_daily_admin_select" ON "public"."historical_business_daily" FOR SELECT TO "authenticated" USING (("public"."is_admin"() = true));
+
+
+
+CREATE POLICY "historical_daily_admin_update" ON "public"."historical_business_daily" FOR UPDATE TO "authenticated" USING (("public"."is_admin"() = true)) WITH CHECK (("public"."is_admin"() = true));
+
+
+
 CREATE POLICY "insert_own_orders" ON "public"."Orders" FOR INSERT TO "authenticated" WITH CHECK (("auth"."uid"() = "user_id"));
+
+
+
+CREATE POLICY "price_history_admin_all" ON "public"."selling_price_history" TO "authenticated" USING ("public"."is_admin"()) WITH CHECK ("public"."is_admin"());
+
+
+
+CREATE POLICY "price_history_admin_all" ON "public"."supplier_price_history" TO "authenticated" USING ("public"."is_admin"()) WITH CHECK ("public"."is_admin"());
 
 
 
@@ -1493,7 +2625,13 @@ CREATE POLICY "select_own_orders" ON "public"."Orders" FOR SELECT TO "authentica
 
 
 
+ALTER TABLE "public"."selling_price_history" ENABLE ROW LEVEL SECURITY;
+
+
 ALTER TABLE "public"."site_settings" ENABLE ROW LEVEL SECURITY;
+
+
+ALTER TABLE "public"."supplier_price_history" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."supplier_profiles" ENABLE ROW LEVEL SECURITY;
@@ -1512,6 +2650,13 @@ CREATE POLICY "supplier_update_orders" ON "public"."Orders" FOR UPDATE TO "authe
 
 
 CREATE POLICY "supplier_update_own" ON "public"."supplier_profiles" FOR UPDATE TO "authenticated" USING (("auth"."uid"() = "user_id")) WITH CHECK (("auth"."uid"() = "user_id"));
+
+
+
+ALTER TABLE "public"."suppliers" ENABLE ROW LEVEL SECURITY;
+
+
+CREATE POLICY "suppliers_admin_all" ON "public"."suppliers" TO "authenticated" USING ("public"."is_admin"()) WITH CHECK ("public"."is_admin"());
 
 
 
@@ -1681,6 +2826,48 @@ GRANT USAGE ON SCHEMA "public" TO "service_role";
 
 
 
+GRANT ALL ON FUNCTION "public"."_line_cost"("item" "jsonb") TO "anon";
+GRANT ALL ON FUNCTION "public"."_line_cost"("item" "jsonb") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."_line_cost"("item" "jsonb") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."_line_margin"("item" "jsonb") TO "anon";
+GRANT ALL ON FUNCTION "public"."_line_margin"("item" "jsonb") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."_line_margin"("item" "jsonb") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."_line_profit"("item" "jsonb") TO "anon";
+GRANT ALL ON FUNCTION "public"."_line_profit"("item" "jsonb") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."_line_profit"("item" "jsonb") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."_line_qty"("item" "jsonb") TO "anon";
+GRANT ALL ON FUNCTION "public"."_line_qty"("item" "jsonb") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."_line_qty"("item" "jsonb") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."_line_selling"("item" "jsonb") TO "anon";
+GRANT ALL ON FUNCTION "public"."_line_selling"("item" "jsonb") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."_line_selling"("item" "jsonb") TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."_pricing_set_selling"("p_product_id" "text", "p_selling_price" numeric, "p_effective_at" timestamp with time zone) TO "anon";
+GRANT ALL ON FUNCTION "public"."_pricing_set_selling"("p_product_id" "text", "p_selling_price" numeric, "p_effective_at" timestamp with time zone) TO "authenticated";
+GRANT ALL ON FUNCTION "public"."_pricing_set_selling"("p_product_id" "text", "p_selling_price" numeric, "p_effective_at" timestamp with time zone) TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."_pricing_set_supplier"("p_product_id" "text", "p_cost_price" numeric, "p_supplier_name" "text", "p_supplier_id" bigint, "p_effective_at" timestamp with time zone) TO "anon";
+GRANT ALL ON FUNCTION "public"."_pricing_set_supplier"("p_product_id" "text", "p_cost_price" numeric, "p_supplier_name" "text", "p_supplier_id" bigint, "p_effective_at" timestamp with time zone) TO "authenticated";
+GRANT ALL ON FUNCTION "public"."_pricing_set_supplier"("p_product_id" "text", "p_cost_price" numeric, "p_supplier_name" "text", "p_supplier_id" bigint, "p_effective_at" timestamp with time zone) TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "public"."admin_confirm_hub_arrival"("p_batch_id" "uuid") TO "anon";
 GRANT ALL ON FUNCTION "public"."admin_confirm_hub_arrival"("p_batch_id" "uuid") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."admin_confirm_hub_arrival"("p_batch_id" "uuid") TO "service_role";
@@ -1704,6 +2891,19 @@ GRANT ALL ON FUNCTION "public"."admin_mark_order_ready_for_rider"("p_order_id" b
 GRANT ALL ON FUNCTION "public"."admin_mark_ready_for_rider"("p_batch_id" "uuid") TO "anon";
 GRANT ALL ON FUNCTION "public"."admin_mark_ready_for_rider"("p_batch_id" "uuid") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."admin_mark_ready_for_rider"("p_batch_id" "uuid") TO "service_role";
+
+
+
+REVOKE ALL ON FUNCTION "public"."ensure_product_first_price_history"() FROM PUBLIC;
+GRANT ALL ON FUNCTION "public"."ensure_product_first_price_history"() TO "anon";
+GRANT ALL ON FUNCTION "public"."ensure_product_first_price_history"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."ensure_product_first_price_history"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."freeze_order_pricing"() TO "anon";
+GRANT ALL ON FUNCTION "public"."freeze_order_pricing"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."freeze_order_pricing"() TO "service_role";
 
 
 
@@ -1761,6 +2961,12 @@ GRANT ALL ON FUNCTION "public"."normalize_product_order"() TO "service_role";
 
 
 
+GRANT ALL ON FUNCTION "public"."refresh_monthly_report_mv"() TO "anon";
+GRANT ALL ON FUNCTION "public"."refresh_monthly_report_mv"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."refresh_monthly_report_mv"() TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "public"."reorder_combos"("p_ids" "text"[]) TO "anon";
 GRANT ALL ON FUNCTION "public"."reorder_combos"("p_ids" "text"[]) TO "authenticated";
 GRANT ALL ON FUNCTION "public"."reorder_combos"("p_ids" "text"[]) TO "service_role";
@@ -1770,6 +2976,12 @@ GRANT ALL ON FUNCTION "public"."reorder_combos"("p_ids" "text"[]) TO "service_ro
 GRANT ALL ON FUNCTION "public"."reorder_products"("p_ids" "text"[]) TO "anon";
 GRANT ALL ON FUNCTION "public"."reorder_products"("p_ids" "text"[]) TO "authenticated";
 GRANT ALL ON FUNCTION "public"."reorder_products"("p_ids" "text"[]) TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."reprice_open_orders_for_product"("p_product_id" "text") TO "anon";
+GRANT ALL ON FUNCTION "public"."reprice_open_orders_for_product"("p_product_id" "text") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."reprice_open_orders_for_product"("p_product_id" "text") TO "service_role";
 
 
 
@@ -1802,6 +3014,34 @@ GRANT ALL ON FUNCTION "public"."rider_start_order_delivery"("p_order_id" bigint)
 GRANT ALL ON FUNCTION "public"."rider_update_delivery_status"("p_order_id" bigint, "p_status" "text") TO "anon";
 GRANT ALL ON FUNCTION "public"."rider_update_delivery_status"("p_order_id" bigint, "p_status" "text") TO "authenticated";
 GRANT ALL ON FUNCTION "public"."rider_update_delivery_status"("p_order_id" bigint, "p_status" "text") TO "service_role";
+
+
+
+REVOKE ALL ON FUNCTION "public"."set_product_selling_price"("p_product_id" "text", "p_selling_price" numeric) FROM PUBLIC;
+GRANT ALL ON FUNCTION "public"."set_product_selling_price"("p_product_id" "text", "p_selling_price" numeric) TO "anon";
+GRANT ALL ON FUNCTION "public"."set_product_selling_price"("p_product_id" "text", "p_selling_price" numeric) TO "authenticated";
+GRANT ALL ON FUNCTION "public"."set_product_selling_price"("p_product_id" "text", "p_selling_price" numeric) TO "service_role";
+
+
+
+REVOKE ALL ON FUNCTION "public"."set_product_selling_price_at"("p_product_id" "text", "p_selling_price" numeric, "p_effective_at" timestamp with time zone) FROM PUBLIC;
+GRANT ALL ON FUNCTION "public"."set_product_selling_price_at"("p_product_id" "text", "p_selling_price" numeric, "p_effective_at" timestamp with time zone) TO "anon";
+GRANT ALL ON FUNCTION "public"."set_product_selling_price_at"("p_product_id" "text", "p_selling_price" numeric, "p_effective_at" timestamp with time zone) TO "authenticated";
+GRANT ALL ON FUNCTION "public"."set_product_selling_price_at"("p_product_id" "text", "p_selling_price" numeric, "p_effective_at" timestamp with time zone) TO "service_role";
+
+
+
+REVOKE ALL ON FUNCTION "public"."set_product_supplier_price"("p_product_id" "text", "p_cost_price" numeric, "p_supplier_name" "text") FROM PUBLIC;
+GRANT ALL ON FUNCTION "public"."set_product_supplier_price"("p_product_id" "text", "p_cost_price" numeric, "p_supplier_name" "text") TO "anon";
+GRANT ALL ON FUNCTION "public"."set_product_supplier_price"("p_product_id" "text", "p_cost_price" numeric, "p_supplier_name" "text") TO "authenticated";
+GRANT ALL ON FUNCTION "public"."set_product_supplier_price"("p_product_id" "text", "p_cost_price" numeric, "p_supplier_name" "text") TO "service_role";
+
+
+
+REVOKE ALL ON FUNCTION "public"."set_product_supplier_price_at"("p_product_id" "text", "p_cost_price" numeric, "p_supplier_name" "text", "p_supplier_id" bigint, "p_effective_at" timestamp with time zone) FROM PUBLIC;
+GRANT ALL ON FUNCTION "public"."set_product_supplier_price_at"("p_product_id" "text", "p_cost_price" numeric, "p_supplier_name" "text", "p_supplier_id" bigint, "p_effective_at" timestamp with time zone) TO "anon";
+GRANT ALL ON FUNCTION "public"."set_product_supplier_price_at"("p_product_id" "text", "p_cost_price" numeric, "p_supplier_name" "text", "p_supplier_id" bigint, "p_effective_at" timestamp with time zone) TO "authenticated";
+GRANT ALL ON FUNCTION "public"."set_product_supplier_price_at"("p_product_id" "text", "p_cost_price" numeric, "p_supplier_name" "text", "p_supplier_id" bigint, "p_effective_at" timestamp with time zone) TO "service_role";
 
 
 
@@ -1841,6 +3081,12 @@ REVOKE ALL ON FUNCTION "public"."supplier_start_packing_order"("p_order_id" bigi
 GRANT ALL ON FUNCTION "public"."supplier_start_packing_order"("p_order_id" bigint) TO "anon";
 GRANT ALL ON FUNCTION "public"."supplier_start_packing_order"("p_order_id" bigint) TO "authenticated";
 GRANT ALL ON FUNCTION "public"."supplier_start_packing_order"("p_order_id" bigint) TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."touch_updated_at"() TO "anon";
+GRANT ALL ON FUNCTION "public"."touch_updated_at"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."touch_updated_at"() TO "service_role";
 
 
 
@@ -1932,9 +3178,63 @@ GRANT ALL ON SEQUENCE "public"."delivery_points_id_seq" TO "service_role";
 
 
 
+GRANT ALL ON TABLE "public"."historical_business_daily" TO "anon";
+GRANT ALL ON TABLE "public"."historical_business_daily" TO "authenticated";
+GRANT ALL ON TABLE "public"."historical_business_daily" TO "service_role";
+
+
+
+GRANT ALL ON SEQUENCE "public"."historical_business_daily_id_seq" TO "anon";
+GRANT ALL ON SEQUENCE "public"."historical_business_daily_id_seq" TO "authenticated";
+GRANT ALL ON SEQUENCE "public"."historical_business_daily_id_seq" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."vw_order_item_flat" TO "anon";
+GRANT ALL ON TABLE "public"."vw_order_item_flat" TO "authenticated";
+GRANT ALL ON TABLE "public"."vw_order_item_flat" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."vw_sales_summary_monthly" TO "anon";
+GRANT ALL ON TABLE "public"."vw_sales_summary_monthly" TO "authenticated";
+GRANT ALL ON TABLE "public"."vw_sales_summary_monthly" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."mv_sales_summary_monthly" TO "anon";
+GRANT ALL ON TABLE "public"."mv_sales_summary_monthly" TO "authenticated";
+GRANT ALL ON TABLE "public"."mv_sales_summary_monthly" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."selling_price_history" TO "anon";
+GRANT ALL ON TABLE "public"."selling_price_history" TO "authenticated";
+GRANT ALL ON TABLE "public"."selling_price_history" TO "service_role";
+
+
+
+GRANT ALL ON SEQUENCE "public"."selling_price_history_id_seq" TO "anon";
+GRANT ALL ON SEQUENCE "public"."selling_price_history_id_seq" TO "authenticated";
+GRANT ALL ON SEQUENCE "public"."selling_price_history_id_seq" TO "service_role";
+
+
+
 GRANT ALL ON TABLE "public"."site_settings" TO "anon";
 GRANT ALL ON TABLE "public"."site_settings" TO "authenticated";
 GRANT ALL ON TABLE "public"."site_settings" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."supplier_price_history" TO "anon";
+GRANT ALL ON TABLE "public"."supplier_price_history" TO "authenticated";
+GRANT ALL ON TABLE "public"."supplier_price_history" TO "service_role";
+
+
+
+GRANT ALL ON SEQUENCE "public"."supplier_price_history_id_seq" TO "anon";
+GRANT ALL ON SEQUENCE "public"."supplier_price_history_id_seq" TO "authenticated";
+GRANT ALL ON SEQUENCE "public"."supplier_price_history_id_seq" TO "service_role";
 
 
 
@@ -1944,9 +3244,69 @@ GRANT ALL ON TABLE "public"."supplier_profiles" TO "service_role";
 
 
 
+GRANT ALL ON TABLE "public"."suppliers" TO "anon";
+GRANT ALL ON TABLE "public"."suppliers" TO "authenticated";
+GRANT ALL ON TABLE "public"."suppliers" TO "service_role";
+
+
+
+GRANT ALL ON SEQUENCE "public"."suppliers_id_seq" TO "anon";
+GRANT ALL ON SEQUENCE "public"."suppliers_id_seq" TO "authenticated";
+GRANT ALL ON SEQUENCE "public"."suppliers_id_seq" TO "service_role";
+
+
+
 GRANT ALL ON TABLE "public"."user_roles" TO "anon";
 GRANT ALL ON TABLE "public"."user_roles" TO "authenticated";
 GRANT ALL ON TABLE "public"."user_roles" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."vw_category_profit" TO "anon";
+GRANT ALL ON TABLE "public"."vw_category_profit" TO "authenticated";
+GRANT ALL ON TABLE "public"."vw_category_profit" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."vw_product_profit" TO "anon";
+GRANT ALL ON TABLE "public"."vw_product_profit" TO "authenticated";
+GRANT ALL ON TABLE "public"."vw_product_profit" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."vw_dashboard_kpis" TO "anon";
+GRANT ALL ON TABLE "public"."vw_dashboard_kpis" TO "authenticated";
+GRANT ALL ON TABLE "public"."vw_dashboard_kpis" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."vw_order_profit" TO "anon";
+GRANT ALL ON TABLE "public"."vw_order_profit" TO "authenticated";
+GRANT ALL ON TABLE "public"."vw_order_profit" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."vw_sales_summary_daily" TO "anon";
+GRANT ALL ON TABLE "public"."vw_sales_summary_daily" TO "authenticated";
+GRANT ALL ON TABLE "public"."vw_sales_summary_daily" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."vw_supplier_profit" TO "anon";
+GRANT ALL ON TABLE "public"."vw_supplier_profit" TO "authenticated";
+GRANT ALL ON TABLE "public"."vw_supplier_profit" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."vw_top_products" TO "anon";
+GRANT ALL ON TABLE "public"."vw_top_products" TO "authenticated";
+GRANT ALL ON TABLE "public"."vw_top_products" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."vw_top_profit_products" TO "anon";
+GRANT ALL ON TABLE "public"."vw_top_profit_products" TO "authenticated";
+GRANT ALL ON TABLE "public"."vw_top_profit_products" TO "service_role";
 
 
 
