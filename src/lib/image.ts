@@ -1,19 +1,25 @@
 import { supabase } from './supabase';
 
-const BUCKET = 'product-images';
-
 export function isExternalUrl(path: string): boolean {
   return path.startsWith('http://') || path.startsWith('https://');
 }
 
-export function getProductImage(path: string | null | undefined): string {
+export function getImageUrl(path: string | null | undefined, bucket = 'product-images'): string {
   if (!path) return '';
   if (isExternalUrl(path)) return path;
-  const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
-
-  console.log('PATH:', path);
-  console.log('PUBLIC URL:', data.publicUrl);
+  const { data } = supabase.storage.from(bucket).getPublicUrl(path);
   return data.publicUrl;
+}
+
+export function getProductImage(path: string | null | undefined): string {
+  return getImageUrl(path, 'product-images');
+}
+
+export function getBrandImage(path: string | null | undefined, version?: string | null): string {
+  const url = getImageUrl(path, 'branding');
+  if (!url) return '';
+  if (!version) return url;
+  return `${url}${url.includes('?') ? '&' : '?'}v=${encodeURIComponent(version)}`;
 }
 
 export function getStoragePath(category: string, name: string): string {

@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
 
-type UserRole = 'admin' | 'supplier' | 'customer' | null;
+type UserRole = 'admin' | 'supplier' | 'delivery_rider' | 'customer' | null;
 
 interface AuthContextValue {
   user: User | null;
@@ -10,6 +10,7 @@ interface AuthContextValue {
   loading: boolean;
   isAdmin: boolean;
   isSupplier: boolean;
+  isRider: boolean;
   role: UserRole;
   signOut: () => Promise<void>;
 }
@@ -20,6 +21,7 @@ const AuthContext = createContext<AuthContextValue>({
   loading: true,
   isAdmin: false,
   isSupplier: false,
+  isRider: false,
   role: null,
   signOut: async () => {},
 });
@@ -39,7 +41,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .select('role')
       .eq('id', userId)
       .maybeSingle();
-    if (data?.role === 'admin' || data?.role === 'supplier') {
+    if (data?.role === 'admin' || data?.role === 'supplier' || data?.role === 'delivery_rider') {
       setRole(data.role as UserRole);
     } else {
       setRole('customer');
@@ -69,9 +71,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const isAdmin = role === 'admin';
   const isSupplier = role === 'supplier';
+  const isRider = role === 'delivery_rider';
 
   return (
-    <AuthContext.Provider value={{ user: session?.user ?? null, session, loading, isAdmin, isSupplier, role, signOut }}>
+    <AuthContext.Provider value={{ user: session?.user ?? null, session, loading, isAdmin, isSupplier, isRider, role, signOut }}>
       {children}
     </AuthContext.Provider>
   );

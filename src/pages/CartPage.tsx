@@ -7,22 +7,23 @@ import { useLanguage } from '../context/LanguageContext';
 import DeliverySlotSelector from '../components/ui/DeliverySlotSelector';
 import QuantityStepper from '../components/ui/QuantityStepper';
 import EstimatedWeightStepper from '../components/ui/EstimatedWeightStepper';
+import SliceStepper from '../components/ui/SliceStepper';
 import EstimatedQuantityNote from '../components/ui/EstimatedQuantityNote';
 import ProductImage from '../components/ui/ProductImage';
+import { formatCurrency } from '../lib/currency';
+import { isSliceItem } from '../lib/sellingOptions';
 import type { DeliveryDay, CartItem } from '../types';
 
 export default function CartPage() {
   const { user } = useAuth();
-  const { cart, removeItem, updateQty, updateEstimatedWeight, setDeliveryDay, subtotal, itemCount } = useCart();
+  const { cart, removeItem, updateQty, updateEstimatedWeight, updateSlice, setDeliveryDay, subtotal, itemCount } = useCart();
   const { t, lang } = useLanguage();
 
   const isWeightItem = (item: CartItem) => {
+    if (isSliceItem(item)) return false;
     if (item.orderingMode) return item.orderingMode === 'weight_only' || item.orderingMode === 'whole_or_weight';
     return item.pricingType === 'per_kg';
   };
-  const deliveryFee = subtotal >= 50 ? 0 : 5;
-  const total = subtotal + deliveryFee;
-
   if (!user) return <Navigate to="/" replace />;
 
   if (cart.items.length === 0) {
@@ -85,7 +86,20 @@ export default function CartPage() {
                           onChange={(v) => updateEstimatedWeight(item.productId, v / 1000, item.comboId, item.preparation)}
                           size="sm"
                         />
-                        <p className="font-bold text-forest-800">≈ RM{(item.price * (item.estimatedWeight ?? 0)).toFixed(2)}</p>
+                        <p className="font-bold text-forest-800">≈ RM{formatCurrency(item.price * (item.estimatedWeight ?? 0))}</p>
+                      </>
+                    ) : isSliceItem(item) ? (
+                      <>
+                        <SliceStepper
+                          value={item.sliceQuantity ?? item.quantity}
+                          onChange={(v) => updateSlice(item.productId, v, item.comboId, item.preparation)}
+                          min={item.minSlice}
+                          max={item.maxSlice}
+                          increment={item.sliceIncrement}
+                          unit={item.sliceUnit ?? t("product.sliceUnitDefault")}
+                          size="sm"
+                        />
+                        <p className="text-xs text-gray-400">{t("cart.estimatedPriceAfterWeighing")}</p>
                       </>
                     ) : (
                       <>
@@ -94,13 +108,13 @@ export default function CartPage() {
                           onChange={(v) => updateQty(item.productId, v, item.comboId, item.preparation)}
                           size="sm"
                         />
-                        <p className="font-bold text-forest-800">RM{(item.price * item.quantity).toFixed(2)}</p>
+                        <p className="font-bold text-forest-800">RM{formatCurrency(item.price * item.quantity)}</p>
                       </>
                     )}
                   </div>
                   {isWeightItem(item) ? (
                     <>
-                      <p className="text-xs text-amber-600 mt-1">RM{item.price}/kg × {(item.estimatedWeight ?? 0).toFixed(2)}kg — {t("cart.estimatedPrice")}</p>
+                      <p className="text-xs text-amber-600 mt-1">RM{formatCurrency(item.price)}/kg × {(item.estimatedWeight ?? 0).toFixed(2)}kg — {t("cart.estimatedPrice")}</p>
                       {item.showEstimatedQuantity && item.averageWeight && item.averageWeight > 0 && (
                         <EstimatedQuantityNote
                           weightGrams={(item.estimatedWeight ?? 0.5) * 1000}
@@ -109,8 +123,12 @@ export default function CartPage() {
                         />
                       )}
                     </>
+                  ) : isSliceItem(item) ? (
+                    <p className="text-xs text-gray-400 mt-1">
+                      {t("cart.slices", { count: item.sliceQuantity ?? item.quantity })}
+                    </p>
                   ) : (
-                    <p className="text-xs text-gray-400 mt-1">RM{item.price} × {item.quantity} {item.unit}</p>
+                    <p className="text-xs text-gray-400 mt-1">RM{formatCurrency(item.price)} × {item.quantity} {item.unit}</p>
                   )}
                 </div>
               </div>
@@ -160,20 +178,15 @@ export default function CartPage() {
             <div className="space-y-2.5 mb-4">
               <div className="flex justify-between text-sm text-gray-600">
                 <span>{t("cartSummary.subtotal", { count: itemCount })}</span>
-                <span>RM{subtotal.toFixed(2)}</span>
+                <span>RM{formatCurrency(subtotal)}</span>
               </div>
               <div className="flex justify-between text-sm text-gray-600">
                 <span>{t("cartSummary.deliveryFee")}</span>
-                <span className={deliveryFee === 0 ? 'text-jade-600 font-semibold' : ''}>
-                  {deliveryFee === 0 ? t("cartSummary.free") : `RM${deliveryFee.toFixed(2)}`}
-                </span>
+                <span className="text-gray-400">{t("cartSummary.calculatedAtCheckout")}</span>
               </div>
-              {deliveryFee > 0 && (
-                <p className="text-xs text-gray-400">{t("cartSummary.freeDeliveryNote")}</p>
-              )}
               <div className="border-t border-cream-200 pt-2.5 flex justify-between font-bold text-base">
-                <span>{t("cartSummary.total")}</span>
-                <span className="text-forest-800">RM{total.toFixed(2)}</span>
+                <span>{t("cartSummary.estimatedTotal")}</span>
+                <span className="text-forest-800">RM{formatCurrency(subtotal)}</span>
               </div>
             </div>
             <Link

@@ -1,11 +1,24 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Navigate } from 'react-router-dom';
-import { ArrowLeft, Save, Loader2, CheckCircle2, AlertCircle, Info } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, CheckCircle2, AlertCircle, Info, Plus, TrendingUp } from 'lucide-react';
 import { getPrepOptionsByCategory, getPrepLabel } from '../lib/preparationOptions';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
-import { fetchProductById, createProduct, updateProduct } from '../data/products';
-import type { ProductPayload } from '../data/products';
+import { supabase } from '../lib/supabase';
+import {
+  fetchProductById,
+  createProduct,
+  updateProduct,
+  fetchProductPriceHistory,
+  addProductSellingPrice,
+  addProductSupplierPrice,
+} from '../data/products';
+import type {
+  ProductPayload,
+  ProductPriceHistory,
+  SupplierPriceHistoryRow,
+  SellingPriceHistoryRow,
+} from '../data/products';
 import type { Category, PreparationOption } from '../types';
 import MultiImageUploader from '../components/ui/MultiImageUploader';
 
@@ -35,6 +48,7 @@ const ORDERING_MODES: { value: string; labelKey: string }[] = [
   { value: 'weight_only', labelKey: 'adminProducts.form.weightOnly' },
   { value: 'whole_or_weight', labelKey: 'adminProducts.form.wholeOrWeight' },
   { value: 'combo', labelKey: 'adminProducts.form.combo' },
+  { value: 'slice', labelKey: 'adminProducts.form.sliceMode' },
 ];
 
 type FormData = {
@@ -42,6 +56,8 @@ type FormData = {
   name_ms: string;
   category: Category;
   price: string;
+  cost_price: string;
+  cost_supplier_name: string;
   unit: string;
   price_note: string;
   weight: string;
@@ -57,6 +73,12 @@ type FormData = {
   tags: string;
   is_popular: boolean;
   ordering_mode: string;
+  slice_unit: string;
+  min_slice: string;
+  max_slice: string;
+  default_slice: string;
+  slice_increment: string;
+  slice_instruction: string;
 };
 
 const EMPTY_FORM: FormData = {
@@ -64,6 +86,8 @@ const EMPTY_FORM: FormData = {
   name_ms: '',
   category: 'fish',
   price: '',
+  cost_price: '',
+  cost_supplier_name: '',
   unit: 'per kg',
   price_note: '',
   weight: '',
@@ -79,6 +103,12 @@ const EMPTY_FORM: FormData = {
   tags: '',
   is_popular: false,
   ordering_mode: 'weight_only',
+  slice_unit: 'slice',
+  min_slice: '1',
+  max_slice: '20',
+  default_slice: '2',
+  slice_increment: '1',
+  slice_instruction: '',
 };
 
 export default function AdminProductFormPage() {
@@ -94,6 +124,94 @@ export default function AdminProductFormPage() {
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [errorMsg, setErrorMsg] = useState('');
 
+  // ── Pricing / accounting state ─────────────────────────────────────────
+  const [priceHistory, setPriceHistory] = useState<ProductPriceHistory>({ supplier: [], selling: [] });
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [originalPrice, setOriginalPrice] = useState<number | null>(null);
+  const [originalCost, setOriginalCost] = useState<number | null>(null);
+  // id -> display name for the "Updated By" column
+  const [adminUsers, setAdminUsers] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    supabase
+      .functions.invoke('admin-users')
+      .then((res) => {
+        if (!res.error && Array.isArray(res.data)) {
+          setAdminUsers(
+            Object.fromEntries((res.data as { id: string; email: string }[]).map((u) => [u.id, u.email])),
+          );
+        }
+      })
+      .catch(() => {});
+  }, [isAdmin]);
+
+  const loadHistory = async (productId: string) => {
+    setHistoryLoading(true);
+    try {
+      const history = await fetchProductPriceHistory(productId);
+      setPriceHistory(history);
+    } catch {
+      setPriceHistory({ supplier: [], selling: [] });
+    } finally {
+      setHistoryLoading(false);
+    }
+  };
+
+  const userName = (id: string | null): string => (id ? (adminUsers[id] ?? '—') : '—');
+
+  const [addPriceOpen, setAddPriceOpen] = useState(false);
+  const [newPrice, setNewPrice] = useState('');
+  const [addCostOpen, setAddCostOpen] = useState(false);
+  const [newCost, setNewCost] = useState('');
+  const [newSupplier, setNewSupplier] = useState('');
+  const [addingPrice, setAddingPrice] = useState(false);
+
+  const handleAddSellingPrice = async () => {
+    const p = parseFloat(newPrice);
+    if (!isFinite(p) || p <= 0) {
+      setErrorMsg(t('adminProducts.messages.invalidPrice'));
+      return;
+    }
+    setAddingPrice(true);
+    setErrorMsg('');
+    try {
+      await addProductSellingPrice(id!, p);
+      setForm((prev) => ({ ...prev, price: String(p) }));
+      setOriginalPrice(p);
+      setNewPrice('');
+      setAddPriceOpen(false);
+      await loadHistory(id!);
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : t('adminProducts.messages.operationFailed'));
+    } finally {
+      setAddingPrice(false);
+    }
+  };
+
+  const handleAddSupplierPrice = async () => {
+    const c = parseFloat(newCost);
+    if (!isFinite(c) || c < 0) {
+      setErrorMsg(t('adminProducts.messages.invalidCost'));
+      return;
+    }
+    setAddingPrice(true);
+    setErrorMsg('');
+    try {
+      await addProductSupplierPrice(id!, c, newSupplier.trim());
+      setForm((prev) => ({ ...prev, cost_price: String(c), cost_supplier_name: newSupplier.trim() }));
+      setOriginalCost(c);
+      setNewCost('');
+      setNewSupplier('');
+      setAddCostOpen(false);
+      await loadHistory(id!);
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : t('adminProducts.messages.operationFailed'));
+    } finally {
+      setAddingPrice(false);
+    }
+  };
+
   useEffect(() => {
     if (!isEdit || !id) return;
     (async () => {
@@ -108,6 +226,8 @@ export default function AdminProductFormPage() {
           name_ms: product.nameMs,
           category: product.category,
           price: String(product.price),
+          cost_price: product.costPrice != null ? String(product.costPrice) : '',
+          cost_supplier_name: product.costSupplierName ?? '',
           unit: product.unit,
           price_note: product.priceNote ?? '',
           weight: product.weight ?? '',
@@ -123,7 +243,16 @@ export default function AdminProductFormPage() {
           tags: product.tags.join(', '),
           is_popular: product.isPopular ?? false,
           ordering_mode: product.orderingMode,
+          slice_unit: product.sliceUnit ?? 'slice',
+          min_slice: String(product.minSlice ?? 1),
+          max_slice: String(product.maxSlice ?? 20),
+          default_slice: String(product.defaultSlice ?? 2),
+          slice_increment: String(product.sliceIncrement ?? 1),
+          slice_instruction: product.sliceInstruction ?? '',
         });
+        setOriginalPrice(product.price);
+        setOriginalCost(product.costPrice ?? null);
+        loadHistory(id);
       } catch {
         navigate('/admin/products', { replace: true });
       } finally {
@@ -162,6 +291,8 @@ export default function AdminProductFormPage() {
       name_ms: form.name_ms.trim(),
       category: form.category,
       price: parseFloat(form.price),
+      cost_price: parseFloat(form.cost_price) || 0,
+      cost_supplier_name: form.cost_supplier_name.trim(),
       unit: form.unit.trim(),
       price_note: form.price_note.trim() || null,
       weight: form.weight.trim() || null,
@@ -177,14 +308,44 @@ export default function AdminProductFormPage() {
       tags: form.tags.split(',').map((s) => s.trim()).filter(Boolean),
       is_popular: form.is_popular,
       ordering_mode: form.ordering_mode,
+      ...(form.ordering_mode === 'slice'
+        ? {
+            slice_unit: form.slice_unit.trim() || 'slice',
+            min_slice: parseInt(form.min_slice) || 1,
+            max_slice: parseInt(form.max_slice) || 20,
+            default_slice: parseInt(form.default_slice) || 2,
+            slice_increment: parseInt(form.slice_increment) || 1,
+            slice_instruction: form.slice_instruction.trim(),
+          }
+        : {}),
     };
 
     try {
       if (isEdit) {
         const { id: _id, ...rest } = payload;
         await updateProduct(id!, rest);
+
+        // Price history: publish a new history row ONLY when the value changed.
+        // The history tables remain immutable — previous rows are closed, never
+        // overwritten, so historical orders stay frozen at their own snapshots.
+        const priceChanged = originalPrice !== null && parseFloat(form.price) !== originalPrice;
+        const costChanged =
+          (originalCost !== null && parseFloat(form.cost_price) !== originalCost) ||
+          form.cost_supplier_name.trim() !== (priceHistory.supplier[0]?.supplier_name ?? '');
+        if (priceChanged) {
+          await addProductSellingPrice(id!, parseFloat(form.price));
+        }
+        if (costChanged) {
+          await addProductSupplierPrice(id!, parseFloat(form.cost_price) || 0, form.cost_supplier_name.trim());
+        }
+        await loadHistory(id!);
       } else {
-        await createProduct(payload);
+        const created = await createProduct(payload);
+        // Seed the price history with the initial selling price + supplier cost.
+        await addProductSellingPrice(created.id, created.price);
+        if (created.costPrice) {
+          await addProductSupplierPrice(created.id, created.costPrice, created.costSupplierName ?? '');
+        }
       }
       setStatus('success');
       setTimeout(() => navigate('/admin/products'), 1200);
@@ -238,13 +399,27 @@ export default function AdminProductFormPage() {
           </div>
         </section>
 
-        {/* Pricing */}
+        {/* Pricing Management */}
         <section className="bg-white rounded-2xl border border-cream-200 shadow-soft p-6">
-          <h2 className="font-semibold text-forest-900 text-base mb-4">{t("adminProducts.form.pricing")}</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="flex items-center gap-2 mb-1">
+            <TrendingUp size={18} className="text-forest-600" />
+            <h2 className="font-semibold text-forest-900 text-base">{t("adminProducts.form.pricingManagement")}</h2>
+          </div>
+          <p className="text-xs text-gray-400 mb-4">
+            {t("adminProducts.form.pricingManagementHelper")}
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-1.5">{t("adminProducts.form.price")}</label>
+              <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-1.5">{t("adminProducts.form.sellingPrice")}</label>
               <input id="price" type="number" step="0.01" min="0" required value={form.price} onChange={(e) => set('price', e.target.value)} className="input-field" placeholder={t("adminProducts.form.pricePlaceholder")} />
+            </div>
+            <div>
+              <label htmlFor="cost_price" className="block text-sm font-medium text-gray-700 mb-1.5">{t("adminProducts.form.supplierCost")}</label>
+              <input id="cost_price" type="number" step="0.01" min="0" value={form.cost_price} onChange={(e) => set('cost_price', e.target.value)} className="input-field" placeholder={t("adminProducts.form.supplierCostPlaceholder")} />
+            </div>
+            <div>
+              <label htmlFor="cost_supplier_name" className="block text-sm font-medium text-gray-700 mb-1.5">{t("adminProducts.form.supplierName")}</label>
+              <input id="cost_supplier_name" type="text" value={form.cost_supplier_name} onChange={(e) => set('cost_supplier_name', e.target.value)} className="input-field" placeholder={t("adminProducts.form.supplierNamePlaceholder")} />
             </div>
             <div>
               <label htmlFor="unit" className="block text-sm font-medium text-gray-700 mb-1.5">{t("adminProducts.form.unit")}</label>
@@ -259,6 +434,180 @@ export default function AdminProductFormPage() {
               <input id="weight" type="text" value={form.weight} onChange={(e) => set('weight', e.target.value)} className="input-field" placeholder={t("adminProducts.form.weightPlaceholder")} />
             </div>
           </div>
+
+          {/* Gross margin summary */}
+          <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {(() => {
+              const sp = parseFloat(form.price) || 0;
+              const cp = parseFloat(form.cost_price) || 0;
+              const gm = sp - cp;
+              const mp = sp > 0 ? (gm / sp) * 100 : 0;
+              return (
+                <>
+                  <div className="bg-cream-50 border border-cream-200 rounded-xl px-4 py-3">
+                    <p className="text-xs text-gray-400 font-medium">{t("adminProducts.form.sellingPrice")}</p>
+                    <p className="text-lg font-bold text-forest-800 mt-0.5">RM{sp.toFixed(2)}</p>
+                  </div>
+                  <div className="bg-cream-50 border border-cream-200 rounded-xl px-4 py-3">
+                    <p className="text-xs text-gray-400 font-medium">{t("adminProducts.form.supplierCost")}</p>
+                    <p className="text-lg font-bold text-gray-700 mt-0.5">RM{cp.toFixed(2)}</p>
+                  </div>
+                  <div className="bg-cream-50 border border-cream-200 rounded-xl px-4 py-3">
+                    <p className="text-xs text-gray-400 font-medium">{t("adminProducts.form.grossMargin")}</p>
+                    <p className={`text-lg font-bold mt-0.5 ${gm >= 0 ? 'text-green-700' : 'text-red-600'}`}>RM{gm.toFixed(2)}</p>
+                  </div>
+                  <div className="bg-cream-50 border border-cream-200 rounded-xl px-4 py-3">
+                    <p className="text-xs text-gray-400 font-medium">{t("adminProducts.form.marginPercent")}</p>
+                    <p className={`text-lg font-bold mt-0.5 ${mp >= 0 ? 'text-green-700' : 'text-red-600'}`}>{mp.toFixed(1)}%</p>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+
+          {/* Price history — immutable record, only shown when editing */}
+          {isEdit && (
+            <div className="mt-6 space-y-5">
+              {/* Selling price history */}
+              <div className="border-t border-cream-200 pt-5">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-forest-900 text-sm">{t("adminProducts.form.sellingPriceHistory")}</h3>
+                  <button
+                    type="button"
+                    onClick={() => setAddPriceOpen((v) => !v)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-forest-700 hover:bg-forest-800 transition-all"
+                  >
+                    <Plus size={14} /> {t("adminProducts.form.addNewPrice")}
+                  </button>
+                </div>
+
+                {addPriceOpen && (
+                  <div className="flex items-center gap-2 mb-3 bg-forest-50 border border-forest-200 rounded-xl p-3">
+                    <input
+                      type="number" step="0.01" min="0"
+                      value={newPrice}
+                      onChange={(e) => setNewPrice(e.target.value)}
+                      className="input-field flex-1"
+                      placeholder={t("adminProducts.form.sellingPrice")}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddSellingPrice}
+                      disabled={addingPrice}
+                      className="btn-primary inline-flex items-center gap-1.5 disabled:opacity-50"
+                    >
+                      {addingPrice ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                      {t("adminProducts.buttons.save")}
+                    </button>
+                  </div>
+                )}
+
+                {historyLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-gray-400 py-3"><Loader2 size={14} className="animate-spin" /> {t("adminProducts.messages.loadingHistory")}</div>
+                ) : priceHistory.selling.length === 0 ? (
+                  <p className="text-sm text-gray-400 py-2">{t("adminProducts.messages.noPriceHistory")}</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-cream-50 border-b border-cream-200">
+                          <th className="text-left px-3 py-2 font-semibold text-gray-700">{t("adminProducts.form.historyDate")}</th>
+                          <th className="text-left px-3 py-2 font-semibold text-gray-700">{t("adminProducts.form.historyPrice")}</th>
+                          <th className="text-left px-3 py-2 font-semibold text-gray-700">{t("adminProducts.form.historyUpdatedBy")}</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-cream-100">
+                        {priceHistory.selling.map((row: SellingPriceHistoryRow) => (
+                          <tr key={row.id}>
+                            <td className="px-3 py-2 text-gray-700">
+                              {new Date(row.effective_from).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
+                              {row.is_active && <span className="ml-2 text-[11px] font-semibold text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full">{t("adminProducts.form.historyActive")}</span>}
+                            </td>
+                            <td className="px-3 py-2 font-semibold text-gray-900">RM{Number(row.selling_price).toFixed(2)}</td>
+                            <td className="px-3 py-2 text-gray-500">{userName(row.created_by)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {/* Supplier price history */}
+              <div className="border-t border-cream-200 pt-5">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-forest-900 text-sm">{t("adminProducts.form.supplierPriceHistory")}</h3>
+                  <button
+                    type="button"
+                    onClick={() => setAddCostOpen((v) => !v)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-forest-700 hover:bg-forest-800 transition-all"
+                  >
+                    <Plus size={14} /> {t("adminProducts.form.addNewCost")}
+                  </button>
+                </div>
+
+                {addCostOpen && (
+                  <div className="flex items-center gap-2 mb-3 bg-forest-50 border border-forest-200 rounded-xl p-3">
+                    <input
+                      type="number" step="0.01" min="0"
+                      value={newCost}
+                      onChange={(e) => setNewCost(e.target.value)}
+                      className="input-field w-28"
+                      placeholder={t("adminProducts.form.supplierCost")}
+                    />
+                    <input
+                      type="text"
+                      value={newSupplier}
+                      onChange={(e) => setNewSupplier(e.target.value)}
+                      className="input-field flex-1"
+                      placeholder={t("adminProducts.form.supplierName")}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAddSupplierPrice}
+                      disabled={addingPrice}
+                      className="btn-primary inline-flex items-center gap-1.5 disabled:opacity-50"
+                    >
+                      {addingPrice ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                      {t("adminProducts.buttons.save")}
+                    </button>
+                  </div>
+                )}
+
+                {historyLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-gray-400 py-3"><Loader2 size={14} className="animate-spin" /> {t("adminProducts.messages.loadingHistory")}</div>
+                ) : priceHistory.supplier.length === 0 ? (
+                  <p className="text-sm text-gray-400 py-2">{t("adminProducts.messages.noPriceHistory")}</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-cream-50 border-b border-cream-200">
+                          <th className="text-left px-3 py-2 font-semibold text-gray-700">{t("adminProducts.form.historyDate")}</th>
+                          <th className="text-left px-3 py-2 font-semibold text-gray-700">{t("adminProducts.form.historySupplier")}</th>
+                          <th className="text-left px-3 py-2 font-semibold text-gray-700">{t("adminProducts.form.historyCost")}</th>
+                          <th className="text-left px-3 py-2 font-semibold text-gray-700">{t("adminProducts.form.historyUpdatedBy")}</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-cream-100">
+                        {priceHistory.supplier.map((row: SupplierPriceHistoryRow) => (
+                          <tr key={row.id}>
+                            <td className="px-3 py-2 text-gray-700">
+                              {new Date(row.effective_from).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
+                              {row.is_active && <span className="ml-2 text-[11px] font-semibold text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full">{t("adminProducts.form.historyActive")}</span>}
+                            </td>
+                            <td className="px-3 py-2 text-gray-500">{row.supplier_name || '—'}</td>
+                            <td className="px-3 py-2 font-semibold text-gray-900">RM{Number(row.cost_price).toFixed(2)}</td>
+                            <td className="px-3 py-2 text-gray-500">{userName(row.created_by)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </section>
 
         {/* Ordering Mode */}
@@ -274,6 +623,41 @@ export default function AdminProductFormPage() {
               </select>
             </div>
           </div>
+
+          {form.ordering_mode === 'slice' && (
+            <div className="mt-5 pt-5 border-t border-cream-200 space-y-4">
+              <div>
+                <h3 className="font-semibold text-forest-900 text-sm mb-1">{t("adminProducts.form.sliceConfigTitle")}</h3>
+                <p className="text-xs text-gray-400 mb-4">{t("adminProducts.form.sliceConfigHelper")}</p>
+              </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                <div>
+                  <label htmlFor="slice_unit" className="block text-sm font-medium text-gray-700 mb-1.5">{t("adminProducts.form.slice.unit")}</label>
+                  <input id="slice_unit" type="text" value={form.slice_unit} onChange={(e) => set('slice_unit', e.target.value)} className="input-field" placeholder="slice" />
+                </div>
+                <div>
+                  <label htmlFor="min_slice" className="block text-sm font-medium text-gray-700 mb-1.5">{t("adminProducts.form.slice.min")}</label>
+                  <input id="min_slice" type="number" min="1" value={form.min_slice} onChange={(e) => set('min_slice', e.target.value)} className="input-field" placeholder="1" />
+                </div>
+                <div>
+                  <label htmlFor="max_slice" className="block text-sm font-medium text-gray-700 mb-1.5">{t("adminProducts.form.slice.max")}</label>
+                  <input id="max_slice" type="number" min="1" value={form.max_slice} onChange={(e) => set('max_slice', e.target.value)} className="input-field" placeholder="20" />
+                </div>
+                <div>
+                  <label htmlFor="default_slice" className="block text-sm font-medium text-gray-700 mb-1.5">{t("adminProducts.form.slice.default")}</label>
+                  <input id="default_slice" type="number" min="1" value={form.default_slice} onChange={(e) => set('default_slice', e.target.value)} className="input-field" placeholder="2" />
+                </div>
+                <div>
+                  <label htmlFor="slice_increment" className="block text-sm font-medium text-gray-700 mb-1.5">{t("adminProducts.form.slice.increment")}</label>
+                  <input id="slice_increment" type="number" min="1" value={form.slice_increment} onChange={(e) => set('slice_increment', e.target.value)} className="input-field" placeholder="1" />
+                </div>
+              </div>
+              <div>
+                <label htmlFor="slice_instruction" className="block text-sm font-medium text-gray-700 mb-1.5">{t("adminProducts.form.slice.instruction")}</label>
+                <textarea id="slice_instruction" rows={3} value={form.slice_instruction} onChange={(e) => set('slice_instruction', e.target.value)} className="input-field resize-y" placeholder={t("adminProducts.form.slice.instructionPlaceholder")} />
+              </div>
+            </div>
+          )}
         </section>
 
         {/* Descriptions */}

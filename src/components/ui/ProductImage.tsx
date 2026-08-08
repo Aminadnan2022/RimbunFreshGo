@@ -12,8 +12,11 @@ interface Props {
 const PLACEHOLDER = 'data:image/svg+xml,' + encodeURIComponent(
   `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="400" viewBox="0 0 400 400">
     <rect fill="#e8f5e9" width="400" height="400"/>
-    <text fill="#4caf50" font-family="sans-serif" font-size="20" text-anchor="middle" x="200" y="180">FreshGo</text>
-    <text fill="#81c784" font-family="sans-serif" font-size="14" text-anchor="middle" x="200" y="220">Fresh from market</text>
+    <g fill="none" stroke="#81c784" stroke-width="8" stroke-linecap="round">
+      <rect x="120" y="110" width="160" height="160" rx="24"/>
+      <circle cx="165" cy="160" r="18"/>
+      <path d="M120 250 l70 -55 55 45 45 -30 55 40"/>
+    </g>
   </svg>`
 );
 

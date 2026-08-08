@@ -6,18 +6,32 @@ type State = {
   products: Product[];
   loading: boolean;
   error: string | null;
+  refetch: () => Promise<void>;
 };
 
-export function useProducts(): State {
+export function useProducts(includeInactive = false): State {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const refetch = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await fetchProducts(includeInactive);
+      setProducts(data);
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load products');
+    } finally {
+      setLoading(false);
+    }
+  }, [includeInactive]);
 
   useEffect(() => {
     let active = true;
     (async () => {
       try {
-        const data = await fetchProducts();
+        const data = await fetchProducts(includeInactive);
         if (active) {
           setProducts(data);
           setError(null);
@@ -29,9 +43,9 @@ export function useProducts(): State {
       }
     })();
     return () => { active = false; };
-  }, []);
+  }, [includeInactive]);
 
-  return { products, loading, error };
+  return { products, loading, error, refetch };
 }
 
 type SingleState = {

@@ -4,6 +4,8 @@ import { Search, SlidersHorizontal, X, ChevronDown, Loader2 } from 'lucide-react
 import { useProducts } from '../hooks/useProducts';
 import ProductCard from '../components/ui/ProductCard';
 import { useLanguage } from '../context/LanguageContext';
+import { useWebsiteSettings } from '../context/WebsiteSettingsContext';
+import FeatureDisabledPage from '../components/system/FeatureDisabledPage';
 import type { Category } from '../types';
 
 const categories: { value: Category | 'all'; label: string }[] = [
@@ -31,6 +33,7 @@ export default function ShopPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { products, loading, error } = useProducts();
   const { t } = useLanguage();
+  const { settings, loading: settingsLoading } = useWebsiteSettings();
   const [query, setQuery] = useState(searchParams.get('q') ?? '');
   const [category, setCategory] = useState<Category | 'all'>(
     (searchParams.get('category') as Category) ?? 'all'
@@ -47,7 +50,7 @@ export default function ShopPage() {
   }, [searchParams]);
 
   const filtered = useMemo(() => {
-    return products.filter((p) => {
+    const list = products.filter((p) => {
       if (category !== 'all' && p.category !== category) return false;
       if (availability !== 'all' && p.freshness !== availability) return false;
       if (priceRange !== 'all') {
@@ -65,7 +68,13 @@ export default function ShopPage() {
       }
       return true;
     });
-  }, [products, category, priceRange, availability, query]);
+
+    const sort = settings.default_product_sort || 'manual';
+    if (sort === 'name') return [...list].sort((a, b) => a.name.localeCompare(b.name));
+    if (sort === 'price_low') return [...list].sort((a, b) => a.price - b.price);
+    if (sort === 'price_high') return [...list].sort((a, b) => b.price - a.price);
+    return list;
+  }, [products, category, priceRange, availability, query, settings.default_product_sort]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,6 +94,10 @@ export default function ShopPage() {
   };
 
   const hasActiveFilters = category !== 'all' || priceRange !== 'all' || availability !== 'all' || query;
+
+  if (!settingsLoading && !settings.show_shop) {
+    return <FeatureDisabledPage />;
+  }
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">

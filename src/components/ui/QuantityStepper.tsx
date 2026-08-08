@@ -20,6 +20,7 @@ export default function QuantityStepper({ value, onChange, min = 1, max = 20, si
   return (
     <div className="flex items-center gap-2">
       <button
+        type="button"
         className={btnClass}
         onClick={() => onChange(Math.max(min, value - 1))}
         disabled={value <= min}
@@ -29,6 +30,7 @@ export default function QuantityStepper({ value, onChange, min = 1, max = 20, si
       </button>
       <span className={numClass} aria-live="polite">{value}</span>
       <button
+        type="button"
         className={btnClass}
         onClick={() => onChange(Math.min(max, value + 1))}
         disabled={value >= max}

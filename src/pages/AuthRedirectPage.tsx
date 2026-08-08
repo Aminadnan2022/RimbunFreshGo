@@ -4,7 +4,7 @@ import { Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export default function AuthRedirectPage() {
-  const { loading, isAdmin, isSupplier, role } = useAuth();
+  const { loading, isAdmin, isSupplier, isRider, role } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const returnTo = (location.state as { returnTo?: string } | null)?.returnTo;
@@ -15,10 +15,12 @@ export default function AuthRedirectPage() {
       navigate('/admin/products', { replace: true });
     } else if (isSupplier) {
       navigate('/supplier', { replace: true });
+    } else if (isRider) {
+      navigate('/delivery', { replace: true });
     } else {
       navigate(returnTo ?? '/', { replace: true });
     }
-  }, [loading, role, isAdmin, isSupplier, navigate, returnTo]);
+  }, [loading, role, isAdmin, isSupplier, isRider, navigate, returnTo]);
 
   return (
     <main className="flex items-center justify-center min-h-[50vh]">

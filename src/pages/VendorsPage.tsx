@@ -2,13 +2,17 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Shield, Award, ChevronRight, MapPin, Calendar } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
+import { useWebsiteSettings } from '../context/WebsiteSettingsContext';
 import { vendors } from '../data/vendors';
 import { fetchProductById } from '../data/products';
 import type { Product } from '../types';
 import ProductImage from '../components/ui/ProductImage';
+import { formatCurrency } from '../lib/currency';
+import FeatureDisabledPage from '../components/system/FeatureDisabledPage';
 
 export default function VendorsPage() {
   const { t } = useLanguage();
+  const { settings, loading: settingsLoading } = useWebsiteSettings();
   const [productMap, setProductMap] = useState<Record<string, Product | null>>({});
 
   useEffect(() => {
@@ -20,6 +24,11 @@ export default function VendorsPage() {
       setProductMap(Object.fromEntries(entries));
     })();
   }, []);
+
+  if (!settingsLoading && !settings.show_suppliers) {
+    return <FeatureDisabledPage />;
+  }
+
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       {/* Header */}
@@ -129,7 +138,7 @@ export default function VendorsPage() {
                         <p className="text-xs font-semibold text-charcoal leading-snug group-hover:text-forest-700 transition-colors">
                           {product.name}
                         </p>
-                        <p className="text-xs font-bold text-forest-700 mt-0.5">RM{product.price}</p>
+                        <p className="text-xs font-bold text-forest-700 mt-0.5">RM{formatCurrency(product.price)}</p>
                       </div>
                       <span className="flex items-center gap-1 text-xs text-forest-500 font-medium group-hover:gap-2 transition-all">
                         {t("vendors.view")} <ChevronRight size={12} />

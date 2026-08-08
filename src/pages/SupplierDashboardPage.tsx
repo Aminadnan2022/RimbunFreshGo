@@ -1,9 +1,18 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
-import { Loader2, ChevronLeft, ChevronUp, ChevronDown, ChevronRight, AlertCircle, CheckCircle2, Scale, Lock, Phone, Home, MapPin } from 'lucide-react';
+import { Loader2, ChevronLeft, ChevronDown, ChevronRight, AlertCircle, CheckCircle2, Scale, Lock, Phone, Home, MapPin, PackageCheck, Package, Truck, ExternalLink } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { supabase } from '../lib/supabase';
+import { formatCurrency } from '../lib/currency';
+import { orderGrossProfit, orderCost, marginPercent } from '../lib/profit';
+import { formatLocalDate } from '../data/delivery';
+import SupplierDispatchSection from '../components/supplier/SupplierDispatchSection';
+import {
+  supplierStartPacking,
+  supplierCompletePacking,
+  supplierBookLalamoveForOrder,
+} from '../data/deliveryBatches';
 import type { PaymentStatus, ComboExpandedItem } from '../types';
 
 // ----------- Product-to-category mapping -----------
@@ -123,9 +132,16 @@ interface OrderItem {
   unit: string;
   quantity: number;
   preparation?: string;
-  pricingType?: 'per_kg' | 'fixed';
+  pricingType?: 'per_kg' | 'fixed' | 'slice';
   comboId?: string;
   comboItems?: ComboExpandedItem[];
+  sliceQuantity?: number;
+  sliceUnit?: string;
+  orderingMode?: string;
+  /** Supplier unit cost snapshot (RM per kg / per piece) frozen at checkout. */
+  costPrice?: number;
+  /** Supplier name snapshot for profit reports. */
+  supplierName?: string;
 }
 
 interface OrderSummary {
@@ -152,6 +168,14 @@ interface SupplierOrder {
   paymentStatus: PaymentStatus;
   orderNotes: string;
   paidAt: string | null;
+  packingStartedAt: string | null;
+  packingCompletedAt: string | null;
+  supplierDispatchStartedAt: string | null;
+  supplierDispatchCompletedAt: string | null;
+  readyForRiderAt: string | null;
+  lalamoveTrackingUrl: string | null;
+  bookingReference: string | null;
+  lalamoveBookedAt: string | null;
 }
 
 // ----------- Helpers -----------
@@ -163,25 +187,24 @@ const isPerKg = (item: OrderItem): boolean => {
   return true;
 };
 
+const isSliceItem = (item: OrderItem): boolean =>
+  item.pricingType === 'slice' || item.sliceQuantity != null || item.orderingMode === 'slice';
+
+const needsWeighing = (item: OrderItem): boolean => isPerKg(item) || isSliceItem(item);
+
 const orderRequiresWeighing = (order: SupplierOrder): boolean => {
-  return order.items.some(item => isPerKg(item));
+  return order.items.some(item => needsWeighing(item));
 };
 
-// Derive workflow status from database fields (not local state)
-function getOrderStatus(order: SupplierOrder): 'pending' | 'in_progress' | 'completed' {
-  if (order.paymentStatus === 'Paid' || order.paymentStatus === 'Ready To Pay') return 'completed';
-  // If supplier has started weighing (has some weights) but not all per-kg items are weighed
+const hasAllWeightsSubmitted = (order: SupplierOrder): boolean => {
   const perKgIndices = order.items
-    .map((item, i) => ({ item, index: i }))
-    .filter(({ item }) => isPerKg(item))
-    .map(({ index }) => index);
-  if (perKgIndices.length > 0) {
-    const weighedCount = perKgIndices.filter(i => order.supplierWeights[String(i)] != null).length;
-    if (weighedCount > 0 && weighedCount < perKgIndices.length) return 'in_progress';
-    if (weighedCount === perKgIndices.length) return 'completed';
-  }
-  return 'pending';
-}
+    .map((item, i) => ({ item, i }))
+    .filter(({ item }) => needsWeighing(item));
+
+  if (perKgIndices.length === 0) return true;
+
+  return perKgIndices.every(({ i }) => order.supplierWeights[String(i)] != null);
+};
 
 function formatDateFull(raw: string): string {
   const d = new Date(raw);
@@ -189,14 +212,56 @@ function formatDateFull(raw: string): string {
   return d.toLocaleDateString('en-MY', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' });
 }
 
+function formatDateShort(raw: string): string {
+  const d = new Date(raw);
+  if (isNaN(d.getTime())) return raw;
+  return d.toLocaleDateString('en-MY', { day: 'numeric', month: 'short' });
+}
+
+function formatTime(iso: string): string {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleTimeString('en-MY', { hour: '2-digit', minute: '2-digit' });
+}
+
+/**
+ * Convert a human-readable Checkout delivery date (e.g. "Wednesday, 5 August 2026")
+ * into ISO YYYY-MM-DD. If already ISO, returns it unchanged. Returns '' when unparseable.
+ */
+function toISODate(raw: string): string {
+  if (!raw) return '';
+  const trimmed = raw.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+  const m = trimmed.match(/^.*?,\s*(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})$/);
+  if (!m) return '';
+  const day = Number(m[1]);
+  const monthStr = m[2];
+  const year = Number(m[3]);
+  const monthIdx = ['January','February','March','April','May','June','July','August','September','October','November','December'].indexOf(monthStr);
+  if (monthIdx === -1) return '';
+  const mm = String(monthIdx + 1).padStart(2, '0');
+  const dd = String(day).padStart(2, '0');
+  return `${year}-${mm}-${dd}`;
+}
+
+/**
+ * Delivery day for an order, always ISO YYYY-MM-DD.
+ * Source of truth: the checkout's order_summary.deliveryDate converted to ISO.
+ * Delivery batches NEVER determine an order's delivery day.
+ */
+function getOrderDeliveryDate(order: SupplierOrder): string {
+  return order.deliveryDate;
+}
+
 // ----------- Main page -----------
 
 export default function SupplierDashboardPage() {
   const { t } = useLanguage();
   const { isSupplier, loading: authLoading, user } = useAuth();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const dateParam = searchParams.get('date');
-  const [view, setView] = useState<'schedule' | 'orders'>(dateParam ? 'orders' : 'schedule');
+  const [view, setView] = useState<'working' | 'schedule'>('working');
+  const [selectedDate, setSelectedDate] = useState(dateParam ?? formatLocalDate(new Date()));
   const [selected, setSelected] = useState<SupplierOrder | null>(null);
   const [orders, setOrders] = useState<SupplierOrder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -207,24 +272,42 @@ export default function SupplierDashboardPage() {
   const [editMode, setEditMode] = useState(false);
 
   const handleWeightsSaved = (dbId: number, weights: Record<string, number>) => {
-    setOrders(prev => prev.map(o => o.dbId === dbId ? { ...o, supplierWeights: weights } : o));
+    setOrders(prev => prev.map(o => {
+      if (o.dbId !== dbId) return o;
+      const perKgIndices = o.items.map((item, i) => ({ item, i })).filter(({ item }) => needsWeighing(item));
+      const allSaved = perKgIndices.length > 0 && perKgIndices.every(({ i }) => weights[String(i)] != null);
+      return { ...o, supplierWeights: weights, paymentStatus: allSaved ? 'Ready To Pay' : o.paymentStatus };
+    }));
   };
 
-  const loadOrders = useCallback(async () => {
-    setLoading(true);
+  const loadOrders = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
     setError(null);
     try {
-      const { data, error: fetchError } = await supabase
+      const orderRes = await supabase
         .from('Orders')
-        .select('id, full_name, phone_number, apartment, house_unit, pickup_location, order_notes, order_items, order_summary, supplier_weights, delivery_fee, payment_status, paid_at')
+        .select('id, full_name, phone_number, apartment, house_unit, pickup_location, order_notes, order_items, order_summary, supplier_weights, delivery_fee, payment_status, paid_at, packing_started_at, packing_completed_at, supplier_dispatch_started_at, supplier_dispatch_completed_at, ready_for_rider_at, lalamove_tracking_url, booking_reference, lalamove_booked_at')
         .order('created_at', { ascending: false });
 
-      if (fetchError) throw fetchError;
+      if (orderRes.error) throw orderRes.error;
 
-      const mapped: SupplierOrder[] = (data ?? []).map((row) => {
+      // eslint-disable-next-line no-console
+      console.log('[DEBUG] loadOrders: total orders returned from Supabase =', (orderRes.data ?? []).length);
+
+      const mapped: SupplierOrder[] = (orderRes.data ?? []).map((row) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const r = row as any;
         const summary: OrderSummary = r.order_summary ?? {};
+        const deliveryDate = toISODate(summary.deliveryDate ?? '');
+        // eslint-disable-next-line no-console
+        console.log('[DEBUG] loadOrders: raw order', {
+          id: r.id,
+          orderRef: summary.orderRef ?? String(r.id),
+          payment_status: r.payment_status,
+          created_at: r.created_at,
+          summary_deliveryDate: summary.deliveryDate,
+          resolvedDeliveryDate: deliveryDate,
+        });
         return {
           dbId: r.id,
           orderRef: summary.orderRef ?? String(r.id),
@@ -233,7 +316,7 @@ export default function SupplierDashboardPage() {
           apartment: r.apartment ?? '',
           houseUnit: r.house_unit ?? '',
           pickupLocation: r.pickup_location ?? '',
-          deliveryDate: summary.deliveryDate ?? '—',
+          deliveryDate,
           deliveryWindow: summary.deliveryWindow ?? '',
           items: (r.order_items as OrderItem[]) ?? [],
           summary,
@@ -242,6 +325,14 @@ export default function SupplierDashboardPage() {
           paymentStatus: (r.payment_status as PaymentStatus) ?? 'Pending',
           orderNotes: r.order_notes ?? '',
           paidAt: r.paid_at ?? null,
+          packingStartedAt: r.packing_started_at ?? null,
+          packingCompletedAt: r.packing_completed_at ?? null,
+          supplierDispatchStartedAt: r.supplier_dispatch_started_at ?? null,
+          supplierDispatchCompletedAt: r.supplier_dispatch_completed_at ?? null,
+          readyForRiderAt: r.ready_for_rider_at ?? null,
+          lalamoveTrackingUrl: r.lalamove_tracking_url ?? null,
+          bookingReference: r.booking_reference ?? null,
+          lalamoveBookedAt: r.lalamove_booked_at ?? null,
         };
       });
 
@@ -249,36 +340,36 @@ export default function SupplierDashboardPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load orders');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
 
   useEffect(() => { loadOrders(); }, [loadOrders]);
 
-  const [showQueue, setShowQueue] = useState(false);
+  // Refresh orders on the same interval so packing state updates appear after
+  // a supplier action without a full page reload.
+  useEffect(() => {
+    const id = setInterval(() => { loadOrders(true); }, 30000);
+    return () => clearInterval(id);
+  }, [loadOrders]);
 
   const handleStartOrder = async (order: SupplierOrder) => {
     if (order.paymentStatus === 'Paid') return;
-    
+    setEditMode(false);
+
     if (!orderRequiresWeighing(order)) {
       // Order has only fixed-price items - no weighing needed
       // Immediately update payment_status to 'Ready To Pay'
-      const { data, error, count } = await supabase
+      const { error: updateError } = await supabase
         .from("Orders")
         .update({
           payment_status: "Ready To Pay",
           updated_at: new Date().toISOString(),
           updated_by: user?.id ?? null,
         }, { count: "exact" })
-        .eq("id", order.dbId)
-        .select();
+        .eq("id", order.dbId);
 
-      console.log("Order dbId:", order.dbId);
-      console.log("Updated rows:", data);
-      console.log("Updated count:", count);
-      console.log("Supabase error:", error);
-
-      if (error) {
+      if (updateError) {
         alert(t("weightEntry.messages.saveFailed"));
         return;
       }
@@ -286,26 +377,9 @@ export default function SupplierDashboardPage() {
       loadOrders();
       return;
     }
-    
+
     // Order has per-kg items - go to weight entry
     setSelected(order);
-    setShowQueue(false);
-  };
-
-  const handleStartPacking = (date: string) => {
-    setSearchParams({ date });
-    const filtered = orders.filter((o) => o.deliveryDate === date);
-    // Find first order that needs weighing (pending or in_progress, not completed/paid)
-    const firstPending = filtered.find(
-      (o) => getOrderStatus(o) !== 'completed'
-    );
-    if (firstPending) {
-      setSelected(firstPending);
-    } else {
-      setSelected(null);
-    }
-    setShowQueue(false);
-    setView('orders');
   };
 
   const handleSaveAndNext = () => {
@@ -315,7 +389,6 @@ export default function SupplierDashboardPage() {
     // No local status update - status is derived from DB
     setEditMode(false);
     setSelected(null);
-    setShowQueue(true);
   };
 
   const handleEditWeight = (order: SupplierOrder) => {
@@ -323,19 +396,62 @@ export default function SupplierDashboardPage() {
     // No local status update - status is derived from DB
     setSelected(order);
     setEditMode(true);
-    setShowQueue(false);
   };
 
   const handleViewDetails = (order: SupplierOrder | null) => {
     setViewDetailsOrder(order);
   };
 
-  const handleBackToSchedule = () => {
-    setSearchParams({});
-    setSelected(null);
-    setShowQueue(false);
-    setView('schedule');
+  const handlePrepareOrder = async (order: SupplierOrder) => {
+    try {
+      await supplierStartPacking(String(order.dbId));
+      await Promise.all([loadOrders(true)]);
+    } catch (err) {
+      console.error('[SupplierDashboard:startPacking]', err);
+      alert(t("weightEntry.messages.saveFailed"));
+    }
   };
+
+  const handleCompletePacking = async (order: SupplierOrder) => {
+    try {
+      await supplierCompletePacking(String(order.dbId));
+      await Promise.all([loadOrders(true)]);
+    } catch (err) {
+      console.error('[SupplierDashboard:completePacking]', err);
+      alert(t("weightEntry.messages.saveFailed"));
+    }
+  };
+
+  const handleStartDispatch = async (order: SupplierOrder, trackingUrl: string, bookingReference: string) => {
+    try {
+      await supplierBookLalamoveForOrder(String(order.dbId), trackingUrl, bookingReference);
+      await Promise.all([loadOrders(true)]);
+    } catch (err) {
+      console.error('[SupplierDashboard:startDispatch]', err);
+      alert(t("weightEntry.messages.saveFailed"));
+    }
+  };
+
+  const availableDates = useMemo(() => {
+    return Array.from(new Set(orders.map((o) => getOrderDeliveryDate(o)).filter((d) => d)))
+      .sort((a, b) => {
+        const da = new Date(a).getTime();
+        const db = new Date(b).getTime();
+        if (!isNaN(da) && !isNaN(db)) return da - db;
+        return a.localeCompare(b);
+      });
+  }, [orders]);
+
+  // Default the Working Dashboard to a delivery date that actually has orders:
+  // 1. URL date param is honored (applied in useState init)
+  // 2. Otherwise, once orders load, pick the first available delivery date
+  //    (past or future — never today's calendar date unless it has orders).
+  useEffect(() => {
+    if (orders.length === 0) return;
+    if (dateParam) return;
+    if (availableDates.includes(selectedDate)) return;
+    if (availableDates.length > 0) setSelectedDate(availableDates[0]);
+  }, [availableDates, dateParam, orders.length, selectedDate]);
 
   if (authLoading) {
     return (
@@ -346,108 +462,160 @@ export default function SupplierDashboardPage() {
   }
 
   if (!isSupplier) return <Navigate to="/" replace />;
+console.log("========== DEBUG ==========");
+console.log("selectedDate =", JSON.stringify(selectedDate));
+console.log("availableDates =", availableDates);
 
-  const baseOrders = dateParam ? orders.filter((o) => o.deliveryDate === dateParam) : orders;
-  const totalOrders = baseOrders.length;
-  const completedCount = baseOrders.filter(
-    (o) => getOrderStatus(o) === 'completed' || o.paymentStatus === 'Ready To Pay' || o.paymentStatus === 'Paid'
-  ).length;
-  const allDone = totalOrders > 0 && completedCount >= totalOrders;
-  const progressPct = totalOrders > 0 ? Math.round((completedCount / totalOrders) * 100) : 0;
+orders.forEach((o) => {
+  console.log({
+    ref: o.orderRef,
+    deliveryDate: JSON.stringify(o.deliveryDate),
+    paymentStatus: o.paymentStatus,
+    packingStartedAt: o.packingStartedAt,
+    packingCompletedAt: o.packingCompletedAt,
+    match: o.deliveryDate === selectedDate
+  });
+});
+  const dayOrders = orders.filter((o) => getOrderDeliveryDate(o) === selectedDate);
+  const filteredDayOrders = dayOrders.filter((o) => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    return o.customerName.toLowerCase().includes(q) || o.orderRef.toLowerCase().includes(q) || o.customerPhone.toLowerCase().includes(q);
+  });
+
+  // eslint-disable-next-line no-console
+  console.log("selectedDate", selectedDate);
+  // eslint-disable-next-line no-console
+  console.log("dayOrders", dayOrders.map(o => ({ ref: o.orderRef, deliveryDate: getOrderDeliveryDate(o) })));
+  dayOrders.forEach((o) => {
+    if (!(getOrderDeliveryDate(o) === selectedDate)) {
+      // eslint-disable-next-line no-console
+      console.log(`Order ${o.orderRef} excluded from dayOrders because: selectedDate=${selectedDate} orderDeliveryDate=${getOrderDeliveryDate(o)}`);
+    }
+  });
+
+  const toggleBtn = (active: boolean) =>
+    `px-5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+      active ? 'bg-forest-700 text-white shadow-md' : 'bg-cream-100 text-gray-600 hover:bg-cream-200'
+    }`;
 
   return (
     <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+      {/* Header + view toggle */}
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="font-display font-bold text-forest-900 text-[28px]">{t("supplierDashboard.packingDashboard")}</h1>
+          <p className="text-gray-500 text-[16px] mt-1">{t("supplierDashboard.prepareProducts")}</p>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={() => setView('working')} className={toggleBtn(view === 'working')}>{t("supplierDashboard.dashboardTab")}</button>
+          <button onClick={() => setView('schedule')} className={toggleBtn(view === 'schedule')}>{t("supplierDashboard.scheduleTab")}</button>
+        </div>
+      </div>
+
       {view === 'schedule' ? (
-        <>
-          <div className="mb-6">
-            <h1 className="font-display font-bold text-forest-900 text-[28px]">{t("supplierDashboard.packingDashboard")}</h1>
-            <p className="text-gray-500 text-[16px] mt-1">{t("supplierDashboard.prepareProducts")}</p>
-          </div>
-          <DeliveryScheduleView orders={orders} loading={loading} error={error} defaultDate={dateParam ?? undefined} onOpenOrders={handleStartPacking} onOpenOrder={handleStartOrder} />
-        </>
+        <DeliveryScheduleView
+          orders={orders}
+          loading={loading}
+          error={error}
+          defaultDate={selectedDate}
+          onOpenOrders={(date) => { setSelectedDate(date); setSelected(null); setView('working'); }}
+          onOpenOrder={(o) => { setSelected(o); setSelected(null); setView('working'); }}
+        />
       ) : (
         <>
-          {/* Progress bar */}
-          {totalOrders > 0 && (
-            <div className="mb-6">
-              <p className="text-[20px] font-bold text-gray-800 mb-3">{t("supplierDashboard.todaysProgress")}</p>
-              <div className="w-full bg-cream-200 rounded-full h-5 overflow-hidden">
-                <div className="bg-forest-600 h-5 rounded-full transition-all duration-500" style={{ width: `${progressPct}%` }} />
-              </div>
-              <p className="text-[16px] text-gray-500 mt-2 font-medium">{t("supplierDashboard.customersCompleted", { completed: completedCount, total: totalOrders })}</p>
-              <div className="flex gap-6 mt-4 text-[15px] font-semibold">
-                <span className="text-amber-600">🟡 {t("supplierDashboard.pendingCount", { count: baseOrders.filter((o) => o.status === 'pending' && o.paymentStatus !== 'Ready To Pay' && o.paymentStatus !== 'Paid').length })}</span>
-                <span className="text-blue-600">🔵 {t("supplierDashboard.inProgressCount", { count: baseOrders.filter((o) => o.status === 'in_progress').length })}</span>
-                <span className="text-green-600">🟢 {t("supplierDashboard.completedCount", { count: completedCount })}</span>
-              </div>
+          {/* Date chips */}
+          {availableDates.length > 0 && (
+            <div className="flex gap-2 overflow-x-auto pb-2 mb-6 -mx-1 px-1">
+              {availableDates.map((d) => (
+                <button
+                  key={d}
+                  onClick={() => setSelectedDate(d)}
+                  className={`flex-shrink-0 px-5 py-3 rounded-xl text-[16px] font-semibold transition-all whitespace-nowrap min-h-[56px] ${
+                    d === selectedDate ? 'bg-forest-700 text-white shadow-md' : 'bg-cream-100 text-gray-600 hover:bg-cream-200 active:scale-95'
+                  }`}
+                >
+                  {formatDateShort(d)}
+                </button>
+              ))}
             </div>
           )}
 
-          {/* All done screen */}
-          {allDone && !selected && !showQueue ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center">
-              <p className="text-6xl mb-6">🎉</p>
-              <p className="text-[32px] font-bold text-forest-900 mb-3">{t("supplierDashboard.todaysPackingCompleted")}</p>
-              <p className="text-[20px] text-gray-500 mb-2">{t("supplierDashboard.ordersCompleted", { completed: completedCount, total: totalOrders })}</p>
-              <p className="text-[18px] text-gray-400 mb-10">{t("supplierDashboard.readyForDelivery")}</p>
-              <div className="flex flex-col gap-4 w-full max-w-sm">
-                <button onClick={() => setShowQueue(true)} className="bg-forest-700 hover:bg-forest-800 text-white rounded-2xl px-10 py-5 text-[18px] font-bold min-h-[60px] transition-all active:scale-[0.97] shadow-lg">
-                  {t("supplierDashboard.viewCompletedOrders")}
-                </button>
-                <button onClick={handleBackToSchedule} className="border-2 border-cream-200 hover:bg-cream-50 text-gray-600 rounded-2xl px-10 py-5 text-[18px] font-bold min-h-[60px] transition-all active:scale-[0.97]">
-                  {t("supplierDashboard.backToPackingDashboard")}
-                </button>
-              </div>
+          {/* Today's Delivery Batch */}
+          <div className="mb-8">
+            <h2 className="font-display font-bold text-forest-900 text-xl">{t("supplierDashboard.deliveryBatchTitle")}</h2>
+            <p className="text-gray-500 text-sm mt-0.5">{t("supplierDashboard.deliveryBatchSubtitle", { date: formatDateFull(selectedDate) })}</p>
+            <div className="mt-3">
+              <SupplierDispatchSection date={selectedDate} showHeader={false} />
             </div>
-          ) : showQueue || (!selected && !allDone) ? (
-            /* Queue screen */
-            <CustomerQueue
-              orders={baseOrders}
-              completionTimes={completionTimes}
-              searchQuery={searchQuery}
-              onSearchChange={setSearchQuery}
-              onStart={handleStartOrder}
-              onEditWeight={handleEditWeight}
-              onViewDetails={handleViewDetails}
-              onBack={handleBackToSchedule}
-              onBackToWorkspace={selected ? () => setShowQueue(false) : undefined}
-            />
+          </div>
+
+          {selected && !viewDetailsOrder ? (
+            /* Weighing workspace */
+            <div>
+              <button onClick={() => { setEditMode(false); setSelected(null); }} className="inline-flex items-center gap-1.5 text-[16px] text-gray-500 hover:text-forest-700 mb-6 transition-colors">
+                <ChevronLeft size={20} /> {t("supplierDashboard.backToQueues")}
+              </button>
+              <WeightEntryView
+                key={selected.dbId}
+                order={selected}
+                editMode={editMode}
+                onBack={() => { setEditMode(false); setSelected(null); }}
+                onComplete={handleSaveAndNext}
+                onNext={handleSaveAndNext}
+                onWeightsSaved={handleWeightsSaved}
+              />
+            </div>
           ) : (
-            /* Continuous packing workspace */
-            selected && !viewDetailsOrder && (
-              <div>
-                {/* Queue button */}
-                <div className="flex items-center justify-between mb-4">
-                  <button onClick={handleBackToSchedule} className="inline-flex items-center gap-1.5 text-[16px] text-gray-500 hover:text-forest-700 transition-colors">
-                    <ChevronLeft size={20} /> {t("supplierDashboard.backToSchedule")}
-                  </button>
-                  <button onClick={() => setShowQueue(true)} className="inline-flex items-center gap-2 px-5 py-3 rounded-xl border-2 border-cream-200 text-[16px] font-semibold text-gray-600 hover:bg-cream-50 transition-all active:scale-[0.97] min-h-[60px]">
-                    {t("customerQueue.title")}
-                  </button>
-                </div>
-                <WeightEntryView
-                  key={selected.dbId}
-                  order={selected}
-                  editMode={editMode}
-                  onBack={() => { setEditMode(false); setShowQueue(true); }}
-                  onComplete={() => handleSaveAndNext()}
-                  onNext={handleSaveAndNext}
-                  onQueue={() => setShowQueue(true)}
-                  onWeightsSaved={handleWeightsSaved}
+            <>
+              {/* Queue search */}
+              <div className="mb-6">
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder={t("customerQueue.messages.searchPlaceholder")}
+                  className="w-full rounded-xl border-2 border-cream-200 p-4 text-[18px] focus:outline-none focus:border-forest-400 transition-colors"
                 />
               </div>
-            )
-          )}
 
-          {/* View Details modal */}
-          {viewDetailsOrder && (
-            <OrderDetailsView
-              order={viewDetailsOrder}
-              completionTimes={completionTimes}
-              onClose={() => setViewDetailsOrder(null)}
-            />
+              <WaitingForWeighing
+                orders={filteredDayOrders}
+                onStart={handleStartOrder}
+                onEditWeight={handleEditWeight}
+                onViewDetails={handleViewDetails}
+              />
+              <ReadyToPrepare
+                orders={filteredDayOrders}
+                onPrepare={handlePrepareOrder}
+                onViewDetails={handleViewDetails}
+              />
+              <Preparing
+                orders={filteredDayOrders}
+                onComplete={handleCompletePacking}
+                onViewDetails={handleViewDetails}
+              />
+              <ReadyForSupplierDispatch
+                orders={filteredDayOrders}
+                onStartDispatch={handleStartDispatch}
+                onViewDetails={handleViewDetails}
+              />
+              <SupplierDispatch
+                orders={filteredDayOrders}
+                onViewDetails={handleViewDetails}
+              />
+            </>
           )}
         </>
+      )}
+
+      {/* View Details modal */}
+      {viewDetailsOrder && (
+        <OrderDetailsView
+          order={viewDetailsOrder}
+          completionTimes={completionTimes}
+          onClose={() => setViewDetailsOrder(null)}
+        />
       )}
     </main>
   );
@@ -468,213 +636,460 @@ function PaymentBadge({ status }: { status: PaymentStatus }) {
   );
 }
 
-// ----------- Customer Queue -----------
+// ----------- Waiting For Weighing queue -----------
 
-function CustomerQueue({
-  orders,
-  completionTimes,
-  searchQuery,
-  onSearchChange,
-  onStart,
-  onEditWeight,
-  onViewDetails,
-  onBack,
-  onBackToWorkspace,
-}: {
+function WaitingForWeighing({ orders, onStart, onEditWeight, onViewDetails }: {
   orders: SupplierOrder[];
-  completionTimes: Record<number, string>;
-  searchQuery: string;
-  onSearchChange: (q: string) => void;
   onStart: (o: SupplierOrder) => void;
   onEditWeight: (o: SupplierOrder) => void;
   onViewDetails: (o: SupplierOrder) => void;
-  onBack: () => void;
-  onBackToWorkspace?: () => void;
 }) {
   const { t } = useLanguage();
-  const [completedOpen, setCompletedOpen] = useState(true);
 
-  const filtered = orders.filter((o) => {
-    if (!searchQuery) return true;
-    const q = searchQuery.toLowerCase();
-    return o.customerName.toLowerCase().includes(q) || o.orderRef.toLowerCase().includes(q) || o.customerPhone.toLowerCase().includes(q);
+  // Queue 1: orders that require weighing but don't have all weights submitted yet.
+  const needsWeighing = orders.filter((o) => orderRequiresWeighing(o) && !hasAllWeightsSubmitted(o));
+  // Queue 2: orders that have all weights submitted (or don't require weighing) but payment not yet Paid.
+  const awaitingPayment = orders.filter((o) => (!orderRequiresWeighing(o) || hasAllWeightsSubmitted(o)) && o.paymentStatus !== 'Paid');
+
+  // eslint-disable-next-line no-console
+  console.log("waitingForWeighing", needsWeighing.map(o => ({ ref: o.orderRef })));
+  // eslint-disable-next-line no-console
+  console.log("awaitingPayment", awaitingPayment.map(o => ({ ref: o.orderRef })));
+  orders.forEach((o) => {
+    const requiresWeighing = orderRequiresWeighing(o);
+    const allSubmitted = hasAllWeightsSubmitted(o);
+    const inNeeds = requiresWeighing && !allSubmitted;
+    const inAwaiting = (!requiresWeighing || allSubmitted) && o.paymentStatus !== 'Paid';
+    if (!inNeeds) {
+      // eslint-disable-next-line no-console
+      console.log(`Order ${o.orderRef} excluded from waitingForWeighing because: orderRequiresWeighing=${requiresWeighing} hasAllWeightsSubmitted=${allSubmitted}`);
+    }
+    if (!inAwaiting) {
+      // eslint-disable-next-line no-console
+      console.log(`Order ${o.orderRef} excluded from awaitingPayment because: orderRequiresWeighing=${requiresWeighing} hasAllWeightsSubmitted=${allSubmitted} payment_status=${o.paymentStatus}`);
+    }
   });
 
-  const pendingOrders = filtered.filter((o) => getOrderStatus(o) === 'pending' && o.paymentStatus !== 'Ready To Pay' && o.paymentStatus !== 'Paid');
-  const inProgressOrders = filtered.filter((o) => getOrderStatus(o) === 'in_progress');
-  const completedOrders = filtered.filter((o) => getOrderStatus(o) === 'completed' || o.paymentStatus === 'Ready To Pay' || o.paymentStatus === 'Paid');
-
-  const statusStyle = (status: string) => {
-    const map: Record<string, string> = {
-      'Pending': 'bg-red-100 text-red-700',
-      'Ready To Pay': 'bg-blue-100 text-blue-700',
-      'Paid': 'bg-green-100 text-green-700',
-    };
-    return map[status] || 'bg-gray-100 text-gray-600';
-  };
-
-  const statusLabel = (status: string) => {
-    const map: Record<string, string> = {
-      'Pending': t("customerQueue.status.awaitingPacking"),
-      'Ready To Pay': t("customerQueue.status.readyToPay"),
-      'Paid': t("customerQueue.status.paid"),
-    };
-    return map[status] || status;
-  };
-
-  function renderCard(order: SupplierOrder, index: number, isInProgress?: boolean) {
-    const productCount = order.items.reduce((sum, item) => sum + item.quantity, 0);
-    return (
-      <div key={order.dbId} className={`bg-white rounded-2xl border-2 p-6 hover:shadow-lg transition-shadow active:scale-[0.97] ${isInProgress ? 'border-forest-400 shadow-lg' : 'border-cream-200'}`}>
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex items-center gap-3">
-            <span className="text-[28px] font-bold text-gray-300 tabular-nums">#{index + 1}</span>
-            <div>
-              <p className="text-[22px] font-bold text-gray-900">{order.customerName}</p>
-              <p className="text-[14px] text-gray-500 font-mono mt-0.5">{order.orderRef}</p>
-            </div>
-          </div>
-          <span className={`text-[14px] font-semibold px-3 py-1.5 rounded-full ${statusStyle(order.paymentStatus)}`}>
-            {statusLabel(order.paymentStatus)}
-          </span>
-        </div>
-
-        <div className="space-y-2 mb-5">
-          <p className="text-[18px] text-gray-700">📍 {order.pickupLocation || '—'}</p>
-          {order.houseUnit && <p className="text-[18px] text-gray-700">🏠 {t("supplierCard.unit")} {order.houseUnit}</p>}
-          <p className="text-[18px] font-semibold text-gray-800">{productCount} {t("supplierCard.products")}</p>
-        </div>
-
-        {isInProgress ? (
-          <div className="w-full bg-amber-100 text-amber-800 rounded-xl py-4 px-5 text-[18px] font-bold text-center min-h-[60px] flex items-center justify-center">
-            {t("customerQueue.messages.weighingInProgress")}
-          </div>
-        ) : (
-          <button onClick={() => onStart(order)} className="w-full bg-forest-700 hover:bg-forest-800 text-white rounded-xl py-4 text-[18px] font-bold min-h-[60px] transition-all active:scale-[0.97]">
-            {t("supplierCard.buttons.start")}
-          </button>
-        )}
-      </div>
-    );
-  }
-
-  if (orders.length === 0) {
-    return (
-      <>
-        {onBackToWorkspace ? (
-          <button onClick={onBackToWorkspace} className="inline-flex items-center gap-1.5 text-[16px] text-gray-500 hover:text-forest-700 mb-6 transition-colors">
-            <ChevronLeft size={20} /> {t("customerQueue.buttons.back")}
-          </button>
-        ) : (
-          <button onClick={onBack} className="inline-flex items-center gap-1.5 text-[16px] text-gray-500 hover:text-forest-700 mb-6 transition-colors">
-            <ChevronLeft size={20} /> {t("customerQueue.buttons.back")}
-          </button>
-        )}
-        <div className="text-center py-20">
-          <Scale size={56} className="mx-auto text-gray-300 mb-4" />
-          <p className="text-gray-500 text-[20px]">{t("customerQueue.messages.noOrders")}</p>
-        </div>
-      </>
-    );
-  }
+  const productCount = (o: SupplierOrder) => o.items.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
-    <>
-      {onBackToWorkspace ? (
-        <button onClick={onBackToWorkspace} className="inline-flex items-center gap-1.5 text-[16px] text-gray-500 hover:text-forest-700 mb-6 transition-colors">
-            <ChevronLeft size={20} /> {t("customerQueue.buttons.back")}
-          </button>
-        ) : (
-          <button onClick={onBack} className="inline-flex items-center gap-1.5 text-[16px] text-gray-500 hover:text-forest-700 mb-6 transition-colors">
-            <ChevronLeft size={20} /> {t("customerQueue.buttons.back")}
-          </button>
-        )}
-
-      {/* Search */}
-      <div className="mb-6">
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => onSearchChange(e.target.value)}
-          placeholder={t("customerQueue.messages.searchPlaceholder")}
-          className="w-full rounded-xl border-2 border-cream-200 p-4 text-[18px] focus:outline-none focus:border-forest-400 transition-colors"
-        />
+    <div className="mb-10">
+      <div className="flex items-center gap-3 mb-1">
+        <Scale size={22} className="text-amber-600" />
+        <p className="text-[22px] font-bold text-amber-700">{t("supplierQueues.waitingTitle")} ({needsWeighing.length})</p>
       </div>
+      <p className="text-[15px] text-gray-500 mb-4">{t("supplierQueues.waitingSubtitle")}</p>
 
-      {/* 🔵 In Progress section */}
-      {inProgressOrders.length > 0 && (
-        <div className="mb-8">
-          <p className="text-[20px] font-bold text-blue-700 mb-4 flex items-center gap-2">🔵 {t("customerQueue.inProgress")} ({inProgressOrders.length})</p>
-          <div className="space-y-4">
-            {inProgressOrders.map((order) => renderCard(order, 0, true))}
-          </div>
-        </div>
-      )}
-
-      {/* 🟡 Pending section */}
-      <div className="mb-8">
-        <p className="text-[20px] font-bold text-amber-600 mb-4">🟡 {t("customerQueue.pending")} ({pendingOrders.length})</p>
-        {pendingOrders.length === 0 ? (
-          <p className="text-gray-400 text-[18px]">{t("customerQueue.messages.noPending")}</p>
-        ) : (
-          <div className="space-y-4">
-            {pendingOrders.map((order, i) => renderCard(order, i))}
-          </div>
-        )}
-      </div>
-
-      {/* 🟢 Completed section */}
-      {completedOrders.length > 0 && (
-        <div className="mb-8">
-          <button
-            onClick={() => setCompletedOpen(!completedOpen)}
-            className="w-full flex items-center justify-between text-[20px] font-bold text-green-700 mb-4"
-          >
-            <span>🟢 {t("customerQueue.completed")} ({completedOrders.length})</span>
-            {completedOpen ? <ChevronUp size={24} /> : <ChevronDown size={24} />}
-          </button>
-          {completedOpen && (
-            <div className="space-y-4">
-              {completedOrders.map((order, i) => (
-                <div key={order.dbId} className="bg-white rounded-2xl border-2 border-green-200 p-6">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-start gap-3">
-                      <span className="text-[28px] font-bold text-green-300 tabular-nums">#{i + 1}</span>
-                      <div>
-                        <p className="text-[22px] font-bold text-gray-900">{order.customerName}</p>
-                        <p className="text-[14px] text-gray-500 font-mono mt-0.5">{order.orderRef}</p>
-                      </div>
-                    </div>
-                    <span className="text-[14px] font-semibold px-3 py-1.5 rounded-full bg-green-100 text-green-700 whitespace-nowrap">
-                      ✅ {order.paymentStatus === 'Paid' ? t("customerQueue.status.paid") : t("customerQueue.status.readyToPay")}
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap gap-x-6 gap-y-1 text-[16px] text-gray-600 ml-1 mb-4">
-                    <span>📍 {order.pickupLocation || '—'}</span>
-                    {order.houseUnit && <span>🏠 Unit {order.houseUnit}</span>}
-                    {completionTimes[order.dbId] && <span>⏰ {t("customerQueue.messages.completedAt", { time: completionTimes[order.dbId] })}</span>}
-                  </div>
-                  <div className="flex gap-3">
-                    <button onClick={() => onViewDetails(order)} className="flex-1 border-2 border-cream-200 rounded-xl py-3 text-[16px] font-semibold text-gray-600 min-h-[50px] hover:bg-cream-50 transition-all active:scale-[0.97]">
-                      {t("customerQueue.buttons.viewCustomer")}
-                    </button>
-                    {order.paymentStatus === 'Paid' ? (
-                      <button disabled className="flex-1 border-2 border-green-200 rounded-xl py-3 text-[16px] font-semibold text-green-600 min-h-[50px] bg-green-50 cursor-not-allowed">
-                        {t("customerQueue.buttons.locked")}
-                      </button>
-                    ) : (
-                      <button onClick={() => onEditWeight(order)} className="flex-1 border-2 border-amber-300 rounded-xl py-3 text-[16px] font-semibold text-amber-700 min-h-[50px] hover:bg-amber-50 transition-all active:scale-[0.97]">
-                        {t("customerQueue.buttons.editWeight")}
-                      </button>
-                    )}
+      {needsWeighing.length === 0 ? (
+        <p className="text-gray-400 text-[18px]">{t("supplierQueues.noWaiting")}</p>
+      ) : (
+        <div className="space-y-4">
+          {needsWeighing.map((order, i) => (
+            <div key={order.dbId} className="bg-white rounded-2xl border-2 border-cream-200 p-6 hover:shadow-lg transition-shadow active:scale-[0.97]">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <span className="text-[24px] font-bold text-gray-300 tabular-nums">#{i + 1}</span>
+                  <div>
+                    <p className="text-[20px] font-bold text-gray-900">{order.customerName}</p>
+                    <p className="text-[13px] text-gray-500 font-mono mt-0.5">{order.orderRef}</p>
                   </div>
                 </div>
-              ))}
+                <PaymentBadge status={order.paymentStatus} />
+              </div>
+              <div className="flex flex-wrap gap-x-6 gap-y-1 text-[16px] text-gray-600 mb-4">
+                <span>📍 {order.pickupLocation || '—'}</span>
+                {order.houseUnit && <span>🏠 {t("supplierCard.unit")} {order.houseUnit}</span>}
+                <span>📦 {productCount(order)} {t("supplierCard.products")}</span>
+              </div>
+              <div className="flex gap-3">
+                <button onClick={() => onStart(order)} className="flex-1 bg-forest-700 hover:bg-forest-800 text-white rounded-xl py-3 text-[16px] font-bold min-h-[56px] transition-all active:scale-[0.97]">
+                  {orderRequiresWeighing(order) ? t("supplierQueues.weighButton") : t("supplierQueues.startButton")}
+                </button>
+                <button onClick={() => onViewDetails(order)} className="border-2 border-cream-200 rounded-xl px-5 py-3 text-[16px] font-semibold text-gray-600 min-h-[56px] hover:bg-cream-50 transition-all active:scale-[0.97]">
+                  {t("supplierQueues.viewButton")}
+                </button>
+              </div>
             </div>
-          )}
+          ))}
         </div>
       )}
-    </>
+
+      {awaitingPayment.length > 0 && (
+        <div className="mt-8">
+          <div className="flex items-center gap-3 mb-1">
+            <Package size={20} className="text-sky-600" />
+            <p className="text-[20px] font-bold text-sky-700">{t("supplierQueues.awaitingPaymentTitle")} ({awaitingPayment.length})</p>
+          </div>
+          <p className="text-[15px] text-gray-500 mb-4">{t("supplierQueues.awaitingPaymentSubtitle")}</p>
+          <div className="space-y-4">
+            {awaitingPayment.map((order, i) => (
+              <div key={order.dbId} className="bg-white rounded-2xl border-2 border-sky-200 p-6">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <span className="text-[24px] font-bold text-sky-300 tabular-nums">#{i + 1}</span>
+                    <div>
+                      <p className="text-[20px] font-bold text-gray-900">{order.customerName}</p>
+                      <p className="text-[13px] text-gray-500 font-mono mt-0.5">{order.orderRef}</p>
+                    </div>
+                  </div>
+                  <PaymentBadge status={order.paymentStatus} />
+                </div>
+                <div className="flex flex-wrap gap-x-6 gap-y-1 text-[16px] text-gray-600 mb-4">
+                  <span>📍 {order.pickupLocation || '—'}</span>
+                  {order.houseUnit && <span>🏠 {t("supplierCard.unit")} {order.houseUnit}</span>}
+                  <span>📦 {productCount(order)} {t("supplierCard.products")}</span>
+                </div>
+                <div className="flex gap-3">
+                  <button onClick={() => onViewDetails(order)} className="flex-1 border-2 border-cream-200 rounded-xl py-3 text-[16px] font-semibold text-gray-600 min-h-[52px] hover:bg-cream-50 transition-all active:scale-[0.97]">
+                    {t("supplierQueues.viewButton")}
+                  </button>
+                  <button onClick={() => onEditWeight(order)} className="flex-1 border-2 border-amber-300 rounded-xl py-3 text-[16px] font-semibold text-amber-700 min-h-[52px] hover:bg-amber-50 transition-all active:scale-[0.97]">
+                    {t("supplierQueues.editWeightButton")}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ----------- Ready To Prepare queue -----------
+
+function ReadyToPrepare({ orders, onPrepare, onViewDetails }: {
+  orders: SupplierOrder[];
+  onPrepare: (o: SupplierOrder) => void;
+  onViewDetails: (o: SupplierOrder) => void;
+}) {
+  const { t } = useLanguage();
+
+  // Queue: payment_status='Paid' AND packing_started_at IS NULL.
+  const readyOrders = orders.filter((o) => {
+    if (o.paymentStatus !== 'Paid') return false;
+    return o.packingStartedAt == null;
+  });
+
+  // eslint-disable-next-line no-console
+  console.log("readyToPrepare", readyOrders.map(o => ({ ref: o.orderRef })));
+  orders.forEach((o) => {
+    const inReady = o.paymentStatus === 'Paid' && o.packingStartedAt == null;
+    if (!inReady) {
+      // eslint-disable-next-line no-console
+      console.log(`Order ${o.orderRef} excluded from readyToPrepare because: payment_status=${o.paymentStatus} packingStartedAt=${o.packingStartedAt}`);
+    }
+  });
+
+  const productCount = (o: SupplierOrder) => o.items.reduce((sum, item) => sum + item.quantity, 0);
+  const orderTotal = (o: SupplierOrder): number => {
+    const itemsTotal = o.items.reduce((sum, item, i) => {
+      if (!needsWeighing(item)) return sum + item.price * item.quantity;
+      const kg = o.supplierWeights[String(i)];
+      if (!kg || kg <= 0) return sum;
+      return sum + kg * item.price;
+    }, 0);
+    return itemsTotal + o.deliveryFee;
+  };
+
+  return (
+    <div className="mb-10">
+      <div className="flex items-center gap-3 mb-1">
+        <PackageCheck size={22} className="text-green-600" />
+        <p className="text-[22px] font-bold text-green-700">{t("supplierQueues.readyTitle")} ({readyOrders.length})</p>
+      </div>
+      <p className="text-[15px] text-gray-500 mb-4">{t("supplierQueues.readySubtitle")}</p>
+
+      {readyOrders.length === 0 ? (
+        <p className="text-gray-400 text-[18px]">{t("supplierQueues.noReady")}</p>
+      ) : (
+        <div className="space-y-4">
+          {readyOrders.map((order, i) => (
+            <div key={order.dbId} className="bg-white rounded-2xl border-2 border-green-200 p-6 hover:shadow-lg transition-shadow active:scale-[0.97]">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <span className="text-[24px] font-bold text-green-300 tabular-nums">#{i + 1}</span>
+                  <div>
+                    <p className="text-[20px] font-bold text-gray-900">{order.customerName}</p>
+                    <p className="text-[13px] text-gray-500 font-mono mt-0.5">{order.orderRef}</p>
+                  </div>
+                </div>
+                <PaymentBadge status={order.paymentStatus} />
+              </div>
+              <div className="flex flex-wrap gap-x-6 gap-y-1 text-[16px] text-gray-600 mb-4">
+                <span>📍 {order.pickupLocation || '—'}</span>
+                {order.houseUnit && <span>🏠 {t("supplierCard.unit")} {order.houseUnit}</span>}
+                <span>📦 {productCount(order)} {t("supplierCard.products")}</span>
+                <span className="font-semibold text-green-700">RM{formatCurrency(orderTotal(order))}</span>
+              </div>
+              <div className="flex gap-3">
+                <button onClick={() => onPrepare(order)} className="flex-1 bg-forest-700 hover:bg-forest-800 text-white rounded-xl py-3 text-[16px] font-bold min-h-[56px] transition-all active:scale-[0.97]">
+                  {t("supplierQueues.prepareButton")}
+                </button>
+                <button onClick={() => onViewDetails(order)} className="border-2 border-cream-200 rounded-xl px-5 py-3 text-[16px] font-semibold text-gray-600 min-h-[56px] hover:bg-cream-50 transition-all active:scale-[0.97]">
+                  {t("supplierQueues.viewButton")}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ----------- Preparing queue -----------
+
+function Preparing({ orders, onComplete, onViewDetails }: {
+  orders: SupplierOrder[];
+  onComplete: (o: SupplierOrder) => void;
+  onViewDetails: (o: SupplierOrder) => void;
+}) {
+  const { t } = useLanguage();
+
+  // Queue: packing_started_at IS NOT NULL AND packing_completed_at IS NULL.
+  const preparingOrders = orders.filter((o) => {
+    return o.packingStartedAt != null && o.packingCompletedAt == null;
+  });
+
+  // eslint-disable-next-line no-console
+  console.log("preparing", preparingOrders.map(o => ({ ref: o.orderRef })));
+  orders.forEach((o) => {
+    const inPreparing = o.packingStartedAt != null && o.packingCompletedAt == null;
+    if (!inPreparing) {
+      // eslint-disable-next-line no-console
+      console.log(`Order ${o.orderRef} excluded from preparing because: packingStartedAt=${o.packingStartedAt} packingCompletedAt=${o.packingCompletedAt}`);
+    }
+  });
+
+  // Localized fallbacks for keys that are not yet in the locale files.
+  const q = (key: string, fallback: string) => {
+    const translated = t(key);
+    return translated === key ? fallback : translated;
+  };
+
+  const productCount = (o: SupplierOrder) => o.items.reduce((sum, item) => sum + item.quantity, 0);
+
+  return (
+    <div className="mb-10">
+      <div className="flex items-center gap-3 mb-1">
+        <Package size={22} className="text-amber-600" />
+        <p className="text-[22px] font-bold text-amber-700">{q("supplierQueues.preparingTitle", "Preparing")} ({preparingOrders.length})</p>
+      </div>
+      <p className="text-[15px] text-gray-500 mb-4">{q("supplierQueues.preparingSubtitle", "Packing started. Complete all items.")}</p>
+
+      {preparingOrders.length === 0 ? (
+        <p className="text-gray-400 text-[18px]">{q("supplierQueues.noPreparing", "No orders being prepared.")}</p>
+      ) : (
+        <div className="space-y-4">
+          {preparingOrders.map((order, i) => (
+            <div key={order.dbId} className="bg-white rounded-2xl border-2 border-amber-200 p-6 hover:shadow-lg transition-shadow active:scale-[0.97]">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <span className="text-[24px] font-bold text-amber-300 tabular-nums">#{i + 1}</span>
+                  <div>
+                    <p className="text-[20px] font-bold text-gray-900">{order.customerName}</p>
+                    <p className="text-[13px] text-gray-500 font-mono mt-0.5">{order.orderRef}</p>
+                  </div>
+                </div>
+                <PaymentBadge status={order.paymentStatus} />
+              </div>
+              <div className="flex flex-wrap gap-x-6 gap-y-1 text-[16px] text-gray-600 mb-4">
+                <span>📍 {order.pickupLocation || '—'}</span>
+                {order.houseUnit && <span>🏠 {t("supplierCard.unit")} {order.houseUnit}</span>}
+                <span>📦 {productCount(order)} {t("supplierCard.products")}</span>
+              </div>
+              <div className="flex gap-3">
+                <button onClick={() => onComplete(order)} className="flex-1 bg-forest-700 hover:bg-forest-800 text-white rounded-xl py-3 text-[16px] font-bold min-h-[56px] transition-all active:scale-[0.97]">
+                  {q("supplierQueues.completeButton", "Preparation Completed")}
+                </button>
+                <button onClick={() => onViewDetails(order)} className="border-2 border-cream-200 rounded-xl px-5 py-3 text-[16px] font-semibold text-gray-600 min-h-[56px] hover:bg-cream-50 transition-all active:scale-[0.97]">
+                  {t("supplierQueues.viewButton")}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ----------- Ready For Supplier Dispatch queue -----------
+
+function ReadyForSupplierDispatch({ orders, onStartDispatch, onViewDetails }: {
+  orders: SupplierOrder[];
+  onStartDispatch: (o: SupplierOrder, trackingUrl: string, bookingReference: string) => void;
+  onViewDetails: (o: SupplierOrder) => void;
+}) {
+  const { t } = useLanguage();
+  const [trackingInputs, setTrackingInputs] = useState<Record<number, string>>({});
+  const [refInputs, setRefInputs] = useState<Record<number, string>>({});
+
+  // Queue: payment_status='Paid' AND packing_started_at IS NOT NULL
+  // AND packing_completed_at IS NOT NULL AND supplier_dispatch_started_at IS NULL.
+  const readyOrders = orders.filter((o) => {
+    return o.paymentStatus === 'Paid'
+      && o.packingStartedAt != null
+      && o.packingCompletedAt != null
+      && o.supplierDispatchStartedAt == null;
+  });
+
+  const q = (key: string, fallback: string) => {
+    const translated = t(key);
+    return translated === key ? fallback : translated;
+  };
+
+  const productCount = (o: SupplierOrder) => o.items.reduce((sum, item) => sum + item.quantity, 0);
+
+  const trackingUrl = (o: SupplierOrder) => trackingInputs[o.dbId] ?? o.lalamoveTrackingUrl ?? '';
+
+  const handleStart = (o: SupplierOrder) => {
+    const url = trackingUrl(o).trim();
+    if (!url) {
+      alert(q("supplierQueues.errorTrackingRequired", "Lalamove Tracking URL is required."));
+      return;
+    }
+    if (!/^https:\/\//i.test(url)) {
+      alert(q("supplierQueues.errorTrackingInvalid", "Tracking URL must start with https://"));
+      return;
+    }
+    onStartDispatch(o, url, (refInputs[o.dbId] ?? '').trim());
+  };
+
+  return (
+    <div className="mb-10">
+      <div className="flex items-center gap-3 mb-1">
+        <Truck size={22} className="text-purple-600" />
+        <p className="text-[22px] font-bold text-purple-700">{q("supplierQueues.readyDispatchTitle", "Ready For Supplier Dispatch")} ({readyOrders.length})</p>
+      </div>
+      <p className="text-[15px] text-gray-500 mb-4">{q("supplierQueues.readyDispatchSubtitle", "Packing completed. Enter Lalamove details to dispatch.")}</p>
+
+      {readyOrders.length === 0 ? (
+        <p className="text-gray-400 text-[18px]">{q("supplierQueues.noReadyDispatch", "No orders ready for supplier dispatch.")}</p>
+      ) : (
+        <div className="space-y-4">
+          {readyOrders.map((order, i) => (
+            <div key={order.dbId} className="bg-white rounded-2xl border-2 border-purple-200 p-6 hover:shadow-lg transition-shadow active:scale-[0.97]">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <span className="text-[24px] font-bold text-purple-300 tabular-nums">#{i + 1}</span>
+                  <div>
+                    <p className="text-[20px] font-bold text-gray-900">{order.customerName}</p>
+                    <p className="text-[13px] text-gray-500 font-mono mt-0.5">{order.orderRef}</p>
+                  </div>
+                </div>
+                <PaymentBadge status={order.paymentStatus} />
+              </div>
+              <div className="flex flex-wrap gap-x-6 gap-y-1 text-[16px] text-gray-600 mb-3">
+                <span>📍 {order.pickupLocation || '—'}</span>
+                {order.houseUnit && <span>🏠 {t("supplierCard.unit")} {order.houseUnit}</span>}
+                <span>📦 {productCount(order)} {t("supplierCard.products")}</span>
+              </div>
+              <p className="text-[14px] text-gray-500 mb-4">
+                {q("supplierQueues.packingCompletedAt", "Packing completed")} {order.packingCompletedAt ? formatTime(order.packingCompletedAt) : '—'}
+              </p>
+              <div className="space-y-3 mb-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">{q("supplierQueues.trackingUrlLabel", "Lalamove Tracking URL")} *</label>
+                  <input
+                    type="url"
+                    value={trackingUrl(order)}
+                    onChange={(e) => setTrackingInputs(prev => ({ ...prev, [order.dbId]: e.target.value }))}
+                    placeholder={q("supplierQueues.trackingUrlPlaceholder", "https://track.lalamove.com/...")}
+                    className="w-full bg-cream-50 border border-cream-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-forest-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 mb-1">{q("supplierQueues.bookingRefLabel", "Booking Reference")}</label>
+                  <input
+                    type="text"
+                    value={refInputs[order.dbId] ?? ''}
+                    onChange={(e) => setRefInputs(prev => ({ ...prev, [order.dbId]: e.target.value }))}
+                    placeholder={q("supplierQueues.bookingRefPlaceholder", "Optional booking reference")}
+                    className="w-full bg-cream-50 border border-cream-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-forest-500"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <button onClick={() => handleStart(order)} className="flex-1 bg-purple-600 hover:bg-purple-700 text-white rounded-xl py-3 text-[16px] font-bold min-h-[56px] transition-all active:scale-[0.97]">
+                  {q("supplierQueues.startDispatchButton", "Start Supplier Dispatch")}
+                </button>
+                <button onClick={() => onViewDetails(order)} className="border-2 border-cream-200 rounded-xl px-5 py-3 text-[16px] font-semibold text-gray-600 min-h-[56px] hover:bg-cream-50 transition-all active:scale-[0.97]">
+                  {t("supplierQueues.viewButton")}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ----------- Supplier Dispatch queue -----------
+
+function SupplierDispatch({ orders, onViewDetails }: {
+  orders: SupplierOrder[];
+  onViewDetails: (o: SupplierOrder) => void;
+}) {
+  const { t } = useLanguage();
+
+  // Queue: supplier_dispatch_started_at IS NOT NULL AND supplier_dispatch_completed_at IS NULL.
+  const dispatchOrders = orders.filter((o) => {
+    return o.supplierDispatchStartedAt != null && o.supplierDispatchCompletedAt == null;
+  });
+
+  const productCount = (o: SupplierOrder) => o.items.reduce((sum, item) => sum + item.quantity, 0);
+  const q = (key: string, fallback: string) => {
+    const translated = t(key);
+    return translated === key ? fallback : translated;
+  };
+
+  return (
+    <div className="mb-10">
+      <div className="flex items-center gap-3 mb-1">
+        <Truck size={22} className="text-sky-600" />
+        <p className="text-[22px] font-bold text-sky-700">{q("supplierQueues.supplierDispatchTitle", "Supplier Dispatch")} ({dispatchOrders.length})</p>
+      </div>
+      <p className="text-[15px] text-gray-500 mb-4">{q("supplierQueues.supplierDispatchSubtitle", "Dispatched to Lalamove. Awaiting arrival at the FreshGo hub.")}</p>
+
+      {dispatchOrders.length === 0 ? (
+        <p className="text-gray-400 text-[18px]">{q("supplierQueues.noSupplierDispatch", "No orders currently being dispatched.")}</p>
+      ) : (
+        <div className="space-y-4">
+          {dispatchOrders.map((order, i) => (
+            <div key={order.dbId} className="bg-white rounded-2xl border-2 border-sky-200 p-6 hover:shadow-lg transition-shadow active:scale-[0.97]">
+              <div className="flex items-start justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <span className="text-[24px] font-bold text-sky-300 tabular-nums">#{i + 1}</span>
+                  <div>
+                    <p className="text-[20px] font-bold text-gray-900">{order.customerName}</p>
+                    <p className="text-[13px] text-gray-500 font-mono mt-0.5">{order.orderRef}</p>
+                  </div>
+                </div>
+                <PaymentBadge status={order.paymentStatus} />
+              </div>
+              <div className="flex flex-wrap gap-x-6 gap-y-1 text-[16px] text-gray-600 mb-4">
+                <span>📍 {order.pickupLocation || '—'}</span>
+                {order.houseUnit && <span>🏠 {t("supplierCard.unit")} {order.houseUnit}</span>}
+                <span>📦 {productCount(order)} {t("supplierCard.products")}</span>
+                {order.lalamoveTrackingUrl && (
+                  <a href={order.lalamoveTrackingUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-sky-700 hover:text-sky-900 font-semibold">
+                    <ExternalLink size={14} /> {q("supplierQueues.trackingLink", "Track Lalamove")}
+                  </a>
+                )}
+              </div>
+              <div className="flex gap-3">
+                <button onClick={() => onViewDetails(order)} className="flex-1 border-2 border-cream-200 rounded-xl py-3 text-[16px] font-semibold text-gray-600 min-h-[56px] hover:bg-cream-50 transition-all active:scale-[0.97]">
+                  {t("supplierQueues.viewButton")}
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -1037,7 +1452,7 @@ function OrderFilterModal({ orders, filterStatus, selectedDate, onClose, onOpenO
 
   const calcTotal = (order: SupplierOrder): number => {
     const itemsTotal = order.items.reduce((sum, item, i) => {
-      if (!isPerKg(item)) return sum + item.price * item.quantity;
+      if (!needsWeighing(item)) return sum + item.price * item.quantity;
       const kg = order.supplierWeights[String(i)];
       if (!kg || kg <= 0) return sum;
       return sum + kg * item.price;
@@ -1100,7 +1515,7 @@ function OrderFilterModal({ orders, filterStatus, selectedDate, onClose, onOpenO
                         <p className="text-[15px] font-bold text-gray-700 mb-3">{t("deliverySchedule.labels.products")}</p>
                         <div className="space-y-3">
                           {order.items.map((item, i) => {
-                            const perKg = isPerKg(item);
+                            const perKg = needsWeighing(item);
                             const weight = order.supplierWeights[String(i)];
                             const subtotal = perKg
                               ? (weight ? weight * item.price : item.price * item.quantity)
@@ -1125,7 +1540,7 @@ function OrderFilterModal({ orders, filterStatus, selectedDate, onClose, onOpenO
                                       <p className="text-[13px] text-amber-600 mt-0.5">{t("deliverySchedule.messages.weightNotEntered")}</p>
                                     )}
                                   </div>
-                                  <p className="text-[16px] font-bold text-gray-900 whitespace-nowrap ml-4">RM{subtotal.toFixed(2)}</p>
+                                  <p className="text-[16px] font-bold text-gray-900 whitespace-nowrap ml-4">RM{formatCurrency(subtotal)}</p>
                                 </div>
 
                                 {/* Combo items */}
@@ -1152,11 +1567,11 @@ function OrderFilterModal({ orders, filterStatus, selectedDate, onClose, onOpenO
                       <div className="bg-white rounded-xl border border-cream-200 p-4 space-y-1.5">
                         <div className="flex justify-between text-[14px] text-gray-600">
                           <span>{t("deliverySchedule.labels.deliveryFee")}</span>
-                          <span className="font-semibold">{order.deliveryFee === 0 ? t("deliverySchedule.messages.free") : `RM${order.deliveryFee.toFixed(2)}`}</span>
+                          <span className="font-semibold">{order.deliveryFee === 0 ? t("deliverySchedule.messages.free") : `RM${formatCurrency(order.deliveryFee)}`}</span>
                         </div>
                         <div className="flex justify-between text-[18px] font-bold">
                           <span>{t("deliverySchedule.labels.actualTotal")}</span>
-                          <span className="text-forest-800">RM{actualTotal.toFixed(2)}</span>
+                          <span className="text-forest-800">RM{formatCurrency(actualTotal)}</span>
                         </div>
                       </div>
 
@@ -1205,12 +1620,12 @@ function WeightEntryView({
   const isLocked = order.paymentStatus === 'Paid';
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  const perKgItems = order.items.map((item, i) => ({ item, index: i, perKg: isPerKg(item) }));
+  const perKgItems = order.items.map((item, i) => ({ item, index: i, perKg: needsWeighing(item) }));
 
   const [weights, setWeights] = useState<Record<string, string>>(() => {
     const init: Record<string, string> = {};
     order.items.forEach((item, i) => {
-      if (!isPerKg(item)) return;
+      if (!needsWeighing(item)) return;
       const existing = order.supplierWeights[String(i)];
       init[String(i)] = existing != null ? String(existing) : '';
     });
@@ -1219,18 +1634,18 @@ function WeightEntryView({
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const initiallySaved = new Set(order.items.map((_, i) => i).filter((i) => !isPerKg(order.items[i]) || order.supplierWeights[String(i)] != null));
+  const initiallySaved = new Set(order.items.map((_, i) => i).filter((i) => !needsWeighing(order.items[i]) || order.supplierWeights[String(i)] != null));
   const [savedProducts, setSavedProducts] = useState<Set<number>>(initiallySaved);
   const [completed, setCompleted] = useState(() => {
     if (editMode) return false;
-    return order.items.every((item, i) => !isPerKg(item) || order.supplierWeights[String(i)] != null);
+    return order.items.every((item, i) => !needsWeighing(item) || order.supplierWeights[String(i)] != null);
   });
   const [lastSavedIndex, setLastSavedIndex] = useState<number | null>(null);
   const [currentIndex, setCurrentIndex] = useState(() => {
     if (editMode) {
-      return order.items.findIndex((item, i) => isPerKg(item));
+      return order.items.findIndex((item) => needsWeighing(item));
     }
-    return order.items.findIndex((item, i) => isPerKg(item) && order.supplierWeights[String(i)] == null);
+    return order.items.findIndex((item, i) => needsWeighing(item) && order.supplierWeights[String(i)] == null);
   });
 
   // BUG 3 fix: reset completed when editMode changes without remount
@@ -1241,7 +1656,7 @@ function WeightEntryView({
   }, [editMode]);
 
   const lineTotal = (item: OrderItem, index: number): number => {
-    if (!isPerKg(item)) return item.price * item.quantity;
+    if (!needsWeighing(item)) return item.price * item.quantity;
     const kg = parseFloat(weights[String(index)]);
     if (!kg || kg <= 0) return 0;
     return kg * item.price;
@@ -1249,6 +1664,17 @@ function WeightEntryView({
 
   const orderTotal =
     order.items.reduce((sum, item, i) => sum + lineTotal(item, i), 0) + order.deliveryFee;
+
+  // Live weights -> money for the accounting rows below (auto recompute).
+  const liveWeights = order.items.reduce((acc, item, i) => {
+    if (!needsWeighing(item)) return acc;
+    const v = weights[String(i)];
+    const n = v != null && v.trim() !== '' ? parseFloat(v) : (order.supplierWeights[String(i)] ?? 0);
+    acc[String(i)] = Number.isFinite(n) && n > 0 ? n : 0;
+    return acc;
+  }, {} as Record<string, number>);
+  const costTotal = orderCost(order.items, liveWeights);
+  const grossProfit = orderGrossProfit(order.items, liveWeights);
 
   const handleWeightChange = (index: number, raw: string) => {
     if (raw.startsWith('-')) return;
@@ -1262,7 +1688,7 @@ function WeightEntryView({
       return;
     }
     const item = order.items[index];
-    if (!isPerKg(item)) {
+    if (!needsWeighing(item)) {
       setSavedProducts((prev) => new Set(prev).add(index));
       return;
     }
@@ -1284,7 +1710,7 @@ function WeightEntryView({
     try {
       const allWeights: Record<string, number> = {};
       order.items.forEach((item, i) => {
-        if (!isPerKg(item)) return;
+        if (!needsWeighing(item)) return;
         if (i === index) {
           allWeights[String(i)] = n;
         } else if (savedProducts.has(i)) {
@@ -1297,20 +1723,43 @@ function WeightEntryView({
 
       const newTotal =
         order.items.reduce((sum, item, i) => {
-          if (!isPerKg(item)) return sum + item.price * item.quantity;
+          if (!needsWeighing(item)) return sum + item.price * item.quantity;
           return sum + (allWeights[String(i)] ?? 0) * item.price;
         }, 0) + order.deliveryFee;
 
       const allSaved = order.items.every((item, i) => {
-        if (!isPerKg(item)) return true;
+        if (!needsWeighing(item)) return true;
         return savedProducts.has(i) || i === index;
       });
+
+      // Stamp each item's gross profit (selling - supplier cost, scaled by the
+      // actual weight) back into the order snapshot, plus the order total cost
+      // and gross profit. Historical orders are never rewritten at checkout —
+      // this only corrects the current in-progress order once goods are weighed.
+      const updatedItems = order.items.map((item, i) => ({
+        ...item,
+        grossProfit: Math.round(
+          ((item.price - (item.costPrice ?? 0)) *
+            (needsWeighing(item)
+              ? (allWeights[String(i)] ?? 0)
+              : item.quantity ?? 0)) *
+            100,
+        ) / 100,
+      }));
+      const grossProfit = order.items.reduce((sum, item, i) => {
+        if (!needsWeighing(item)) return sum + (updatedItems[i].grossProfit ?? 0);
+        const w = allWeights[String(i)];
+        if (!w || w <= 0) return sum;
+        return sum + (item.price - (item.costPrice ?? 0)) * w;
+      }, 0);
 
       const { error: updateError } = await supabase
         .from('Orders')
         .update({
           supplier_weights: allWeights,
           total: Math.round(newTotal * 100) / 100,
+          order_items: updatedItems,
+          gross_profit: Math.round(grossProfit * 100) / 100,
           ...(editMode ? {} : { payment_status: allSaved ? 'Ready To Pay' : 'Pending' }),
           updated_at: new Date().toISOString(),
           updated_by: user?.id ?? null,
@@ -1334,7 +1783,7 @@ function WeightEntryView({
       if (allSaved) {
         setCompleted(true);
       } else {
-        const next = order.items.findIndex((item, i) => isPerKg(item) && !newSaved.has(i));
+        const next = order.items.findIndex((item, i) => needsWeighing(item) && !newSaved.has(i));
         if (next >= 0) {
           setCurrentIndex(next);
           setTimeout(() => {
@@ -1441,7 +1890,7 @@ function WeightEntryView({
       {/* Product cards */}
       <div className="space-y-4 mb-6">
         {order.items.map((item, i) => {
-          const perKgFlag = isPerKg(item);
+          const perKgFlag = needsWeighing(item);
           const isActive = currentIndex === i;
           const isDone = savedProducts.has(i);
           const hasComboItems = item.comboItems && item.comboItems.length > 0;
@@ -1461,6 +1910,11 @@ function WeightEntryView({
                   {item.preparation && (
                     <p className="text-[16px] text-gray-500 mt-0.5">{t("cartItem.preparation." + item.preparation)}</p>
                   )}
+                  {isSliceItem(item) && (
+                    <p className="text-[16px] text-purple-700 font-semibold mt-1">
+                      {t("supplierDashboard.slicesRequested", { count: item.sliceQuantity ?? item.quantity })}
+                    </p>
+                  )}
                   {hasComboItems && (
                     <div className="mt-2 space-y-1">
                       <p className="text-[13px] font-semibold text-gray-500 uppercase">{t("supplierDashboard.contains")}</p>
@@ -1478,7 +1932,7 @@ function WeightEntryView({
               <div className="flex items-center gap-4 flex-wrap">
                 <span className="text-[16px] text-gray-600">x{item.quantity}</span>
                 <span className="text-[16px] text-gray-600">
-                  RM{item.price.toFixed(2)}{perKgFlag ? '/kg' : ''}
+                  RM{formatCurrency(item.price)}{perKgFlag ? '/kg' : ''}
                 </span>
 
                 {perKgFlag && !hasComboItems ? (
@@ -1511,7 +1965,7 @@ function WeightEntryView({
                           <span className="text-[16px] text-green-600 font-semibold animate-[fadeSlideUp_0.3s_ease-out]">{t("weightEntry.messages.saved")}</span>
                         )}
                         <span className="text-[18px] font-bold text-green-700">
-                          RM{total.toFixed(2)}
+                          RM{formatCurrency(total)}
                         </span>
                       </div>
                     )}
@@ -1520,7 +1974,7 @@ function WeightEntryView({
                   <div className="flex items-center gap-2 ml-auto">
                     <span className="text-[16px] font-semibold text-green-600 whitespace-nowrap">{t("weightEntry.helper.fixedPrice")}</span>
                     <span className="text-[18px] font-bold text-green-700">
-                      RM{total.toFixed(2)}
+                      RM{formatCurrency(total)}
                     </span>
                   </div>
                 )}
@@ -1536,13 +1990,21 @@ function WeightEntryView({
 
       {/* Totals */}
       <div className="bg-white rounded-2xl border-2 border-cream-200 p-5 mb-6 space-y-2">
+        <div className="flex justify-between text-[18px] text-amber-700">
+          <span>{t("weightEntry.labels.supplierCost")}</span>
+          <span className="font-semibold">RM{formatCurrency(costTotal)}</span>
+        </div>
+        <div className="flex justify-between text-[18px] text-green-700">
+          <span>{t("weightEntry.labels.grossProfit")} <span className="text-[13px] text-gray-400">({marginPercent(orderTotal - order.deliveryFee, costTotal).toFixed(1)}%)</span></span>
+          <span className="font-semibold">+RM{formatCurrency(grossProfit)}</span>
+        </div>
         <div className="flex justify-between text-[18px] text-gray-600">
           <span>{t("weightEntry.labels.deliveryFee")}</span>
-          <span className="font-semibold">{order.deliveryFee === 0 ? t("weightEntry.labels.free") : `RM${order.deliveryFee.toFixed(2)}`}</span>
+          <span className="font-semibold">{order.deliveryFee === 0 ? t("weightEntry.labels.free") : `RM${formatCurrency(order.deliveryFee)}`}</span>
         </div>
         <div className="flex justify-between text-[22px] font-bold">
           <span>{t("weightEntry.labels.grandTotal")}</span>
-          <span className="text-forest-800">RM{orderTotal.toFixed(2)}</span>
+          <span className="text-forest-800">RM{formatCurrency(orderTotal)}</span>
         </div>
       </div>
 
@@ -1625,7 +2087,7 @@ function OrderDetailsView({ order, completionTimes, onClose }: { order: Supplier
             <p className="text-[18px] font-bold text-gray-800 mb-3">{t("supplierOrder.sections.products")}</p>
             <div className="space-y-3">
               {order.items.map((item, i) => {
-                const perKg = isPerKg(item);
+                const perKg = needsWeighing(item);
                 const weight = order.supplierWeights[String(i)];
                 const total = perKg
                   ? (weight ? weight * item.price : 0)
@@ -1636,9 +2098,14 @@ function OrderDetailsView({ order, completionTimes, onClose }: { order: Supplier
                     <div className="flex items-start justify-between">
                       <div>
                         <p className="text-[18px] font-bold text-gray-900">{item.name}</p>
-                        <p className="text-[14px] text-gray-500">{t("supplierOrder.labels.qtyLine", { qty: item.quantity, price: item.price.toFixed(2), suffix: perKg ? t("supplierOrder.labels.perKg") : '' })}</p>
+                        {isSliceItem(item) && (
+                          <p className="text-[14px] font-semibold text-purple-700 mt-1">
+                            {t("supplierOrder.labels.slices", { count: item.sliceQuantity ?? item.quantity })}
+                          </p>
+                        )}
+                        <p className="text-[14px] text-gray-500">{t("supplierOrder.labels.qtyLine", { qty: item.quantity, price: formatCurrency(item.price), suffix: perKg ? t("supplierOrder.labels.perKg") : '' })}</p>
                       </div>
-                      <p className="text-[18px] font-bold text-gray-900">RM{total.toFixed(2)}</p>
+                      <p className="text-[18px] font-bold text-gray-900">RM{formatCurrency(total)}</p>
                     </div>
                     {item.preparation && (
                       <p className="text-[14px] text-gray-500 mt-1">{t("supplierOrder.labels.preparation", { prep: t("cartItem.preparation." + item.preparation) })}</p>
@@ -1659,13 +2126,21 @@ function OrderDetailsView({ order, completionTimes, onClose }: { order: Supplier
 
           {/* Totals & Payment */}
           <div className="bg-white rounded-2xl border-2 border-cream-200 p-5 space-y-2">
+            <div className="flex justify-between text-[16px] text-amber-700">
+              <span>{t("supplierOrder.labels.supplierCost")}</span>
+              <span className="font-semibold">RM{formatCurrency(orderCost(order.items, order.supplierWeights))}</span>
+            </div>
+            <div className="flex justify-between text-[16px] text-green-700">
+              <span>{t("supplierOrder.labels.grossProfit")}</span>
+              <span className="font-semibold">+RM{formatCurrency(orderGrossProfit(order.items, order.supplierWeights))}</span>
+            </div>
             <div className="flex justify-between text-[16px] text-gray-600">
             <span>{t("supplierOrder.labels.deliveryFee")}</span>
-            <span>{order.deliveryFee === 0 ? t("supplierOrder.messages.free") : `RM${order.deliveryFee.toFixed(2)}`}</span>
+            <span>{order.deliveryFee === 0 ? t("supplierOrder.messages.free") : `RM${formatCurrency(order.deliveryFee)}`}</span>
           </div>
           <div className="flex justify-between text-[22px] font-bold">
             <span>{t("supplierOrder.labels.grandTotal")}</span>
-              <span className="text-forest-800">RM{orderTotal.toFixed(2)}</span>
+              <span className="text-forest-800">RM{formatCurrency(orderTotal)}</span>
             </div>
           </div>
 

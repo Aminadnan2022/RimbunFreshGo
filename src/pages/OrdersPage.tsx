@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import { Package, ChevronRight, Loader2, ArrowRight } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { formatCurrency } from '../lib/currency';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import type { Order } from '../types';
@@ -134,7 +135,7 @@ export default function OrdersPage() {
                   </p>
                 </div>
                 <div className="flex items-center gap-4 flex-shrink-0">
-                  <p className="font-bold text-forest-800">RM{order.total.toFixed(2)}</p>
+                  <p className="font-bold text-forest-800">RM{formatCurrency(order.total)}</p>
                   <Link
                     to={`/order/${order.ref}`}
                     className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-forest-700 border border-forest-200 hover:bg-forest-50 transition-all"

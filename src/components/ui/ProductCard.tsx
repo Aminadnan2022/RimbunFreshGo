@@ -8,8 +8,11 @@ import { useAuthModal } from '../../context/AuthModalContext';
 import { useLanguage } from '../../context/LanguageContext';
 import QuantityStepper from './QuantityStepper';
 import EstimatedWeightStepper from './EstimatedWeightStepper';
+import SliceStepper from './SliceStepper';
 import EstimatedQuantityNote from './EstimatedQuantityNote';
 import ProductImage from './ProductImage';
+import { buildCartItem, computeSubtotal, getSliceRange } from '../../lib/sellingOptions';
+import { formatCurrency } from '../../lib/currency';
 
 interface Props {
   product: Product;
@@ -22,6 +25,7 @@ export default function ProductCard({ product }: Props) {
   const { t, lang } = useLanguage();
   const [qty, setQty] = useState(1);
   const [estimatedWeight, setEstimatedWeight] = useState(500);
+  const [sliceQty, setSliceQty] = useState(() => getSliceRange(product).defaultSlice);
   const [prep, setPrep] = useState<PreparationOption>(product.preparationOptions[0]);
   const [added, setAdded] = useState(false);
   const [orderMode, setOrderMode] = useState<'whole' | 'weight'>('whole');
@@ -45,58 +49,13 @@ export default function ProductCard({ product }: Props) {
     }
 
     const mode = product.orderingMode ?? 'fixed_quantity';
-    let itemData: Parameters<typeof addItem>[0];
-
-    if (mode === 'whole_or_weight' && orderMode === 'whole') {
-      const estWeightKg = (qty * (product.averageWeight ?? 0)) / 1000;
-      itemData = {
-        productId: product.id,
-        name: product.name,
-        image: product.image,
-        price: product.price,
-        unit: product.unit,
-        category: product.category,
-        showEstimatedQuantity: product.showEstimatedQuantity,
-        orderingMode: product.orderingMode,
-        averageWeight: product.averageWeight,
-        quantity: qty,
-        estimatedWeight: estWeightKg > 0 ? estWeightKg : undefined,
-        preparation: prep,
-        pricingType: 'per_kg',
-      };
-    } else if (mode === 'weight_only' || (mode === 'whole_or_weight' && orderMode === 'weight')) {
-      itemData = {
-        productId: product.id,
-        name: product.name,
-        image: product.image,
-        price: product.price,
-        unit: product.unit,
-        category: product.category,
-        showEstimatedQuantity: product.showEstimatedQuantity,
-        orderingMode: product.orderingMode,
-        averageWeight: product.averageWeight,
-        quantity: 1,
-        estimatedWeight: estimatedWeight / 1000,
-        preparation: prep,
-        pricingType: 'per_kg',
-      };
-    } else {
-      itemData = {
-        productId: product.id,
-        name: product.name,
-        image: product.image,
-        price: product.price,
-        unit: product.unit,
-        category: product.category,
-        showEstimatedQuantity: product.showEstimatedQuantity,
-        orderingMode: product.orderingMode,
-        averageWeight: product.averageWeight,
-        quantity: qty,
-        estimatedWeight: undefined,
-        preparation: prep,
-        pricingType: 'fixed',
-      };
-    }
+    const itemData = buildCartItem(product, {
+      quantity: qty,
+      weightG: estimatedWeight,
+      sliceQuantity: sliceQty,
+      orderMode: mode === 'whole_or_weight' ? orderMode : undefined,
+      preparation: prep,
+    });
 
     addItem(itemData);
     setAdded(true);
@@ -106,6 +65,25 @@ export default function ProductCard({ product }: Props) {
   const renderStepper = () => {
     const mode = product.orderingMode ?? 'fixed_quantity';
 
+    if (mode === 'slice') {
+      return (
+        <div className="flex flex-col items-end gap-0.5">
+          <SliceStepper
+            value={sliceQty}
+            onChange={setSliceQty}
+            min={product.minSlice}
+            max={product.maxSlice}
+            increment={product.sliceIncrement}
+            unit={product.sliceUnit ?? t("product.sliceUnitDefault")}
+            size="sm"
+          />
+          <span className="text-[10px] text-gray-400 whitespace-nowrap">
+            {t("product.estimatedPriceAfterWeighing")}
+          </span>
+        </div>
+      );
+    }
+
     if (mode === 'whole_or_weight') {
       if (orderMode === 'whole') {
         return (
@@ -114,7 +92,7 @@ export default function ProductCard({ product }: Props) {
             {product.averageWeight && product.averageWeight > 0 && (
               <span className="text-[10px] text-gray-400 whitespace-nowrap">
                 ≈ {((qty * product.averageWeight) / 1000).toFixed(2).replace(/\.?0+$/, '')}kg
-                {' · '}≈ RM{(qty * product.price * product.averageWeight / 1000).toFixed(2)}
+                {' · '}≈ RM{formatCurrency(computeSubtotal(product, { quantity: qty, orderMode: 'whole' }))}
               </span>
             )}
           </div>
@@ -124,7 +102,7 @@ export default function ProductCard({ product }: Props) {
         <div className="flex flex-col items-end gap-0.5">
           <EstimatedWeightStepper value={estimatedWeight} onChange={setEstimatedWeight} size="sm" />
           <span className="text-[10px] text-gray-400 whitespace-nowrap">
-            ≈ RM{(product.price * estimatedWeight / 1000).toFixed(2)}
+            ≈ RM{formatCurrency(computeSubtotal(product, { weightG: estimatedWeight, orderMode: 'weight' }))}
           </span>
         </div>
       );
@@ -135,7 +113,7 @@ export default function ProductCard({ product }: Props) {
         <div className="flex flex-col items-end gap-0.5">
           <EstimatedWeightStepper value={estimatedWeight} onChange={setEstimatedWeight} size="sm" />
           <span className="text-[10px] text-gray-400 whitespace-nowrap">
-            ≈ RM{(product.price * estimatedWeight / 1000).toFixed(2)}
+            ≈ RM{formatCurrency(computeSubtotal(product, { weightG: estimatedWeight }))}
           </span>
         </div>
       );
@@ -204,7 +182,7 @@ export default function ProductCard({ product }: Props) {
 
         <div className="flex items-end justify-between mt-auto pt-1">
           <div>
-            <p className="text-xl font-bold text-forest-800">RM{product.price}</p>
+            <p className="text-xl font-bold text-forest-800">RM{formatCurrency(product.price)}</p>
             <p className="text-xs text-gray-400">{productUnitLabel}</p>
           </div>
           <div className="flex flex-col items-end gap-1">

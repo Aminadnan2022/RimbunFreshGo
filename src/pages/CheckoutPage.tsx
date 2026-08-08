@@ -6,13 +6,17 @@ import { useOrders } from '../context/OrderContext';
 import { useAuth } from '../context/AuthContext';
 import { useDeliveryConfig } from '../context/DeliveryConfigContext';
 import { useLanguage } from '../context/LanguageContext';
+import { useWebsiteSettings } from '../context/WebsiteSettingsContext';
 import { supabase } from '../lib/supabase';
+import { fetchActiveDeliveryPoints, type DeliveryPoint } from '../data/delivery';
 import DeliverySlotSelector from '../components/ui/DeliverySlotSelector';
 import ProductImage from '../components/ui/ProductImage';
+import { formatCurrency } from '../lib/currency';
+import { isSliceItem } from '../lib/sellingOptions';
 import type { CustomerDetails, DeliveryDay, Order, CartItem } from '../types';
 
 const initialDetails: CustomerDetails = {
-  name: '', phone: '', email: '', apartment: '', houseUnit: '', pickupLocation: '', notes: '',
+  name: '', phone: '', email: '', apartment: '', houseUnit: '', pickupLocation: '', deliveryPointName: '', deliveryMethod: '', notes: '',
 };
 
 const DAY_MAP: Record<string, number> = {
@@ -52,19 +56,43 @@ export default function CheckoutPage() {
   const { user, loading: authLoading } = useAuth();
   const { config } = useDeliveryConfig();
   const { t } = useLanguage();
+  const { settings: websiteSettings } = useWebsiteSettings();
   const navigate = useNavigate();
 
   const isWeightItem = (item: CartItem) => {
+    if (isSliceItem(item)) return false;
     if (item.orderingMode) return item.orderingMode === 'weight_only' || item.orderingMode === 'whole_or_weight';
     return item.pricingType === 'per_kg';
   };
 
   const [details, setDetails] = useState<CustomerDetails>(initialDetails);
+  const [deliveryPoints, setDeliveryPoints] = useState<DeliveryPoint[]>([]);
   const [deliveryDay, setDeliveryDay] = useState<DeliveryDay | null>(cart.deliveryDay);
   const [errors, setErrors] = useState<Partial<Record<keyof CustomerDetails | 'deliveryDay', string>>>({});
   const [placing, setPlacing] = useState(false);
   const [placeError, setPlaceError] = useState<string | null>(null);
   const [step, setStep] = useState<'details' | 'payment' | 'done'>('details');
+
+  // Load active delivery points for the checkout dropdown
+  useEffect(() => {
+    let active = true;
+    fetchActiveDeliveryPoints()
+      .then((points) => { if (active) setDeliveryPoints(points); })
+      .catch(() => {});
+    return () => { active = false; };
+  }, []);
+
+  // Pick a delivery point and snapshot its fee + handover method.
+  const setDeliveryPoint = (name: string) => {
+    const point = deliveryPoints.find((p) => p.name === name);
+    setDetails((prev) => ({
+      ...prev,
+      pickupLocation: name,
+      deliveryPointName: name,
+      deliveryMethod: point?.delivery_method ?? '',
+    }));
+    if (errors.deliveryPointName) setErrors((prev) => ({ ...prev, deliveryPointName: undefined }));
+  };
 
   // Pre-populate form from saved delivery profile
   useEffect(() => {
@@ -84,12 +112,14 @@ export default function CheckoutPage() {
           apartment:      data.apartment     || prev.apartment,
           houseUnit:      data.house_unit    || prev.houseUnit,
           pickupLocation: data.pickup_location || prev.pickupLocation,
+          deliveryPointName: data.pickup_location || prev.deliveryPointName,
+          deliveryMethod: prev.deliveryMethod,
           notes:          data.notes          || prev.notes,
         }));
       });
   }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const deliveryFee = subtotal >= 50 ? 0 : 5;
+  const deliveryFee = deliveryPoints.find((p) => p.name === details.deliveryPointName)?.delivery_fee ?? 0;
   const total = subtotal + deliveryFee;
 
   const validate = () => {
@@ -101,7 +131,7 @@ export default function CheckoutPage() {
     if (!details.email.trim()) e.email = t("checkout.validation.emailRequired");
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(details.email)) e.email = t("checkout.validation.emailInvalid");
     if (!details.houseUnit.trim()) e.houseUnit = t("checkout.validation.unitRequired");
-    if (!details.pickupLocation) e.pickupLocation = t("checkout.validation.pickupLocationRequired");
+    if (!details.deliveryPointName) e.deliveryPointName = t("checkout.validation.deliveryPointRequired");
     if (!deliveryDay) e.deliveryDay = t("checkout.validation.deliveryDayRequired");
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -112,6 +142,10 @@ export default function CheckoutPage() {
   };
 
   const handlePlaceOrder = async () => {
+    if (!websiteSettings.allow_customer_orders) {
+      setPlaceError(t("checkout.validation.ordersDisabled"));
+      return;
+    }
     setPlacing(true);
     setPlaceError(null);
     try {
@@ -260,14 +294,21 @@ export default function CheckoutPage() {
                   <input value={details.houseUnit} onChange={set('houseUnit')} placeholder={t("checkout.unitPlaceholder")} className={inputClass(errors.houseUnit)} />
                 </Field>
 
-                <Field label={t("delivery.pickupLocation")} required error={errors.pickupLocation}>
-                  <select value={details.pickupLocation} onChange={set('pickupLocation')} className={inputClass(errors.pickupLocation)}>
-                    <option value="">{t("delivery.selectPickupLocation")}</option>
-                    {config.pickupLocations.map((loc) => (
-                      <option key={loc} value={loc}>{loc}</option>
+                <Field label={t("checkout.deliveryPoint")} required error={errors.deliveryPointName}>
+                  <select value={details.deliveryPointName} onChange={(e) => setDeliveryPoint(e.target.value)} className={inputClass(errors.deliveryPointName)}>
+                    <option value="">{t("checkout.selectDeliveryPoint")}</option>
+                    {deliveryPoints.map((p) => (
+                      <option key={p.id} value={p.name}>
+                        {p.name} · RM{formatCurrency(p.delivery_fee)} · {p.delivery_method}
+                      </option>
                     ))}
                   </select>
                 </Field>
+                {details.deliveryMethod && (
+                  <p className="text-xs text-gray-500 -mt-2">
+                    {t("checkout.deliveryMethod", { method: details.deliveryMethod })}
+                  </p>
+                )}
 
                 <Field label={t("checkout.orderNotes")}>
                   <textarea
@@ -307,7 +348,7 @@ export default function CheckoutPage() {
                   <Lock size={14} />
                   <span className="text-sm font-semibold">{t("payment.cashOnDelivery")}</span>
                 </div>
-                <p className="text-sm text-jade-600">{t("payment.codDescription", { total: total.toFixed(2) })}</p>
+                <p className="text-sm text-jade-600">{t("payment.codDescription", { total: formatCurrency(total) })}</p>
               </div>
 
               <div className="space-y-4">
@@ -316,7 +357,10 @@ export default function CheckoutPage() {
                   <p className="text-sm font-semibold">{details.name}</p>
                   {details.apartment && <p className="text-sm text-gray-600">{details.apartment}</p>}
                   <p className="text-sm text-gray-600">Unit {details.houseUnit}</p>
-                  <p className="text-sm text-gray-600">{details.pickupLocation}</p>
+                  <p className="text-sm text-gray-600">{details.deliveryPointName}</p>
+                  {details.deliveryMethod && (
+                    <p className="text-xs text-forest-700 font-medium">{details.deliveryMethod}</p>
+                  )}
                   <p className="text-sm text-gray-500 mt-1">{details.phone} · {details.email}</p>
                   {details.notes && (
                     <div className="mt-2 pt-2 border-t border-cream-200">
@@ -350,7 +394,7 @@ export default function CheckoutPage() {
                       {t("checkout.placingOrder")}
                     </>
                   ) : (
-                    <>{t("checkout.placeOrder", { total: total.toFixed(2) })}</>
+                    <>{t("checkout.placeOrder", { total: formatCurrency(total) })}</>
                   )}
                 </button>
                 {placeError && (
@@ -377,6 +421,8 @@ export default function CheckoutPage() {
                       )}
                       {isWeightItem(item) ? (
                         <p className="text-xs text-amber-600">~{(item.estimatedWeight ?? 0).toFixed(2)} kg</p>
+                      ) : isSliceItem(item) ? (
+                        <p className="text-xs text-gray-500">{t("checkout.slices", { count: item.sliceQuantity ?? item.quantity })}</p>
                       ) : (
                         <p className="text-xs text-gray-400">{t("checkout.qty", { count: item.quantity })}</p>
                       )}
@@ -384,11 +430,13 @@ export default function CheckoutPage() {
                     <div className="text-right flex-shrink-0">
                       {isWeightItem(item) ? (
                         <div>
-                          <p className="text-sm font-semibold text-amber-700">≈ RM{(item.price * (item.estimatedWeight ?? 0)).toFixed(2)}</p>
+                          <p className="text-sm font-semibold text-amber-700">≈ RM{formatCurrency(item.price * (item.estimatedWeight ?? 0))}</p>
                           <p className="text-xs text-amber-600 leading-tight">{t("checkout.estimatedOnly")}</p>
                         </div>
+                      ) : isSliceItem(item) ? (
+                        <p className="text-xs text-gray-400 leading-tight max-w-[7rem]">{t("checkout.afterWeighing")}</p>
                       ) : (
-                        <p className="text-sm font-semibold text-forest-800">RM{(item.price * item.quantity).toFixed(2)}</p>
+                        <p className="text-sm font-semibold text-forest-800">RM{formatCurrency(item.price * item.quantity)}</p>
                       )}
                     </div>
                   </div>
@@ -412,24 +460,22 @@ export default function CheckoutPage() {
                 </div>
               ))}
             </div>
-            {cart.items.some((i) => isWeightItem(i)) && (
+            {cart.items.some((i) => isWeightItem(i) || isSliceItem(i)) && (
               <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 mb-3 leading-relaxed">
                 {t("checkout.finalPriceAfterWeighing")}
               </p>
             )}
             <div className="border-t border-cream-200 pt-3 space-y-2">
               <div className="flex justify-between text-sm text-gray-600">
-                <span>{t("checkout.subtotal")}</span><span>RM{subtotal.toFixed(2)}</span>
+                <span>{t("checkout.subtotal")}</span><span>RM{formatCurrency(subtotal)}</span>
               </div>
               <div className="flex justify-between text-sm text-gray-600">
                 <span>{t("checkout.delivery")}</span>
-                <span className={deliveryFee === 0 ? 'text-jade-600 font-semibold' : ''}>
-                  {deliveryFee === 0 ? t("checkout.free") : `RM${deliveryFee.toFixed(2)}`}
-                </span>
+                <span>RM{formatCurrency(deliveryFee)}</span>
               </div>
               <div className="flex justify-between font-bold border-t border-cream-200 pt-2">
                 <span>{t("checkout.total")}</span>
-                <span className="text-forest-800">RM{total.toFixed(2)}</span>
+                <span className="text-forest-800">RM{formatCurrency(total)}</span>
               </div>
             </div>
           </div>

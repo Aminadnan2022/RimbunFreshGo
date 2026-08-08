@@ -1,22 +1,59 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Link, Navigate } from 'react-router-dom';
-import { Plus, Search, Pencil, Trash2, X, AlertTriangle, Package, Loader2, Settings, ShoppingBag, Truck, CheckCircle2, AlertCircle, PenLine, ShieldAlert, Clock, Calendar, Users, ClipboardList, ChevronLeft, CreditCard, Phone, Copy, MapPin, Save } from 'lucide-react';
+import { Link, Navigate, useSearchParams, useLocation } from 'react-router-dom';
+import { Plus, Pencil, X, AlertTriangle, Package, Loader2, Settings, ShoppingBag, Truck, CheckCircle2, AlertCircle, PenLine, ShieldAlert, Clock, Calendar, Users, ClipboardList, ChevronLeft, CreditCard, Phone, Copy, Save, Gift, Sparkles, Navigation, FileText, Share2, LayoutDashboard, ListOrdered, Trash2, Boxes, BarChart3 } from 'lucide-react';
 import { getPrepLabel } from '../lib/preparationOptions';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { useProducts } from '../hooks/useProducts';
-import { deleteProduct } from '../data/products';
+import { moveProduct, duplicateProduct, toggleProductPinned, setProductsActive, setProductsPinned, deleteProducts } from '../data/products';
+import SortableList from '../components/admin/SortableList';
+import SortableCard from '../components/admin/sortable/SortableCard';
+import RowMenu from '../components/admin/sortable/RowMenu';
+import UndoToast from '../components/admin/sortable/UndoToast';
+import SortToolbar from '../components/admin/sortable/SortToolbar';
+import BulkActionBar from '../components/admin/sortable/BulkActionBar';
+import { useSortableManager, type SortModeOption } from '../components/admin/sortable/useSortableManager';
 import { useDeliveryConfig } from '../context/DeliveryConfigContext';
 import { supabase } from '../lib/supabase';
 import ProductImage from '../components/ui/ProductImage';
-import type { PaymentStatus, ComboExpandedItem } from '../types';
+import { formatCurrency } from '../lib/currency';
+import AdminComboListPage from './AdminComboListPage';
+import WebsiteVisibilityCard from '../components/admin/WebsiteVisibilityCard';
+import FooterSettingsCard from '../components/admin/FooterSettingsCard';
+import GeneralSettingsCard from '../components/admin/settings/GeneralSettingsCard';
+import BrandingSettingsCard from '../components/admin/settings/BrandingSettingsCard';
+import NavigationSettingsCard from '../components/admin/settings/NavigationSettingsCard';
+import ContactSettingsCard from '../components/admin/settings/ContactSettingsCard';
+import SocialMediaSettingsCard from '../components/admin/settings/SocialMediaSettingsCard';
+import DisplaySortingSettingsCard from '../components/admin/settings/DisplaySortingSettingsCard';
+import DeliveryCapacitySettingsCard from '../components/admin/settings/DeliveryCapacitySettingsCard';
+import DeliveryPointsManager from '../components/admin/DeliveryPointsManager';
+import DeliveryBatchesManager from '../components/admin/DeliveryBatchesManager';
+import BrandLogo from '../components/branding/BrandLogo';
+import type { PaymentStatus, ComboExpandedItem, Product } from '../types';
 
-type Tab = 'products' | 'settings' | 'users' | 'orders';
+type Tab = 'products' | 'combos' | 'settings' | 'users' | 'orders' | 'delivery' | 'batches';
 
 export default function AdminProductsPage() {
   const { t } = useLanguage();
   const { isAdmin, loading: authLoading } = useAuth();
-  const [activeTab, setActiveTab] = useState<Tab>('orders');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
+  const tabParam = searchParams.get('tab') as Tab | null;
+  const pathTab: Tab = location.pathname.startsWith('/admin/combos') ? 'combos' : location.pathname.startsWith('/admin/products') ? 'products' : 'orders';
+  const [activeTab, setActiveTab] = useState<Tab>(tabParam && ['products', 'combos', 'settings', 'users', 'orders', 'delivery', 'batches'].includes(tabParam) ? tabParam : pathTab);
+
+  useEffect(() => {
+    const valid: Tab[] = ['products', 'combos', 'settings', 'users', 'orders', 'delivery', 'batches'];
+    if (tabParam && valid.includes(tabParam)) {
+      setActiveTab(tabParam);
+    }
+  }, [tabParam]);
+
+  function handleTabChange(tab: Tab) {
+    setActiveTab(tab);
+    setSearchParams({ tab }, { replace: true });
+  }
 
   if (authLoading) {
     return (
@@ -30,15 +67,25 @@ export default function AdminProductsPage() {
 
   return (
     <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
-      <div className="mb-6">
-        <h1 className="font-display font-bold text-forest-900 text-2xl">{t("adminDashboard.title")}</h1>
-        <p className="text-sm text-gray-500 mt-1">{t("adminDashboard.subtitle")}</p>
+      <div className="mb-6 flex items-center gap-3">
+        <BrandLogo size="w-10 h-10" iconSize={20} rounded="rounded-2xl" />
+        <div className="flex-1">
+          <h1 className="font-display font-bold text-forest-900 text-2xl">{t("adminDashboard.title")}</h1>
+          <p className="text-sm text-gray-500 mt-1">{t("adminDashboard.subtitle")}</p>
+        </div>
+        <Link
+          to="/admin/reports"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-forest-700 hover:bg-forest-800 transition-all"
+        >
+          <BarChart3 size={16} />
+          {t("businessReports.title")}
+        </Link>
       </div>
 
-      <div className="flex gap-1 border-b border-cream-200 mb-6">
+      <div className="flex gap-1 border-b border-cream-200 mb-6 overflow-x-auto">
         <button
-          onClick={() => setActiveTab('orders')}
-          className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 transition-all -mb-px ${
+          onClick={() => handleTabChange('orders')}
+          className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 transition-all -mb-px whitespace-nowrap ${
             activeTab === 'orders'
               ? 'border-forest-700 text-forest-700'
               : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -48,8 +95,8 @@ export default function AdminProductsPage() {
           {t("adminOrders.tabs.orders")}
         </button>
         <button
-          onClick={() => setActiveTab('products')}
-          className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 transition-all -mb-px ${
+          onClick={() => handleTabChange('products')}
+          className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 transition-all -mb-px whitespace-nowrap ${
             activeTab === 'products'
               ? 'border-forest-700 text-forest-700'
               : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -59,8 +106,19 @@ export default function AdminProductsPage() {
           {t("adminDashboard.tabs.products")}
         </button>
         <button
-          onClick={() => setActiveTab('users')}
-          className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 transition-all -mb-px ${
+          onClick={() => handleTabChange('combos')}
+          className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 transition-all -mb-px whitespace-nowrap ${
+            activeTab === 'combos'
+              ? 'border-forest-700 text-forest-700'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+          }`}
+        >
+          <Gift size={16} />
+          Combos
+        </button>
+        <button
+          onClick={() => handleTabChange('users')}
+          className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 transition-all -mb-px whitespace-nowrap ${
             activeTab === 'users'
               ? 'border-forest-700 text-forest-700'
               : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -70,8 +128,8 @@ export default function AdminProductsPage() {
           {t("adminDashboard.tabs.users")}
         </button>
         <button
-          onClick={() => setActiveTab('settings')}
-          className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 transition-all -mb-px ${
+          onClick={() => handleTabChange('settings')}
+          className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 transition-all -mb-px whitespace-nowrap ${
             activeTab === 'settings'
               ? 'border-forest-700 text-forest-700'
               : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -80,63 +138,180 @@ export default function AdminProductsPage() {
           <Settings size={16} />
           {t("adminDashboard.tabs.settings")}
         </button>
+        <button
+          onClick={() => handleTabChange('delivery')}
+          className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 transition-all -mb-px whitespace-nowrap ${
+            activeTab === 'delivery'
+              ? 'border-forest-700 text-forest-700'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+          }`}
+        >
+          <Truck size={16} />
+          {t("adminDashboard.tabs.delivery")}
+        </button>
+        <button
+          onClick={() => handleTabChange('batches')}
+          className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 transition-all -mb-px whitespace-nowrap ${
+            activeTab === 'batches'
+              ? 'border-forest-700 text-forest-700'
+              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+          }`}
+        >
+          <Boxes size={16} />
+          {t("adminDashboard.tabs.batches")}
+        </button>
       </div>
 
-      {activeTab === 'products' ? <ProductsTab /> : activeTab === 'settings' ? <SettingsTab /> : activeTab === 'users' ? <UsersTab /> : <OrdersTab />}
+      {activeTab === 'products' ? <ProductsTab /> : activeTab === 'combos' ? <AdminComboListPage /> : activeTab === 'settings' ? <SettingsTab /> : activeTab === 'users' ? <UsersTab /> : activeTab === 'delivery' ? <DeliveryPointsManager /> : activeTab === 'batches' ? <DeliveryBatchesManager /> : <OrdersTab />}
     </main>
   );
 }
 
+const PRODUCT_SORT_MODES: SortModeOption<Product>[] = [
+  { value: 'manual', labelKey: 'adminProducts.sort.manual' },
+  { value: 'name', labelKey: 'adminProducts.sort.name', compare: (a, b) => a.name.localeCompare(b.name) },
+  { value: 'price_low', labelKey: 'adminProducts.sort.price_low', compare: (a, b) => a.price - b.price },
+  { value: 'price_high', labelKey: 'adminProducts.sort.price_high', compare: (a, b) => b.price - a.price },
+  { value: 'newest', labelKey: 'adminProducts.sort.newest', compare: (a, b) => (b.displayOrder ?? 0) - (a.displayOrder ?? 0) },
+];
+
+const isProductActive = (p: Product) => p.freshness !== 'sold-out';
+
 function ProductsTab() {
   const { t } = useLanguage();
-  const { products, loading, error } = useProducts();
-  const [search, setSearch] = useState('');
+  const { products, loading, error, refetch } = useProducts(true);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set());
 
-  const filtered = products
-    .filter((p) => !deletedIds.has(p.id))
-    .filter((p) => {
-      if (!search.trim()) return true;
-      const q = search.toLowerCase();
-      return p.name.toLowerCase().includes(q) || p.nameMs.toLowerCase().includes(q) || p.category.includes(q);
-    });
+  const manager = useSortableManager<Product>({
+    items: products,
+    sortModes: PRODUCT_SORT_MODES,
+    getPinned: (p) => p.isPinned,
+    applyPinned: (p, pinned) => ({ ...p, isPinned: pinned }),
+    onMove: (id, toIndex) => moveProduct(id, toIndex),
+    onTogglePin: (id, pinned) => toggleProductPinned(id, pinned),
+    onBulkActive: (ids, active) => setProductsActive(ids, active),
+    onBulkPinned: (ids, pinned) => setProductsPinned(ids, pinned),
+    onBulkDelete: (ids) => deleteProducts(ids),
+    onRefetch: refetch,
+    reorderMessage: t('adminProducts.toast.reordered'),
+    pinMessage: (pinned) => (pinned ? t('adminProducts.toast.pinned') : t('adminProducts.toast.unpinned')),
+    bulkMessage: (label, count) => t('adminProducts.toast.bulkChanged', { count, label: t('adminProducts.actions.' + label) }),
+    undoFailedMessage: t('adminProducts.toast.undoFailed'),
+  });
+
+  const {
+    visible,
+    totalCount,
+    search,
+    setSearch,
+    sortMode,
+    setSortMode,
+    canReorder,
+    savingOrder,
+    busy,
+    selected,
+    allSelected,
+    someSelected,
+    toggleSelected,
+    toggleSelectAll,
+    clearSelection,
+    handleDragEnd,
+    moveUp,
+    moveDown,
+    togglePin,
+    bulkSetActive,
+    bulkSetPinned,
+    bulkDelete,
+    resetOrder,
+    toast,
+    dismissToast,
+  } = manager;
+
+  const handleDuplicate = async (product: Product) => {
+    try {
+      await duplicateProduct(product.id);
+      await refetch();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : t('adminProducts.messages.duplicateFailed'));
+    }
+  };
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
     setDeleting(true);
     try {
-      await deleteProduct(deleteTarget.id);
-      setDeletedIds((prev) => new Set(prev).add(deleteTarget.id));
+      await deleteProducts([deleteTarget.id]);
+      manager.removeLocally([deleteTarget.id]);
       setDeleteTarget(null);
     } catch (err) {
-      alert(err instanceof Error ? err.message : t("adminProducts.messages.deleteFailed"));
+      alert(err instanceof Error ? err.message : t('adminProducts.messages.deleteFailed'));
     } finally {
       setDeleting(false);
     }
   };
 
+  const confirmReset = () => {
+    if (window.confirm(t('adminProducts.sort.resetConfirm'))) resetOrder();
+  };
+
+  const bulkLabels = {
+    selected: t('adminProducts.bulk.selected'),
+    activate: t('adminProducts.bulk.activate'),
+    deactivate: t('adminProducts.bulk.deactivate'),
+    pin: t('adminProducts.bulk.pin'),
+    unpin: t('adminProducts.bulk.unpin'),
+    delete: t('adminProducts.bulk.delete'),
+    clear: t('adminProducts.bulk.clear'),
+  };
+
   return (
     <>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <p className="text-sm text-gray-500">{t("adminProducts.products.count", { count: filtered.length })}</p>
-        <Link to="/admin/products/new" className="btn-primary inline-flex items-center gap-2 self-start">
-          <Plus size={18} />
-          {t("adminProducts.buttons.add")}
-        </Link>
+        <p className="text-sm text-gray-500">
+          {savingOrder && <span className="text-forest-600 font-medium inline-flex items-center gap-1.5"><Loader2 size={14} className="animate-spin" /> {t('adminProducts.messages.savingOrder')}</span>}
+          {!savingOrder && selected.size > 0
+            ? t('adminProducts.bulk.selected', { count: selected.size })
+            : t('adminProducts.products.count', { count: visible.length })}
+        </p>
+        <div className="flex items-center gap-2 self-start">
+          <button onClick={confirmReset} className="px-4 py-2 rounded-xl text-sm font-medium text-gray-600 border border-cream-300 hover:border-forest-400 hover:text-forest-700 transition-all">
+            {t('adminProducts.sort.reset')}
+          </button>
+          <Link to="/admin/products/new" className="btn-primary inline-flex items-center gap-2">
+            <Plus size={18} />
+            {t('adminProducts.buttons.add')}
+          </Link>
+        </div>
       </div>
 
-      <div className="relative mb-6">
-        <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-        <input
-          type="search"
-          placeholder={t("adminProducts.search.placeholder")}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="input-field pl-11"
+      <div className="mb-6">
+        <SortToolbar
+          search={search}
+          onSearchChange={setSearch}
+          searchPlaceholder={t('adminProducts.search.placeholder')}
+          sortMode={sortMode}
+          onSortModeChange={setSortMode}
+          sortModes={PRODUCT_SORT_MODES}
+          label={(k) => t(k)}
+          manualHint={search.trim() ? t('adminProducts.sort.searchHint') : t('adminProducts.sort.manualHint')}
+          showManualHint
+          savingOrder={savingOrder}
+          busy={busy}
         />
       </div>
+
+      <BulkActionBar
+        count={selected.size}
+        busy={busy}
+        onActivate={() => bulkSetActive(true)}
+        onDeactivate={() => bulkSetActive(false)}
+        onPin={() => bulkSetPinned(true)}
+        onUnpin={() => bulkSetPinned(false)}
+        onDelete={bulkDelete}
+        onClear={clearSelection}
+        labels={bulkLabels}
+      />
 
       {loading ? (
         <div className="flex items-center justify-center py-20">
@@ -144,75 +319,112 @@ function ProductsTab() {
         </div>
       ) : error ? (
         <div className="text-center py-20 text-red-500">{error}</div>
-      ) : filtered.length === 0 ? (
+      ) : visible.length === 0 ? (
         <div className="text-center py-20">
           <Package size={48} className="mx-auto text-gray-300 mb-4" />
-          <p className="text-gray-500">{search ? t("adminProducts.messages.noSearchResults") : t("adminProducts.messages.noProducts")}</p>
+          <p className="text-gray-500">{search ? t('adminProducts.messages.noSearchResults') : t('adminProducts.messages.noProducts')}</p>
         </div>
       ) : (
         <>
           <div className="bg-white rounded-2xl border border-cream-200 shadow-soft overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-cream-50 border-b border-cream-200">
-                    <th className="text-left px-4 py-3 font-semibold text-gray-700 w-8">#</th>
-                    <th className="text-left px-4 py-3 font-semibold text-gray-700">{t("adminProducts.labels.productName")}</th>
-                    <th className="text-left px-4 py-3 font-semibold text-gray-700 hidden sm:table-cell">{t("adminProducts.labels.category")}</th>
-                    <th className="text-left px-4 py-3 font-semibold text-gray-700">{t("adminProducts.labels.price")}</th>
-                    <th className="text-left px-4 py-3 font-semibold text-gray-700 hidden md:table-cell">{t("adminProducts.labels.status")}</th>
-                    <th className="text-right px-4 py-3 font-semibold text-gray-700">{t("adminProducts.labels.actions")}</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-cream-100">
-                  {filtered.map((product, index) => (
-                    <tr key={product.id} className="hover:bg-cream-50/50 transition-colors">
-                      <td className="px-4 py-3 text-xs text-gray-400 tabular-nums">{index + 1}</td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-3">
-                          <ProductImage src={product.image} alt={product.name} className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
-                          <div className="min-w-0">
-                            <p className="font-medium text-gray-900 truncate">{product.name}</p>
-                            <p className="text-xs text-gray-400 truncate">{product.nameMs}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 hidden sm:table-cell">
-                        <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-medium bg-forest-50 text-forest-700 capitalize">
-                          {product.category}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 font-medium text-gray-900">RM{product.price.toFixed(2)}</td>
-                      <td className="px-4 py-3 hidden md:table-cell">
-                        <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                          product.freshness === 'available' ? 'bg-green-50 text-green-700' :
-                          product.freshness === 'limited' ? 'bg-amber-50 text-amber-700' :
-                          'bg-red-50 text-red-700'
-                        }`}>
-                          {product.freshness}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center justify-end gap-1">
-                          <Link to={`/admin/products/edit/${product.id}`} className="p-2 rounded-lg text-gray-500 hover:text-forest-700 hover:bg-forest-50 transition-all" title={t("adminProducts.buttons.edit")}>
-                            <Pencil size={16} />
-                          </Link>
-                          <button onClick={() => setDeleteTarget({ id: product.id, name: product.name })} className="p-2 rounded-lg text-gray-500 hover:text-red-600 hover:bg-red-50 transition-all" title={t("adminProducts.buttons.delete")}>
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="flex items-center gap-3 px-3 py-2 bg-cream-50/70 border-b border-cream-100 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={allSelected}
+                  ref={(el) => { if (el) el.indeterminate = someSelected; }}
+                  onChange={toggleSelectAll}
+                  className="w-4 h-4 rounded border-cream-300 text-forest-700 focus:ring-forest-500"
+                />
+                {selected.size > 0
+                  ? t('adminProducts.bulk.selected', { count: selected.size })
+                  : t('adminProducts.labels.selectAll')}
+              </label>
+              <span className="text-gray-400 normal-case">{t('adminProducts.labels.dragHint')}</span>
             </div>
+            <SortableList ids={visible.map((p) => p.id)} onDragEnd={handleDragEnd} disabled={!canReorder}>
+              <div className="divide-y divide-cream-100">
+                {visible.map((product) => (
+                  <SortableCard
+                    key={product.id}
+                    id={product.id}
+                    canReorder={canReorder}
+                    pinned={product.isPinned}
+                    onTogglePin={() => togglePin(product.id)}
+                    onMoveUp={() => moveUp(product.id)}
+                    onMoveDown={() => moveDown(product.id)}
+                    selected={selected.has(product.id)}
+                    onToggleSelect={() => toggleSelected(product.id)}
+                    showCheckbox
+                    className="bg-white"
+                  >
+                    <div className="flex items-center gap-4 py-3 pr-3">
+                      <ProductImage src={product.image} alt={product.name} className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-gray-900 truncate">{product.name}</p>
+                          {product.isPinned && (
+                            <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-semibold text-forest-700 bg-forest-50 px-1.5 py-0.5 rounded-full uppercase tracking-wide">
+                              {t('adminCombos.badges.pinned')}
+                            </span>
+                          )}
+                          {!isProductActive(product) && (
+                            <span className="text-[10px] font-semibold text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded-full uppercase tracking-wide">
+                              {t('adminCombos.badges.inactive')}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-400 truncate">{product.nameMs}</p>
+                      </div>
+                      <span className="hidden sm:inline-block px-2.5 py-0.5 rounded-full text-xs font-medium bg-forest-50 text-forest-700 capitalize">
+                        {product.category}
+                      </span>
+                      <span className="font-medium text-gray-900 whitespace-nowrap">RM{formatCurrency(product.price)}</span>
+                      <span className={`hidden md:inline-block px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                        product.freshness === 'available' ? 'bg-green-50 text-green-700' :
+                        product.freshness === 'limited' ? 'bg-amber-50 text-amber-700' :
+                        'bg-red-50 text-red-700'
+                      }`}>
+                        {product.freshness}
+                      </span>
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Link to={`/admin/products/edit/${product.id}`} className="p-2 rounded-lg text-gray-500 hover:text-forest-700 hover:bg-forest-50 transition-all" title={t('adminProducts.buttons.edit')}>
+                          <Pencil size={16} />
+                        </Link>
+                        <RowMenu
+                          title={t('adminProducts.labels.actions')}
+                          actions={[
+                            { key: 'duplicate', label: t('adminProducts.buttons.duplicate'), onClick: () => handleDuplicate(product) },
+                            {
+                              key: 'pin',
+                              label: product.isPinned ? t('adminProducts.actions.unpin') : t('adminProducts.actions.pin'),
+                              onClick: () => togglePin(product.id),
+                            },
+                            {
+                              key: 'activate',
+                              label: isProductActive(product) ? t('adminProducts.bulk.deactivate') : t('adminProducts.bulk.activate'),
+                              onClick: () => setProductsActive([product.id], !isProductActive(product)).then(refetch),
+                            },
+                            {
+                              key: 'delete',
+                              label: t('adminProducts.buttons.delete'),
+                              danger: true,
+                              onClick: () => setDeleteTarget({ id: product.id, name: product.name }),
+                            },
+                          ]}
+                        />
+                      </div>
+                    </div>
+                  </SortableCard>
+                ))}
+              </div>
+            </SortableList>
           </div>
 
           <div className="text-right text-xs text-gray-400 mt-2">
             {search.trim()
-              ? t("adminProducts.pagination.showing", { count: filtered.length, total: products.length })
-              : t("adminProducts.pagination.total", { count: products.length })}
+              ? t('adminProducts.pagination.showing', { count: visible.length, total: totalCount })
+              : t('adminProducts.pagination.total', { count: totalCount })}
           </div>
         </>
       )}
@@ -228,19 +440,28 @@ function ProductsTab() {
               <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center flex-shrink-0">
                 <AlertTriangle size={20} className="text-red-600" />
               </div>
-              <h3 className="font-semibold text-gray-900 text-lg">{t("adminProducts.delete.title")}</h3>
+              <h3 className="font-semibold text-gray-900 text-lg">{t('adminProducts.delete.title')}</h3>
             </div>
-            <p className="text-sm text-gray-600 mb-6">{t("adminProducts.delete.confirm", { name: deleteTarget.name })}</p>
+            <p className="text-sm text-gray-600 mb-6">{t('adminProducts.delete.confirm', { name: deleteTarget.name })}</p>
             <div className="flex gap-3 justify-end">
               <button onClick={() => setDeleteTarget(null)} disabled={deleting} className="px-4 py-2 rounded-xl text-sm font-medium text-gray-700 border border-gray-200 hover:bg-gray-50 transition-all">
-                {t("adminProducts.buttons.cancel")}
+                {t('adminProducts.buttons.cancel')}
               </button>
               <button onClick={handleDelete} disabled={deleting} className="px-4 py-2 rounded-xl text-sm font-semibold text-white bg-red-600 hover:bg-red-700 transition-all disabled:opacity-50">
-                {deleting ? t("adminProducts.messages.deleting") : t("adminProducts.buttons.delete")}
+                {deleting ? t('adminProducts.messages.deleting') : t('adminProducts.buttons.delete')}
               </button>
             </div>
           </div>
         </div>
+      )}
+
+      {toast && (
+        <UndoToast
+          message={toast.message}
+          undoLabel={t('adminProducts.toast.undo')}
+          onUndo={toast.undo}
+          onDismiss={dismissToast}
+        />
       )}
     </>
   );
@@ -254,18 +475,9 @@ function SettingsTab() {
   const [draftDays, setDraftDays] = useState<string[]>([]);
   const [customDay, setCustomDay] = useState('');
   const [draftTime, setDraftTime] = useState('');
-  const [draftAnnouncement, setDraftAnnouncement] = useState('');
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [errorMsg, setErrorMsg] = useState('');
-
-  // Pickup locations state
-  const [editingLocations, setEditingLocations] = useState(false);
-  const [draftLocations, setDraftLocations] = useState<string[]>([]);
-  const [newLocation, setNewLocation] = useState('');
-  const [savingLocations, setSavingLocations] = useState(false);
-  const [locStatus, setLocStatus] = useState<'idle' | 'success' | 'error'>('idle');
-  const [locError, setLocError] = useState('');
 
   const handleEditClick = () => {
     setShowWarning(true);
@@ -274,7 +486,6 @@ function SettingsTab() {
   const handleConfirmEdit = () => {
     setDraftDays([...config.days]);
     setDraftTime(config.time);
-    setDraftAnnouncement(config.announcement);
     setEditing(true);
     setShowWarning(false);
     setStatus('idle');
@@ -309,18 +520,12 @@ function SettingsTab() {
       setErrorMsg(t("adminSettings.errors.noTime"));
       return;
     }
-    if (!draftAnnouncement.trim()) {
-      setStatus('error');
-      setErrorMsg(t("adminSettings.errors.noAnnouncement"));
-      return;
-    }
     setSaving(true);
     setStatus('idle');
     try {
       await updateConfig({
         days: draftDays,
         time: draftTime.trim(),
-        announcement: draftAnnouncement.trim(),
       });
       setStatus('success');
       setEditing(false);
@@ -330,45 +535,6 @@ function SettingsTab() {
       setErrorMsg(err instanceof Error ? err.message : t("adminSettings.errors.saveFailed"));
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleEditLocations = () => {
-    setDraftLocations([...config.pickupLocations]);
-    setEditingLocations(true);
-    setLocStatus('idle');
-  };
-
-  const addLocation = () => {
-    const trimmed = newLocation.trim();
-    if (trimmed && !draftLocations.includes(trimmed)) {
-      setDraftLocations([...draftLocations, trimmed]);
-    }
-    setNewLocation('');
-  };
-
-  const removeLocation = (loc: string) => {
-    setDraftLocations(draftLocations.filter((l) => l !== loc));
-  };
-
-  const handleSaveLocations = async () => {
-    if (draftLocations.length === 0) {
-      setLocStatus('error');
-      setLocError(t("adminSettings.errors.noLocation"));
-      return;
-    }
-    setSavingLocations(true);
-    setLocStatus('idle');
-    try {
-      await updateConfig({ pickupLocations: draftLocations });
-      setLocStatus('success');
-      setEditingLocations(false);
-      setTimeout(() => setLocStatus('idle'), 4000);
-    } catch (err) {
-      setLocStatus('error');
-      setLocError(err instanceof Error ? err.message : t("adminSettings.errors.saveLocationsFailed"));
-    } finally {
-      setSavingLocations(false);
     }
   };
 
@@ -384,10 +550,46 @@ function SettingsTab() {
     ? `${config.days.slice(0, -1).join(', ')} & ${config.days[config.days.length - 1]}`
     : config.days[0] ?? '';
 
+  const navSections = [
+    { id: 'general', icon: Settings, labelKey: 'adminSettings.nav.general' },
+    { id: 'branding', icon: Sparkles, labelKey: 'adminSettings.nav.branding' },
+    { id: 'navigation', icon: Navigation, labelKey: 'adminSettings.nav.navigation' },
+    { id: 'footer', icon: FileText, labelKey: 'adminSettings.nav.footer' },
+    { id: 'contact', icon: Phone, labelKey: 'adminSettings.nav.contact' },
+    { id: 'social', icon: Share2, labelKey: 'adminSettings.nav.social' },
+    { id: 'delivery', icon: Truck, labelKey: 'adminSettings.nav.delivery' },
+    { id: 'visibility', icon: LayoutDashboard, labelKey: 'adminSettings.nav.visibility' },
+    { id: 'sorting', icon: ListOrdered, labelKey: 'adminSettings.nav.sorting' },
+  ];
+
   return (
-    <div className="max-w-2xl space-y-6">
-      {/* Current Live Settings */}
-      <section className="bg-white rounded-2xl border border-cream-200 shadow-soft p-6">
+    <div className="max-w-6xl">
+      <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6">
+        <aside className="hidden lg:block">
+          <nav className="sticky top-24 space-y-1">
+            {navSections.map(({ id, icon: Icon, labelKey }) => (
+              <a
+                key={id}
+                href={`#settings-${id}`}
+                className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium text-gray-600 hover:text-forest-700 hover:bg-forest-50 transition-all"
+              >
+                <Icon size={16} className="text-gray-400" />
+                {t(labelKey)}
+              </a>
+            ))}
+          </nav>
+        </aside>
+        <div className="space-y-6 min-w-0">
+          <section id="settings-general" className="scroll-mt-28"><GeneralSettingsCard /></section>
+          <section id="settings-branding" className="scroll-mt-28"><BrandingSettingsCard /></section>
+          <section id="settings-navigation" className="scroll-mt-28"><NavigationSettingsCard /></section>
+          <section id="settings-footer" className="scroll-mt-28"><FooterSettingsCard /></section>
+          <section id="settings-contact" className="scroll-mt-28"><ContactSettingsCard /></section>
+          <section id="settings-social" className="scroll-mt-28"><SocialMediaSettingsCard /></section>
+
+          <section id="settings-delivery" className="scroll-mt-28 space-y-6">
+            {/* Current Live Settings */}
+            <section className="bg-white rounded-2xl border border-cream-200 shadow-soft p-6">
         <div className="flex items-center gap-3 mb-5">
           <div className="w-10 h-10 rounded-xl bg-forest-50 flex items-center justify-center flex-shrink-0">
             <Truck size={20} className="text-forest-700" />
@@ -415,16 +617,6 @@ function SettingsTab() {
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("adminSettings.sections.deliveryWindow")}</p>
                 </div>
                 <p className="text-sm font-semibold text-gray-900">{config.time}</p>
-              </div>
-            </div>
-
-            <div>
-              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t("adminSettings.labels.announcementPreview")}</p>
-              <div className="gradient-forest text-white py-2.5 px-4 rounded-xl text-center text-sm font-medium">
-                <div className="flex items-center justify-center gap-2">
-                  <Truck size={15} className="opacity-90 flex-shrink-0" />
-                  <span>{config.announcement}</span>
-                </div>
               </div>
             </div>
           </div>
@@ -489,36 +681,6 @@ function SettingsTab() {
               />
               <p className="text-xs text-gray-400 mt-1.5">{t("adminSettings.delivery.timeHelper")}</p>
             </div>
-
-            {/* Announcement Message */}
-            <div>
-              <label htmlFor="announcement_msg" className="block text-sm font-medium text-gray-700 mb-2">
-                <Truck size={14} className="inline mr-1.5 -mt-0.5" />
-                {t("adminSettings.labels.announcement")}
-              </label>
-              <textarea
-                id="announcement_msg"
-                value={draftAnnouncement}
-                onChange={(e) => setDraftAnnouncement(e.target.value)}
-                rows={3}
-                className="input-field resize-none"
-                placeholder={t("adminSettings.delivery.announcementPlaceholder")}
-              />
-              <p className="text-xs text-gray-400 mt-1.5">{t("adminSettings.delivery.announcementHelper")}</p>
-            </div>
-
-            {/* Preview */}
-            {draftAnnouncement.trim() && (
-              <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">{t("adminSettings.labels.livePreview")}</p>
-                <div className="gradient-forest text-white py-2.5 px-4 rounded-xl text-center text-sm font-medium">
-                  <div className="flex items-center justify-center gap-2">
-                    <Truck size={15} className="opacity-90 flex-shrink-0" />
-                    <span>{draftAnnouncement}</span>
-                  </div>
-                </div>
-              </div>
-            )}
 
             <div className="flex gap-3 justify-end pt-2">
               <button
@@ -602,114 +764,22 @@ function SettingsTab() {
         </div>
       )}
 
-      {/* Pickup Locations */}
-      <section className="bg-white rounded-2xl border border-cream-200 shadow-soft p-6">
-        <div className="flex items-center gap-3 mb-5">
-          <div className="w-10 h-10 rounded-xl bg-forest-50 flex items-center justify-center flex-shrink-0">
-            <MapPin size={20} className="text-forest-700" />
-          </div>
-          <div>
-            <h2 className="font-semibold text-forest-900 text-base">{t("adminSettings.sections.pickupLocations")}</h2>
-            <p className="text-xs text-gray-500 mt-0.5">{t("adminSettings.pickup.description")}</p>
-          </div>
+          <DeliveryCapacitySettingsCard />
+        </section>
+
+        <section id="settings-visibility" className="scroll-mt-28">
+          <WebsiteVisibilityCard />
+        </section>
+
+        <section id="settings-sorting" className="scroll-mt-28">
+          <DisplaySortingSettingsCard />
+        </section>
         </div>
-
-        {!editingLocations ? (
-          <>
-            <ul className="space-y-2 mb-5">
-              {config.pickupLocations.map((loc) => (
-                <li key={loc} className="flex items-center gap-2 text-sm text-gray-700">
-                  <span className="w-1.5 h-1.5 rounded-full bg-forest-500 flex-shrink-0" />
-                  {loc}
-                </li>
-              ))}
-              {config.pickupLocations.length === 0 && (
-                <li className="text-sm text-gray-400 italic">{t("adminSettings.messages.noPickupLocations")}</li>
-              )}
-            </ul>
-            <button
-              type="button"
-              onClick={handleEditLocations}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-forest-700 border-2 border-forest-200 bg-forest-50 hover:bg-forest-100 transition-all"
-            >
-              <PenLine size={16} />
-              {t("adminSettings.buttons.edit")}
-            </button>
-          </>
-        ) : (
-          <div className="space-y-4">
-            <div className="space-y-2">
-              {draftLocations.map((loc, idx) => (
-                <div key={idx} className="flex items-center gap-2">
-                  <span className="flex-1 text-sm text-gray-700 bg-cream-50 border border-cream-200 rounded-xl px-3 py-2">{loc}</span>
-                  <button
-                    type="button"
-                    onClick={() => removeLocation(loc)}
-                    className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all"
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
-              ))}
-              {draftLocations.length === 0 && (
-                <p className="text-sm text-gray-400 italic">{t("adminSettings.messages.noLocationsAdded")}</p>
-              )}
-            </div>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={newLocation}
-                onChange={(e) => setNewLocation(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addLocation(); } }}
-                placeholder={t("adminSettings.pickup.placeholder")}
-                className="input-field flex-1"
-              />
-              <button
-                type="button"
-                onClick={addLocation}
-                disabled={!newLocation.trim()}
-                className="px-4 py-2 rounded-xl text-sm font-semibold bg-forest-700 text-white hover:bg-forest-800 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                {t("adminSettings.buttons.add")}
-              </button>
-            </div>
-            <div className="flex gap-3 justify-end pt-1">
-              <button
-                type="button"
-                onClick={() => setEditingLocations(false)}
-                disabled={savingLocations}
-                className="px-4 py-2 rounded-xl text-sm font-medium text-gray-700 border border-gray-200 hover:bg-gray-50 transition-all"
-              >
-                {t("adminSettings.buttons.cancel")}
-              </button>
-              <button
-                type="button"
-                onClick={handleSaveLocations}
-                disabled={savingLocations}
-                className="btn-primary inline-flex items-center gap-2 disabled:opacity-50"
-              >
-                {savingLocations ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
-                {savingLocations ? t("adminSettings.messages.saving") : t("adminSettings.buttons.save")}
-              </button>
-            </div>
-            {locStatus === 'error' && (
-              <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-100 rounded-xl text-red-600 text-sm">
-                <AlertCircle size={16} /> {locError}
-              </div>
-            )}
-          </div>
-        )}
-
-        {locStatus === 'success' && (
-          <div className="flex items-center gap-2 p-3 bg-green-50 border border-green-200 rounded-xl text-green-700 text-sm mt-3 animate-[fadeSlideUp_0.2s_ease-out]">
-            <CheckCircle2 size={16} /> {t("adminSettings.messages.saved")}
-          </div>
-        )}
-      </section>
+      </div>
     </div>
   );
 }
-type UserRoleValue = 'admin' | 'supplier' | 'customer';
+type UserRoleValue = 'admin' | 'supplier' | 'delivery_rider' | 'customer';
 
 type UserRow = {
   id: string;
@@ -718,9 +788,10 @@ type UserRow = {
 };
 
 const roleBadgeClass: Record<UserRoleValue, string> = {
-  admin:    'bg-forest-50 text-forest-700',
-  supplier: 'bg-jade-50 text-jade-700',
-  customer: 'bg-cream-100 text-gray-600',
+  admin:          'bg-forest-50 text-forest-700',
+  supplier:       'bg-jade-50 text-jade-700',
+  delivery_rider: 'bg-amber-50 text-amber-700',
+  customer:       'bg-cream-100 text-gray-600',
 };
 
 function UsersTab() {
@@ -762,12 +833,12 @@ function UsersTab() {
       const merged: UserRow[] = authUsers.map((u) => {
         const r = roleMap.get(u.id);
         const role: UserRoleValue =
-          r === 'admin' ? 'admin' : r === 'supplier' ? 'supplier' : 'customer';
+          r === 'admin' ? 'admin' : r === 'supplier' ? 'supplier' : r === 'delivery_rider' ? 'delivery_rider' : 'customer';
         return { id: u.id, email: u.email, role };
       });
 
       merged.sort((a, b) => {
-        const order: Record<UserRoleValue, number> = { admin: 0, supplier: 1, customer: 2 };
+        const order: Record<UserRoleValue, number> = { admin: 0, supplier: 1, delivery_rider: 2, customer: 3 };
         return order[a.role] - order[b.role] || a.email.localeCompare(b.email);
       });
 
@@ -852,15 +923,24 @@ function UsersTab() {
                 u.role === 'customer'
                   ? [
                       { label: t("adminUsers.buttons.promoteToSupplier"), to: 'supplier' },
-                      { label: t("adminUsers.buttons.promoteToAdmin"),    to: 'admin' },
+                      { label: t("adminUsers.buttons.promoteToRider"),   to: 'delivery_rider' },
+                      { label: t("adminUsers.buttons.promoteToAdmin"),   to: 'admin' },
                     ]
                   : u.role === 'supplier'
                   ? [
                       { label: t("adminUsers.buttons.makeCustomer"),    to: 'customer', danger: true },
-                      { label: t("adminUsers.buttons.promoteToAdmin"), to: 'admin' },
+                      { label: t("adminUsers.buttons.makeRider"),       to: 'delivery_rider' },
+                      { label: t("adminUsers.buttons.promoteToAdmin"),  to: 'admin' },
+                    ]
+                  : u.role === 'delivery_rider'
+                  ? [
+                      { label: t("adminUsers.buttons.makeCustomer"), to: 'customer', danger: true },
+                      { label: t("adminUsers.buttons.makeSupplier"), to: 'supplier' },
+                      { label: t("adminUsers.buttons.makeAdmin"),    to: 'admin' },
                     ]
                   : [
                       { label: t("adminUsers.buttons.makeSupplier"), to: 'supplier' },
+                      { label: t("adminUsers.buttons.makeRider"),    to: 'delivery_rider' },
                       { label: t("adminUsers.buttons.makeCustomer"), to: 'customer', danger: true },
                     ];
 
@@ -874,7 +954,7 @@ function UsersTab() {
                   </td>
                   <td className="px-4 py-3">
                     <span className={`inline-block px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${roleBadgeClass[u.role]}`}>
-                      {u.role}
+                      {t("adminUsers.roles." + u.role)}
                     </span>
                   </td>
                   <td className="px-4 py-3">
@@ -1031,7 +1111,7 @@ function buildPaymentMessage(order: AdminOrder): string {
     order.orderRef,
     '',
     'Final Amount:',
-    `RM ${order.total.toFixed(2)}`,
+    `RM ${formatCurrency(order.total)}`,
     '',
     'Delivery Schedule:',
     order.deliveryDate,
@@ -1237,7 +1317,7 @@ const [orders, setOrders] = useState<AdminOrder[]>([]);
                         {new Date(order.createdAt).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
                       </td>
                       <td className="px-4 py-3 text-gray-600 hidden sm:table-cell whitespace-nowrap">{formatDeliveryDate(order.deliveryDate)}</td>
-                      <td className="px-4 py-3 font-semibold text-gray-900">RM{order.total.toFixed(2)}</td>
+                      <td className="px-4 py-3 font-semibold text-gray-900">RM{formatCurrency(order.total)}</td>
                       <td className="px-4 py-3"><AdminOrderStatusBadge status={order.orderStatus} t={t} /></td>
                       <td className="px-4 py-3"><AdminPaymentBadge status={order.paymentStatus} /></td>
                       <td className="px-4 py-3 text-right">
@@ -1283,7 +1363,7 @@ const [orders, setOrders] = useState<AdminOrder[]>([]);
             <div className="p-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">{t("adminOrders.modal.deleteTitle")}</h3>
               <div className="space-y-3 text-sm text-gray-600 mb-6">
-                <p dangerouslySetInnerHTML={{ __html: t("adminOrders.modal.deleteBody", { ref: deleteSelected.orderRef, customer: deleteSelected.customerName, total: `RM${deleteSelected.total.toFixed(2)}` }) }} />
+                <p dangerouslySetInnerHTML={{ __html: t("adminOrders.modal.deleteBody", { ref: deleteSelected.orderRef, customer: deleteSelected.customerName, total: `RM${formatCurrency(deleteSelected.total)}` }) }} />
                 <p className="text-red-600 font-medium">{t("adminOrders.messages.cannotUndo")}</p>
               </div>
               <div className="flex justify-end gap-3">
@@ -1409,7 +1489,7 @@ function AdminOrderDetailView({
               </thead>
               <tbody className="divide-y divide-cream-100">
                 {order.orderItems.map((item, i) => {
-                  const isPerKg = item.pricingType === 'per_kg' || (!item.pricingType && item.unit === 'per kg');
+                  const isPerKg = item.pricingType === 'per_kg' || item.pricingType === 'slice' || item.sliceQuantity != null || (!item.pricingType && item.unit === 'per kg');
                   const actualKg = order.supplierWeights[String(i)];
                   const lineTotal = isPerKg && actualKg
                     ? actualKg * item.price
@@ -1437,7 +1517,9 @@ function AdminOrderDetailView({
                       <td className="px-4 py-3 text-gray-500 hidden sm:table-cell">
                         {item.preparation ? getPrepLabel(item.preparation) : '—'}
                       </td>
-                      <td className="px-4 py-3 text-right text-gray-600">{item.quantity}</td>
+                      <td className="px-4 py-3 text-right text-gray-600">
+                        {item.sliceQuantity != null ? `${item.sliceQuantity} slices` : item.quantity}
+                      </td>
                       <td className="px-4 py-3 text-right hidden md:table-cell">
                         {isPerKg && !hasComboItems
                           ? actualKg != null
@@ -1447,7 +1529,7 @@ function AdminOrderDetailView({
                         }
                       </td>
                       <td className="px-4 py-3 text-right font-semibold text-gray-900">
-                        RM{lineTotal.toFixed(2)}
+                        RM{formatCurrency(lineTotal)}
                       </td>
                     </tr>
                   );
@@ -1457,15 +1539,15 @@ function AdminOrderDetailView({
           </div>
           <div className="border-t border-cream-200 px-4 py-3 space-y-1.5">
             <div className="flex justify-between text-sm text-gray-600">
-              <span>{t("adminOrders.labels.subtotal")}</span><span>RM{order.subtotal.toFixed(2)}</span>
+              <span>{t("adminOrders.labels.subtotal")}</span><span>RM{formatCurrency(order.subtotal)}</span>
             </div>
             <div className="flex justify-between text-sm text-gray-600">
               <span>{t("adminOrders.labels.delivery")}</span>
-              <span>{order.deliveryFee === 0 ? t("adminOrders.messages.free") : `RM${order.deliveryFee.toFixed(2)}`}</span>
+              <span>{order.deliveryFee === 0 ? t("adminOrders.messages.free") : `RM${formatCurrency(order.deliveryFee)}`}</span>
             </div>
             <div className="flex justify-between font-bold text-base border-t border-cream-200 pt-2">
               <span>{t("adminOrders.labels.finalAmount")}</span>
-              <span className="text-forest-800">RM{order.total.toFixed(2)}</span>
+              <span className="text-forest-800">RM{formatCurrency(order.total)}</span>
             </div>
           </div>
         </div>
@@ -1493,7 +1575,7 @@ function AdminOrderDetailView({
 
         <div className="flex items-center justify-between text-sm mb-4">
           <span className="text-gray-600 font-medium">{t("adminOrders.labels.finalAmount")}</span>
-          <span className="font-bold text-forest-800 text-base">RM{order.total.toFixed(2)}</span>
+          <span className="font-bold text-forest-800 text-base">RM{formatCurrency(order.total)}</span>
         </div>
 
         {order.paymentStatus === 'Paid' && order.paidAt && (

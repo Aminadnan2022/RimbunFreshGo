@@ -7,6 +7,7 @@ type CartAction =
   | { type: 'REMOVE_ITEM'; productId: string; comboId?: string; preparation?: string }
   | { type: 'UPDATE_QTY'; productId: string; quantity: number; comboId?: string; preparation?: string }
   | { type: 'UPDATE_ESTIMATED_WEIGHT'; productId: string; estimatedWeight: number; comboId?: string; preparation?: string }
+  | { type: 'UPDATE_SLICE'; productId: string; sliceQuantity: number; comboId?: string; preparation?: string }
   | { type: 'SET_DELIVERY_DAY'; day: DeliveryDay }
   | { type: 'CLEAR_CART' }
   | { type: 'LOAD_CART'; cart: Cart };
@@ -31,7 +32,8 @@ function cartItemKey(item: CartItem): string {
   const base = item.comboId ?? item.productId;
   const prep = item.preparation ?? 'default';
   const weight = item.pricingType === 'per_kg' ? `|${item.estimatedWeight ?? 0}` : '';
-  return `${base}|${prep}${weight}`;
+  const slices = item.pricingType === 'slice' ? `|slices${item.sliceQuantity ?? 0}` : '';
+  return `${base}|${prep}${weight}${slices}`;
 }
 
 function cartReducer(state: Cart, action: CartAction): Cart {
@@ -42,7 +44,7 @@ function cartReducer(state: Cart, action: CartAction): Cart {
       const key = cartItemKey(action.item);
       const existing = state.items.find((i) => cartItemKey(i) === key);
       if (existing) {
-        if (existing.pricingType === 'per_kg') {
+        if (existing.pricingType === 'per_kg' || existing.pricingType === 'slice') {
           return state;
         }
         return {
@@ -65,11 +67,11 @@ function cartReducer(state: Cart, action: CartAction): Cart {
           const itemPrep = i.preparation ?? 'default';
           const match = itemBase === baseKey && itemPrep === prep;
           if (!match) return true;
-          if (i.pricingType === 'per_kg' && !removed) {
+          if ((i.pricingType === 'per_kg' || i.pricingType === 'slice') && !removed) {
             removed = true;
             return false;
           }
-          if (i.pricingType !== 'per_kg') return false;
+          if (i.pricingType !== 'per_kg' && i.pricingType !== 'slice') return false;
           return true;
         }),
       };
@@ -83,7 +85,7 @@ function cartReducer(state: Cart, action: CartAction): Cart {
           items: state.items.filter((i) => {
             const itemBase = i.comboId ?? i.productId;
             const itemPrep = i.preparation ?? 'default';
-            return !(itemBase === baseKey && itemPrep === prep && i.pricingType !== 'per_kg');
+            return !(itemBase === baseKey && itemPrep === prep && i.pricingType !== 'per_kg' && i.pricingType !== 'slice');
           }),
         };
       }
@@ -92,7 +94,7 @@ function cartReducer(state: Cart, action: CartAction): Cart {
         items: state.items.map((i) => {
           const itemBase = i.comboId ?? i.productId;
           const itemPrep = i.preparation ?? 'default';
-          if (itemBase === baseKey && itemPrep === prep && i.pricingType !== 'per_kg') {
+          if (itemBase === baseKey && itemPrep === prep && i.pricingType !== 'per_kg' && i.pricingType !== 'slice') {
             return { ...i, quantity: action.quantity };
           }
           return i;
@@ -114,6 +116,21 @@ function cartReducer(state: Cart, action: CartAction): Cart {
         }),
       };
     }
+    case 'UPDATE_SLICE': {
+      const baseKey = action.comboId ?? action.productId;
+      const prep = action.preparation ?? 'default';
+      return {
+        ...state,
+        items: state.items.map((i) => {
+          const itemBase = i.comboId ?? i.productId;
+          const itemPrep = i.preparation ?? 'default';
+          if (itemBase === baseKey && itemPrep === prep && i.pricingType === 'slice') {
+            return { ...i, quantity: action.sliceQuantity, sliceQuantity: action.sliceQuantity };
+          }
+          return i;
+        }),
+      };
+    }
     case 'SET_DELIVERY_DAY':
       return { ...state, deliveryDay: action.day };
     case 'CLEAR_CART':
@@ -129,6 +146,7 @@ interface CartContextValue {
   removeItem: (productId: string, comboId?: string, preparation?: string) => void;
   updateQty: (productId: string, quantity: number, comboId?: string, preparation?: string) => void;
   updateEstimatedWeight: (productId: string, estimatedWeight: number, comboId?: string, preparation?: string) => void;
+  updateSlice: (productId: string, sliceQuantity: number, comboId?: string, preparation?: string) => void;
   setDeliveryDay: (day: DeliveryDay) => void;
   clearCart: () => void;
   itemCount: number;
@@ -175,6 +193,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     if (i.pricingType === 'per_kg') {
       return sum + i.price * (i.estimatedWeight ?? 0);
     }
+    if (i.pricingType === 'slice') {
+      return sum + 0; // price unknown until supplier weighs
+    }
     return sum + i.price * i.quantity;
   }, 0);
 
@@ -189,6 +210,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           dispatch({ type: 'UPDATE_QTY', productId, quantity, comboId, preparation }),
         updateEstimatedWeight: (productId, estimatedWeight, comboId, preparation) =>
           dispatch({ type: 'UPDATE_ESTIMATED_WEIGHT', productId, estimatedWeight, comboId, preparation }),
+        updateSlice: (productId, sliceQuantity, comboId, preparation) =>
+          dispatch({ type: 'UPDATE_SLICE', productId, sliceQuantity, comboId, preparation }),
         setDeliveryDay: (day) => dispatch({ type: 'SET_DELIVERY_DAY', day }),
         clearCart: () => dispatch({ type: 'CLEAR_CART' }),
         itemCount,

@@ -1,13 +1,16 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useNavigate } from 'react-router-dom';
-import { ShoppingCart, Search, User, Menu, X, Leaf, Eye, EyeOff, LogIn, LogOut, ShieldCheck, Warehouse } from 'lucide-react';
+import { ShoppingCart, Search, User, Menu, X, Eye, EyeOff, LogIn, LogOut, ShieldCheck, Warehouse, Truck, BarChart3 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import { useAuthModal } from '../../context/AuthModalContext';
 import { useLanguage } from '../../context/LanguageContext';
+import { useWebsiteSettings } from '../../context/WebsiteSettingsContext';
+import { isPageEnabled, type PublicPage } from '../../lib/websiteVisibility';
 import LanguageSwitcher from './LanguageSwitcher';
+import BrandLogo from '../branding/BrandLogo';
 
 // ---------------------------------------------------------------------------
 // Sign In Modal
@@ -59,9 +62,7 @@ function SignInModal({ onClose, onSwitchToCreate, onSuccess }: {
         </button>
 
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 gradient-card rounded-2xl flex items-center justify-center shadow-green">
-            <LogIn size={18} className="text-white" />
-          </div>
+          <BrandLogo size="w-10 h-10" iconSize={18} rounded="rounded-2xl" />
           <div>
             <h2 id="signin-title" className="font-display font-bold text-forest-900 text-xl leading-tight">
               {t("header.signIn.title")}
@@ -195,9 +196,7 @@ function CreateAccountModal({ onClose, onSwitchToSignIn }: { onClose: () => void
         </button>
 
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 gradient-card rounded-2xl flex items-center justify-center shadow-green">
-            <User size={18} className="text-white" />
-          </div>
+          <BrandLogo size="w-10 h-10" iconSize={18} rounded="rounded-2xl" />
           <div>
             <h2 id="create-account-title" className="font-display font-bold text-forest-900 text-xl leading-tight">
               {t("header.createAccount.title")}
@@ -299,21 +298,22 @@ function CreateAccountModal({ onClose, onSwitchToSignIn }: { onClose: () => void
 // ---------------------------------------------------------------------------
 export default function Header() {
   const { itemCount } = useCart();
-  const { user, signOut, isAdmin, isSupplier } = useAuth();
+  const { user, signOut, isAdmin, isSupplier, isRider } = useAuth();
   const { state: authModalState, openSignIn, closeSignIn } = useAuthModal();
   const { t } = useLanguage();
+  const { settings } = useWebsiteSettings();
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const navigate = useNavigate();
 
-  const navLinks = [
-    { to: '/shop', label: 'header.shop' },
-    { to: '/combo', label: 'header.familyCombo' },
-    { to: '/vendors', label: 'header.ourSuppliers' },
-    { to: '/recurring', label: 'header.recurringBasket' },
-  ];
+  const navLinks: { to: string; label: string; page: PublicPage }[] = [
+    { to: '/shop', label: 'header.shop', page: 'shop' as PublicPage },
+    { to: '/combos', label: 'header.familyCombo', page: 'family_combo' as PublicPage },
+    { to: '/vendors', label: 'header.ourSuppliers', page: 'suppliers' as PublicPage },
+    { to: '/recurring', label: 'header.recurringBasket', page: 'recurring_basket' as PublicPage },
+  ].filter((link) => isPageEnabled(settings, link.page));
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -327,24 +327,26 @@ export default function Header() {
   const displayName: string = user?.user_metadata?.full_name ?? user?.email ?? '';
   const initial: string = displayName.charAt(0).toUpperCase();
 
+  const siteNameParts = (settings.site_name || 'Rimbun FreshGo').split(/\s+/);
+  const firstName = siteNameParts[0];
+  const restName = siteNameParts.slice(1).join(' ');
+
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-sm border-b border-cream-200 shadow-soft">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Wordmark */}
           <Link to="/" className="flex items-center gap-2 group flex-shrink-0">
-            <div className="w-8 h-8 gradient-card rounded-xl flex items-center justify-center shadow-green group-hover:scale-105 transition-transform">
-              <Leaf size={16} className="text-white" />
-            </div>
+            <BrandLogo size="w-8 h-8" iconSize={16} className="group-hover:scale-105 transition-transform" />
             <div className="leading-none">
-              <span className="font-display font-bold text-forest-800 text-lg tracking-tight">Rimbun</span>
-              <span className="font-display font-bold text-jade-600 text-lg tracking-tight"> FreshGo</span>
+              <span className="font-display font-bold text-forest-800 text-lg tracking-tight">{firstName}</span>
+              {restName && <span className="font-display font-bold text-jade-600 text-lg tracking-tight"> {restName}</span>}
             </div>
           </Link>
 
           {/* Desktop nav */}
           <nav className="hidden md:flex items-center gap-1" aria-label="Main navigation">
-            {!isSupplier && navLinks.map((link) => (
+            {!isSupplier && !isRider && navLinks.map((link) => (
               <Link
                 key={link.to}
                 to={link.to}
@@ -353,7 +355,7 @@ export default function Header() {
                 {t(link.label)}
               </Link>
             ))}
-            {user && !isSupplier && (
+            {user && !isSupplier && !isRider && (
               <>
                 <Link
                   to="/orders"
@@ -378,6 +380,15 @@ export default function Header() {
                 {t("header.admin")}
               </Link>
             )}
+            {isAdmin && (
+              <Link
+                to="/admin/reports"
+                className="px-4 py-2 rounded-xl text-sm font-medium text-forest-700 hover:bg-forest-50 transition-all inline-flex items-center gap-1.5"
+              >
+                <BarChart3 size={15} />
+                {t("header.reports")}
+              </Link>
+            )}
             {isSupplier && (
               <Link
                 to="/supplier"
@@ -387,12 +398,21 @@ export default function Header() {
                 {t("header.supplierPortal")}
               </Link>
             )}
+            {isRider && (
+              <Link
+                to="/delivery"
+                className="px-4 py-2 rounded-xl text-sm font-medium text-forest-700 hover:bg-forest-50 transition-all inline-flex items-center gap-1.5"
+              >
+                <Truck size={15} />
+                {t("header.deliveryPortal")}
+              </Link>
+            )}
           </nav>
 
           {/* Actions */}
           <div className="flex items-center gap-1">
             {/* Search toggle */}
-            {!isSupplier && (
+            {!isSupplier && !isRider && (
               <button
                 onClick={() => setSearchOpen(!searchOpen)}
                 className="p-2.5 rounded-xl text-gray-500 hover:text-forest-700 hover:bg-forest-50 transition-all"
@@ -435,18 +455,20 @@ export default function Header() {
                   <LogIn size={17} />
                   {t("header.login")}
                 </button>
-                <button
-                  onClick={() => setShowCreateModal(true)}
-                  className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-forest-700 border border-forest-200 hover:bg-forest-50 transition-all"
-                >
-                  <User size={17} />
-                  {t("header.join")}
-                </button>
+                {settings.allow_customer_registration && (
+                  <button
+                    onClick={() => setShowCreateModal(true)}
+                    className="hidden sm:flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold text-forest-700 border border-forest-200 hover:bg-forest-50 transition-all"
+                  >
+                    <User size={17} />
+                    {t("header.join")}
+                  </button>
+                )}
               </>
             )}
 
             {/* Cart */}
-            {user && !isSupplier && (
+            {user && !isSupplier && !isRider && (
               <Link
                 to="/cart"
                 className="relative flex items-center gap-2 px-3 py-2 rounded-xl bg-forest-700 text-white hover:bg-forest-800 transition-all ml-1"
@@ -506,7 +528,7 @@ export default function Header() {
               {t(link.label)}
             </Link>
           ))}
-          {user && !isSupplier && (
+          {user && !isSupplier && !isRider && (
             <>
               <Link
                 to="/orders"
@@ -534,6 +556,16 @@ export default function Header() {
               {t("header.admin")}
             </Link>
           )}
+          {isAdmin && (
+            <Link
+              to="/admin/reports"
+              onClick={() => setMenuOpen(false)}
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium text-forest-700 hover:bg-forest-50 transition-all"
+            >
+              <BarChart3 size={15} />
+              {t("header.reports")}
+            </Link>
+          )}
           {isSupplier && (
             <Link
               to="/supplier"
@@ -542,6 +574,16 @@ export default function Header() {
             >
               <Warehouse size={15} />
               {t("header.supplierPortal")}
+            </Link>
+          )}
+          {isRider && (
+            <Link
+              to="/delivery"
+              onClick={() => setMenuOpen(false)}
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium text-forest-700 hover:bg-forest-50 transition-all"
+            >
+              <Truck size={15} />
+              {t("header.deliveryPortal")}
             </Link>
           )}
           <div className="pt-1 border-t border-cream-100 mt-1 space-y-1">
@@ -568,12 +610,14 @@ export default function Header() {
                 >
                   {t("header.signInButton")}
                 </button>
-                <button
-                  onClick={() => { setMenuOpen(false); setShowCreateModal(true); }}
-                  className="block w-full text-left px-4 py-2.5 rounded-xl text-sm font-semibold text-forest-700 hover:bg-forest-50 transition-all"
-                >
-                  {t("header.createAccountButton")}
-                </button>
+                {settings.allow_customer_registration && (
+                  <button
+                    onClick={() => { setMenuOpen(false); setShowCreateModal(true); }}
+                    className="block w-full text-left px-4 py-2.5 rounded-xl text-sm font-semibold text-forest-700 hover:bg-forest-50 transition-all"
+                  >
+                    {t("header.createAccountButton")}
+                  </button>
+                )}
               </>
             )}
           </div>

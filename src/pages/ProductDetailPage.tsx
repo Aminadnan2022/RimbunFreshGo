@@ -9,12 +9,17 @@ import { useAuth } from '../context/AuthContext';
 import { useAuthModal } from '../context/AuthModalContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useDeliveryConfig } from '../context/DeliveryConfigContext';
+import { useWebsiteSettings } from '../context/WebsiteSettingsContext';
 import QuantityStepper from '../components/ui/QuantityStepper';
 import EstimatedWeightStepper from '../components/ui/EstimatedWeightStepper';
+import SliceStepper from '../components/ui/SliceStepper';
 import PrawnEstimationNote from '../components/ui/PrawnEstimationNote';
 import EstimatedQuantityNote from '../components/ui/EstimatedQuantityNote';
 import ProductImage from '../components/ui/ProductImage';
 import ProductCard from '../components/ui/ProductCard';
+import FeatureDisabledPage from '../components/system/FeatureDisabledPage';
+import { buildCartItem, computeSubtotal, getSliceRange } from '../lib/sellingOptions';
+import { formatCurrency } from '../lib/currency';
 import type { PreparationOption } from '../types';
 
 export default function ProductDetailPage() {
@@ -24,6 +29,7 @@ export default function ProductDetailPage() {
   const { isAdmin, user } = useAuth();
   const { openSignIn } = useAuthModal();
   const { config } = useDeliveryConfig();
+  const { settings, loading: settingsLoading } = useWebsiteSettings();
   const { t, lang } = useLanguage();
   const { product, loading, error } = useProduct(id);
   const { products } = useProducts();
@@ -31,6 +37,7 @@ export default function ProductDetailPage() {
   const [activeImg, setActiveImg] = useState(0);
   const [qty, setQty] = useState(1);
   const [estimatedWeight, setEstimatedWeight] = useState(500);
+  const [sliceQty, setSliceQty] = useState(2);
   const [orderMode, setOrderMode] = useState<'whole' | 'weight'>('whole');
   const [prep, setPrep] = useState<PreparationOption>('whole');
   const [added, setAdded] = useState(false);
@@ -40,6 +47,14 @@ export default function ProductDetailPage() {
   useEffect(() => {
     if (product) setPrep(product.preparationOptions[0] ?? 'whole');
   }, [product]);
+
+  useEffect(() => {
+    if (product) setSliceQty(getSliceRange(product).defaultSlice);
+  }, [product]);
+
+  if (!settingsLoading && !settings.show_shop) {
+    return <FeatureDisabledPage />;
+  }
 
   if (loading) {
     return (
@@ -79,58 +94,13 @@ export default function ProductDetailPage() {
     }
 
     const mode = product.orderingMode ?? 'fixed_quantity';
-    let itemData: Parameters<typeof addItem>[0];
-
-    if (mode === 'whole_or_weight' && orderMode === 'whole') {
-      const estWeightKg = (qty * (product.averageWeight ?? 0)) / 1000;
-      itemData = {
-        productId: product.id,
-        name: product.name,
-        image: product.image,
-        price: product.price,
-        unit: product.unit,
-        category: product.category,
-        showEstimatedQuantity: product.showEstimatedQuantity,
-        orderingMode: product.orderingMode,
-        averageWeight: product.averageWeight,
-        quantity: qty,
-        estimatedWeight: estWeightKg > 0 ? estWeightKg : undefined,
-        preparation: prep,
-        pricingType: 'per_kg',
-      };
-    } else if (mode === 'weight_only' || (mode === 'whole_or_weight' && orderMode === 'weight')) {
-      itemData = {
-        productId: product.id,
-        name: product.name,
-        image: product.image,
-        price: product.price,
-        unit: product.unit,
-        category: product.category,
-        showEstimatedQuantity: product.showEstimatedQuantity,
-        orderingMode: product.orderingMode,
-        averageWeight: product.averageWeight,
-        quantity: 1,
-        estimatedWeight: estimatedWeight / 1000,
-        preparation: prep,
-        pricingType: 'per_kg',
-      };
-    } else {
-      itemData = {
-        productId: product.id,
-        name: product.name,
-        image: product.image,
-        price: product.price,
-        unit: product.unit,
-        category: product.category,
-        showEstimatedQuantity: product.showEstimatedQuantity,
-        orderingMode: product.orderingMode,
-        averageWeight: product.averageWeight,
-        quantity: qty,
-        estimatedWeight: undefined,
-        preparation: prep,
-        pricingType: 'fixed',
-      };
-    }
+    const itemData = buildCartItem(product, {
+      quantity: qty,
+      weightG: estimatedWeight,
+      sliceQuantity: sliceQty,
+      orderMode: mode === 'whole_or_weight' ? orderMode : undefined,
+      preparation: prep,
+    });
 
     addItem(itemData);
     setAdded(true);
@@ -225,7 +195,7 @@ export default function ProductDetailPage() {
           </div>
 
           <div className="flex items-baseline gap-2 mt-4 mb-4">
-            <span className="text-4xl font-bold text-forest-800">RM{product.price}</span>
+            <span className="text-4xl font-bold text-forest-800">RM{formatCurrency(product.price)}</span>
             <span className="text-gray-400">{product.priceNote ?? product.unit}</span>
             {product.weight && <span className="text-gray-400 text-sm">· {product.weight}</span>}
           </div>
@@ -302,7 +272,19 @@ export default function ProductDetailPage() {
 
           {/* Add to cart */}
           <div className="flex items-center gap-4">
-            {product.orderingMode === 'whole_or_weight' && orderMode === 'whole' ? (
+            {product.orderingMode === 'slice' ? (
+              <div className="flex flex-col gap-1">
+                <span className="text-xs text-gray-500">{t("product.howManySlices")}</span>
+                <SliceStepper
+                  value={sliceQty}
+                  onChange={setSliceQty}
+                  min={product.minSlice}
+                  max={product.maxSlice}
+                  increment={product.sliceIncrement}
+                  unit={product.sliceUnit ?? t("product.sliceUnitDefault")}
+                />
+              </div>
+            ) : product.orderingMode === 'whole_or_weight' && orderMode === 'whole' ? (
               <QuantityStepper value={qty} onChange={setQty} />
             ) : product.orderingMode === 'weight_only' || (product.orderingMode === 'whole_or_weight' && orderMode === 'weight') ? (
               <div className="flex items-center gap-2">
@@ -329,17 +311,25 @@ export default function ProductDetailPage() {
           </div>
 
           {/* Estimated price display */}
-          {product.orderingMode !== 'fixed_quantity' && (
+          {product.orderingMode !== 'fixed_quantity' && product.orderingMode !== 'slice' && (
             <div className="mt-3 text-sm text-gray-500">
               {product.orderingMode === 'whole_or_weight' && orderMode === 'whole' && product.averageWeight && product.averageWeight > 0 ? (
-                <p>≈ {qty} × {product.averageWeight}g = <strong>{(qty * product.averageWeight / 1000).toFixed(2).replace(/\.?0+$/, '')}kg</strong> · ≈ <strong>RM{(qty * product.price * product.averageWeight / 1000).toFixed(2)}</strong></p>
+                <p>≈ {qty} × {product.averageWeight}g = <strong>{(qty * product.averageWeight / 1000).toFixed(2).replace(/\.?0+$/, '')}kg</strong> · ≈ <strong>RM{formatCurrency(computeSubtotal(product, { quantity: qty, orderMode: 'whole' }))}</strong></p>
               ) : (
-                <p>{t("product.estimatedWeight")}: <strong>{estimatedWeight >= 1000 ? (estimatedWeight / 1000).toFixed(2).replace(/\.?0+$/, '') + 'kg' : estimatedWeight + 'g'}</strong> · ≈ <strong>RM{(product.price * estimatedWeight / 1000).toFixed(2)}</strong></p>
+                <p>{t("product.estimatedWeight")}: <strong>{estimatedWeight >= 1000 ? (estimatedWeight / 1000).toFixed(2).replace(/\.?0+$/, '') + 'kg' : estimatedWeight + 'g'}</strong> · ≈ <strong>RM{formatCurrency(computeSubtotal(product, { weightG: estimatedWeight, orderMode: 'weight' }))}</strong></p>
               )}
             </div>
           )}
 
           {/* Estimation notes */}
+          {product.orderingMode === 'slice' && (
+            <div className="mt-4">
+              <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 leading-relaxed space-y-1">
+                <p className="font-semibold">{t("product.sliceInstructionTitle")}</p>
+                <p>{product.sliceInstruction || t("product.sliceInstructionDefault")}</p>
+              </div>
+            </div>
+          )}
           {product.orderingMode === 'whole_or_weight' && orderMode === 'whole' && product.showEstimatedQuantity && product.averageWeight && product.averageWeight > 0 && (
             <div className="mt-4">
               <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 leading-relaxed space-y-1">

@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
-import { Upload, X, ImageIcon, Loader2 } from 'lucide-react';
+import { Upload, X, Loader2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import { getProductImage } from '../../lib/image';
+import { getImageUrl } from '../../lib/image';
 import { useLanguage } from '../../context/LanguageContext';
 
 const MAX_SIZE = 3 * 1024 * 1024;
@@ -9,12 +9,13 @@ const ACCEPTED = ['image/jpeg', 'image/png', 'image/webp'];
 
 interface Props {
   category: string;
+  bucket?: string;
   currentPath?: string | null;
   onUpload: (path: string) => void;
   onRemove?: () => void;
 }
 
-export default function ImageUploader({ category, currentPath, onUpload, onRemove }: Props) {
+export default function ImageUploader({ category, bucket = 'product-images', currentPath, onUpload, onRemove }: Props) {
   const { t } = useLanguage();
   const inputRef = useRef<HTMLInputElement>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -23,7 +24,7 @@ export default function ImageUploader({ category, currentPath, onUpload, onRemov
   const [error, setError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
 
-  const currentUrl = currentPath ? getProductImage(currentPath) : null;
+  const currentUrl = currentPath ? getImageUrl(currentPath, bucket) : null;
 
   const uploadFile = useCallback(async (file: File) => {
     setError(null);
@@ -59,7 +60,7 @@ export default function ImageUploader({ category, currentPath, onUpload, onRemov
     const storagePath = `${category.toLowerCase()}/${name}.${ext}`;
 
     const { data, error: uploadError } = await supabase.storage
-      .from('product-images')
+      .from(bucket)
       .upload(storagePath, processedFile, {
         cacheControl: '3600',
         upsert: true,
@@ -74,7 +75,7 @@ export default function ImageUploader({ category, currentPath, onUpload, onRemov
     }
 
     onUpload(data?.path ?? storagePath);
-  }, [category, onUpload, t]);
+  }, [bucket, category, onUpload, t]);
 
   const compressToWebP = async (file: File): Promise<File> => {
     return new Promise((resolve, reject) => {

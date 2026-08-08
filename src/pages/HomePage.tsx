@@ -1,19 +1,21 @@
-import { useState, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  ArrowRight, Shield, Snowflake, Clock, Star, ChevronRight, Repeat2, CheckCircle2, Loader2
+  ArrowRight, Shield, Snowflake, Clock, ChevronRight, Repeat2, CheckCircle2, Loader2
 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
-import { useAuthModal } from '../context/AuthModalContext';
 import { useDeliveryConfig } from '../context/DeliveryConfigContext';
 import { useLanguage } from '../context/LanguageContext';
+import { useWebsiteSettings } from '../context/WebsiteSettingsContext';
+import { isHomepageSectionEnabled, isPageEnabled } from '../lib/websiteVisibility';
 import DeliverySlotSelector from '../components/ui/DeliverySlotSelector';
-import type { DeliveryDay } from '../types';
-import { familyCombo, buildComboCartItem } from '../data/combos';
+import type { DeliveryDay, ComboWithItems } from '../types';
+import { fetchActiveComboList } from '../data/combos';
 import { useProducts } from '../hooks/useProducts';
 import ProductImage from '../components/ui/ProductImage';
 import ProductCard from '../components/ui/ProductCard';
+import ComboCard from '../components/combo/ComboCard';
 
 const categories = [
   {
@@ -48,14 +50,29 @@ const categories = [
 
 export default function HomePage() {
   const [selectedDay, setSelectedDay] = useState<DeliveryDay | null>(null);
-  const { setDeliveryDay, addItem } = useCart();
+  const { setDeliveryDay } = useCart();
   const { user } = useAuth();
-  const { openSignIn } = useAuthModal();
   const { config } = useDeliveryConfig();
   const { t } = useLanguage();
-  const [comboAdded, setComboAdded] = useState(false);
-  const { products, loading, error } = useProducts();
+  const { settings } = useWebsiteSettings();
+  const { products, loading: productsLoading, error: productsError } = useProducts();
+  const [combos, setCombos] = useState<ComboWithItems[]>([]);
+  const [comboLoading, setComboLoading] = useState(true);
   const popularProducts = products.filter((p) => p.isPopular).slice(0, 4);
+
+  useEffect(() => {
+    (async () => {
+      setComboLoading(true);
+      try {
+        const data = await fetchActiveComboList();
+        setCombos(data);
+      } catch (err) {
+        console.error('Failed to load combos:', err);
+      } finally {
+        setComboLoading(false);
+      }
+    })();
+  }, []);
 
   const tDays = config.days.map((d) => t("days." + d.toLowerCase())).join(' & ');
   const daysShort = config.days.map((d) => t("days." + d.toLowerCase()).slice(0, 3)).join(' & ');
@@ -88,16 +105,6 @@ export default function HomePage() {
     setDeliveryDay(day);
   };
 
-  const handleAddCombo = useCallback(() => {
-    if (!user) {
-      openSignIn('/shop');
-      return;
-    }
-    addItem(buildComboCartItem(products));
-    setComboAdded(true);
-    setTimeout(() => setComboAdded(false), 2000);
-  }, [addItem, user, openSignIn, products]);
-
   return (
     <main>
       {/* Hero — only shown when signed out */}
@@ -119,6 +126,7 @@ export default function HomePage() {
             </p>
 
             {/* Delivery slot selector */}
+            {isHomepageSectionEnabled(settings, 'delivery_schedule') && (
             <div className="bg-white/10 backdrop-blur-sm rounded-3xl p-5 border border-white/15 mb-8 max-w-md">
               <p className="text-white font-semibold mb-3 text-sm">{t("homepage.hero.chooseSlot")}</p>
               <DeliverySlotSelector selected={selectedDay} onChange={handleDaySelect} />
@@ -128,14 +136,19 @@ export default function HomePage() {
                 </p>
               )}
             </div>
+            )}
 
             <div className="flex flex-wrap gap-3">
-              <Link to="/shop" className="btn-primary bg-jade-500 hover:bg-jade-600 shadow-none flex items-center gap-2">
-                {t("homepage.hero.shopNow")} <ArrowRight size={16} />
-              </Link>
-              <Link to="/combo" className="bg-white/15 hover:bg-white/25 text-white font-semibold px-6 py-3 rounded-2xl transition-all border border-white/20 flex items-center gap-2">
-                {t("homepage.hero.viewFamilyCombo")} <ChevronRight size={16} />
-              </Link>
+              {isPageEnabled(settings, 'shop') && (
+                <Link to="/shop" className="btn-primary bg-jade-500 hover:bg-jade-600 shadow-none flex items-center gap-2">
+                  {t("homepage.hero.shopNow")} <ArrowRight size={16} />
+                </Link>
+              )}
+              {isPageEnabled(settings, 'family_combo') && (
+                <Link to="/combos" className="bg-white/15 hover:bg-white/25 text-white font-semibold px-6 py-3 rounded-2xl transition-all border border-white/20 flex items-center gap-2">
+                  {t("homepage.hero.viewFamilyCombo")} <ChevronRight size={16} />
+                </Link>
+              )}
             </div>
           </div>
         </div>
@@ -143,6 +156,7 @@ export default function HomePage() {
       )}
 
       {/* Categories */}
+      {isPageEnabled(settings, 'shop') && (
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="flex items-end justify-between mb-8">
           <div>
@@ -174,69 +188,38 @@ export default function HomePage() {
           ))}
         </div>
       </section>
+      )}
 
-      {/* Family Combo — Prominent Feature */}
+      {/* Combo Packages */}
+      {isHomepageSectionEnabled(settings, 'featured_combos') && (
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
-        <div className="relative gradient-hero rounded-4xl overflow-hidden shadow-green">
-          <div className="absolute inset-0 opacity-10 pointer-events-none bg-[radial-gradient(ellipse_at_bottom_right,_rgba(78,222,128,0.4),_transparent_60%)]" />
-          <div className="grid md:grid-cols-2 gap-0">
-            {/* Text side */}
-            <div className="p-8 sm:p-10 lg:p-14 flex flex-col justify-center">
-              <span className="inline-flex w-fit items-center gap-1.5 bg-white/10 border border-white/20 text-jade-300 text-xs font-semibold px-3 py-1.5 rounded-full mb-5">
-                <Star size={11} className="fill-jade-300" /> {t("homepage.combo.badge")}
-              </span>
-              <h2 className="font-display text-3xl sm:text-4xl lg:text-5xl font-bold text-white leading-tight mb-3">
-                {t("homepage.combo.title")}
-              </h2>
-              <div className="flex items-baseline gap-2 mb-5">
-                <span className="text-5xl font-bold text-jade-400">RM50</span>
-                <span className="text-forest-300 line-through text-xl">RM83</span>
-                <span className="bg-jade-500/20 text-jade-300 text-sm font-semibold px-2 py-0.5 rounded-lg">{t("homepage.combo.saveLabel")}</span>
-              </div>
-              <ul className="space-y-2.5 mb-8">
-                {familyCombo.items.map((item, i) => (
-                  <li key={i} className="flex items-center gap-2.5 text-forest-200 text-sm">
-                    <CheckCircle2 size={16} className="text-jade-400 flex-shrink-0" />
-                    {item.label}
-                  </li>
-                ))}
-              </ul>
-              <div className="flex flex-wrap gap-3">
-                <button
-                  onClick={handleAddCombo}
-                  className={`flex items-center gap-2 font-semibold px-6 py-3 rounded-2xl transition-all duration-200 active:scale-95 ${
-                    comboAdded
-                      ? 'bg-jade-500 text-white'
-                      : 'bg-white text-forest-900 hover:bg-jade-50 shadow-lg'
-                  }`}
-                >
-                  {comboAdded ? t("homepage.combo.addedToCart") : t("homepage.combo.addToCart")}
-                </button>
-                <Link
-                  to="/combo"
-                  className="flex items-center gap-1.5 text-white/80 hover:text-white font-medium text-sm py-3 transition-colors"
-                >
-                  {t("homepage.combo.learnMore")} <ChevronRight size={15} />
-                </Link>
-              </div>
-            </div>
-            {/* Image side */}
-            <Link to="/combo" className="relative hidden md:block group">
-              <ProductImage
-                src={familyCombo.image}
-                alt={t("homepage.combo.title")}
-                className="w-full h-full object-cover opacity-80 mix-blend-luminosity group-hover:scale-105 transition-transform duration-500"
-              />
-              <div className="absolute inset-0 bg-gradient-to-r from-forest-950/50 to-transparent group-hover:from-forest-950/60 transition-all" />
-              <div className="absolute bottom-4 right-4 bg-white/20 backdrop-blur-sm text-white text-sm font-semibold px-4 py-2 rounded-2xl flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                {t("homepage.combo.learnMore")} <ChevronRight size={15} />
-              </div>
-            </Link>
+        {comboLoading ? (
+          <div className="flex items-center justify-center py-16">
+            <Loader2 className="animate-spin text-forest-500" size={32} />
           </div>
-        </div>
+        ) : combos.length > 0 ? (
+          <>
+            <div className="flex items-end justify-between mb-8">
+              <div>
+                <h2 className="section-title">{t("homepage.combo.title")}</h2>
+                <p className="text-gray-500 mt-1">{t("homepage.combo.subtitle")}</p>
+              </div>
+              <Link to="/combos" className="hidden sm:flex items-center gap-1 text-forest-700 font-semibold text-sm hover:text-forest-900 transition-colors">
+                {t("homepage.combo.viewAll")} <ChevronRight size={16} />
+              </Link>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              {combos.slice(0, 4).map((cw) => (
+                <ComboCard key={cw.combo.id} comboWithItems={cw} products={products} />
+              ))}
+            </div>
+          </>
+        ) : null}
       </section>
+      )}
 
       {/* Popular Products */}
+      {isHomepageSectionEnabled(settings, 'featured_products') && (
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
         <div className="flex items-end justify-between mb-8">
           <div>
@@ -248,19 +231,21 @@ export default function HomePage() {
           </Link>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {loading ? (
+          {productsLoading ? (
             <div className="col-span-full flex items-center justify-center py-16">
               <Loader2 className="animate-spin text-forest-500" size={32} />
             </div>
-          ) : error ? (
-            <div className="col-span-full text-center py-16 text-red-500 text-sm">{error}</div>
+          ) : productsError ? (
+            <div className="col-span-full text-center py-16 text-red-500 text-sm">{productsError}</div>
           ) : popularProducts.map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}
         </div>
       </section>
+      )}
 
       {/* Recurring Basket CTA */}
+      {isPageEnabled(settings, 'recurring_basket') && (
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
         <div className="bg-jade-50 border-2 border-jade-200 rounded-4xl p-8 sm:p-12 flex flex-col sm:flex-row items-center justify-between gap-6">
           <div className="flex items-start gap-5">
@@ -279,8 +264,10 @@ export default function HomePage() {
           </Link>
         </div>
       </section>
+      )}
 
       {/* Trust indicators */}
+      {isHomepageSectionEnabled(settings, 'why_freshgo') && (
       <section className="bg-forest-950 py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-10">
@@ -300,6 +287,7 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+      )}
     </main>
   );
 }

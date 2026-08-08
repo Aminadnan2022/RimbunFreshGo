@@ -74,3 +74,24 @@
 .qty-btn {
   @apply w-8 h-8 flex items-center justify-center rounded-full bg-cream-100 hover:bg-forest-100 text-forest-700 font-bold transition-colors focus:outline-none focus:ring-2 focus:ring-forest-400;
 }
+
+/* Manifest A4 printing.
+   The printable manifest is portaled into <body> as a direct child with class
+   `.manifest-print-area`. On screen it is hidden; when printing we hide the
+   whole app and show only that area as plain black-on-white A4 content. */
+@media print {
+  #root,
+  #modal-root {
+    display: none !important;
+  }
+  .manifest-print-area {
+    display: block !important;
+  }
+  body {
+    background: #fff !important;
+  }
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+}

@@ -7,7 +7,10 @@ import { useBaskets } from '../context/BasketContext';
 import { useCart } from '../context/CartContext';
 import { useDeliveryConfig } from '../context/DeliveryConfigContext';
 import { useLanguage } from '../context/LanguageContext';
+import { useWebsiteSettings } from '../context/WebsiteSettingsContext';
 import ProductImage from '../components/ui/ProductImage';
+import { formatCurrency } from '../lib/currency';
+import FeatureDisabledPage from '../components/system/FeatureDisabledPage';
 import type { RecurringBasket, DeliveryDay } from '../types';
 
 const DAY_MAP: Record<string, number> = {
@@ -108,6 +111,7 @@ export default function RecurringBasketPage() {
   const { baskets, addBasket, updateBasket, removeBasket, togglePause } = useBaskets();
   const { cart } = useCart();
   const { config } = useDeliveryConfig();
+  const { settings, loading: settingsLoading } = useWebsiteSettings();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
@@ -135,6 +139,10 @@ export default function RecurringBasketPage() {
       setTimeout(() => setShowSuccess(false), 3000);
     }, 800);
   };
+
+  if (!settingsLoading && !settings.show_recurring_basket) {
+    return <FeatureDisabledPage />;
+  }
 
   return (
     <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
@@ -242,13 +250,13 @@ export default function RecurringBasketPage() {
                   <p className="text-sm font-semibold text-forest-700">{basket.nextDelivery}</p>
                 </div>
                 <p className="font-bold text-forest-800">
-                  RM{basket.items.reduce((sum, i) => {
+                  RM{formatCurrency(basket.items.reduce((sum, i) => {
                     const weightBased = i.orderingMode ? (i.orderingMode === 'weight_only' || i.orderingMode === 'whole_or_weight') : i.pricingType === 'per_kg';
                     if (weightBased) {
                       return sum + i.price * (i.estimatedWeight ?? 0);
                     }
                     return sum + i.price * i.quantity;
-                  }, 0).toFixed(2)}
+                  }, 0))}
                 </p>
               </div>
             </div>

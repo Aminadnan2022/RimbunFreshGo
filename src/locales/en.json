@@ -14,7 +14,9 @@
     "myOrders": "My Orders",
     "profile": "Profile",
     "admin": "Admin",
+    "reports": "Reports",
     "supplierPortal": "Supplier Portal",
+    "deliveryPortal": "Delivery Portal",
     "login": "Login",
     "logout": "Log Out",
     "cart": "Cart",
@@ -107,11 +109,13 @@
     },
     "combo": {
       "badge": "Best Value",
-      "title": "Family Combo",
+      "title": "Combo Packages",
+      "subtitle": "Choose the perfect bundle and save more than buying individually.",
       "saveLabel": "Save RM33",
       "addToCart": "Add Combo to Cart",
       "addedToCart": "Added to Cart!",
-      "learnMore": "Learn more"
+      "learnMore": "Learn more",
+      "viewAll": "View all"
     },
     "popular": {
       "title": "Popular Items",
@@ -190,6 +194,11 @@
     "wholeFish": "Whole Fish",
     "byWeight": "By Weight",
     "howToOrder": "How would you like to order?",
+    "howManySlices": "How many slices?",
+    "sliceUnitDefault": "slice",
+    "estimatedPriceAfterWeighing": "Estimated Price · after supplier weighs",
+    "sliceInstructionTitle": "💡 How it works",
+    "sliceInstructionDefault": "Select the number of slices. The supplier will weigh the selected slices and calculate the final price.",
     "prawnEstimation": {
       "title": "💡 Estimated Quantity",
       "count": "{{weight}} ≈ {{min}}–{{max}} prawns",
@@ -271,6 +280,8 @@
     "item": "item",
     "items": "items",
     "estimatedPrice": "Estimated Price",
+    "estimatedPriceAfterWeighing": "Estimated Price · after supplier weighs",
+    "slices": "Slices: {{count}}",
     "trustNote": "All items are prepared fresh the morning of your delivery. Never frozen."
   },
   "cartItem": {
@@ -293,7 +304,7 @@
     "subtotal": "Subtotal ({{count}} items)",
     "deliveryFee": "Delivery fee",
     "free": "FREE",
-    "freeDeliveryNote": "Free delivery on orders RM50 and above",
+    "calculatedAtCheckout": "Calculated at checkout",
     "total": "Total",
     "selectDeliveryDay": "Please select a delivery day to continue.",
     "estimatedTotal": "Estimated Total",
@@ -343,6 +354,9 @@
     "unitPlaceholder": "e.g. A-18-08",
     "pickupLocation": "Pickup Location",
     "selectPickupLocation": "Select a pickup location...",
+    "deliveryPoint": "Delivery Point",
+    "selectDeliveryPoint": "Select a delivery point...",
+    "deliveryMethod": "Delivery method: {{method}}",
     "deliveryDate": "Delivery Date",
     "deliveryTime": "Delivery Time",
     "deliverySlot": "Delivery Slot",
@@ -369,6 +383,8 @@
     "contains": "Contains",
     "preparation": "Preparation: {{prep}}",
     "finalPriceAfterWeighing": "Final price will be confirmed after weighing.",
+    "afterWeighing": "After supplier weighs",
+    "slices": "Slices: {{count}}",
     "productImagesTitle": "Product Images",
     "productImagesBody": "Product images are for illustration purposes only. As our products are fresh and natural, the actual size, colour, shape and appearance may vary. Every fish, chicken and seafood item is unique.",
     "estimatedPricingTitle": "Estimated Pricing",
@@ -383,8 +399,10 @@
       "emailInvalid": "Enter a valid email.",
       "unitRequired": "House unit number is required (e.g. A-18-08).",
       "pickupLocationRequired": "Please select a pickup location.",
+      "deliveryPointRequired": "Please select a delivery point.",
       "deliveryDayRequired": "Please select a delivery day.",
       "failedToPlaceOrder": "Failed to place order. Please try again.",
+      "ordersDisabled": "Ordering is currently disabled. Please try again later.",
       "orderNotesOptional": "Order notes are optional."
     }
   },
@@ -427,6 +445,8 @@
     "loading": "Loading order...",
     "notFound": "Order Not Found",
     "notFoundMessage": "We couldn't find order #{{id}}.",
+    "loadError": "We couldn't load this order. Please try again.",
+    "retry": "Try Again",
     "backToHome": "Back to Home",
     "home": "Home",
     "pageTitle": "Order Tracking",
@@ -519,13 +539,65 @@
     "currentStatus": "Current Status",
     "trackingTimeline": "Tracking Timeline",
     "pickupDetails": "Pickup Details",
+    "deliveryPoint": "Delivery Point",
     "orderContents": "Order Contents",
     "unit": "Unit",
+    "slices": "Slices: {{count}}",
+    "actualWeight": "Actual Weight: {{weight}} kg",
+    "pricePerKg": "RM{{price}}/kg",
+    "finalPrice": "Final Price: RM{{price}}",
     "timeline": {
       "Order Confirmed": "Order Received",
       "Being Prepared": "Preparing",
       "Out for Delivery": "Out For Delivery",
       "Delivered": "Delivered"
+    },
+    "live": {
+      "title": "Delivery Progress",
+      "trackLalamove": "Track Lalamove",
+      "trackSupplierDelivery": "Track Supplier Delivery",
+      "deliveryDate": "Delivery Date",
+      "deliveryMethod": "Delivery Method",
+      "currentDeliveryPoint": "Today's Delivery Point",
+      "rider": "Your Rider",
+      "stage": {
+        "orderReceived": {
+          "title": "Order Received",
+          "body": "Your order has been successfully placed."
+        },
+        "awaitingPayment": {
+          "title": "Awaiting Payment",
+          "body": "Your actual total has been confirmed. Please complete your payment."
+        },
+        "paymentConfirmed": {
+          "title": "Payment Confirmed",
+          "body": "Payment confirmed. We are preparing your order."
+        },
+        "preparing": {
+          "title": "Preparing",
+          "body": "Our supplier is preparing today's fresh products."
+        },
+        "supplierDispatch": {
+          "title": "Supplier Dispatch",
+          "body": "Your products are travelling from {{from}} to {{to}}."
+        },
+        "arrivedHub": {
+          "title": "Arrived at FreshGo Hub",
+          "body": "Your products have arrived at FreshGo Hub. Preparing for final delivery."
+        },
+        "readyForRider": {
+          "title": "Ready For Rider",
+          "body": "Your order is packed and ready for the rider."
+        },
+        "outForDelivery": {
+          "title": "Out For Delivery",
+          "body": "Your FreshGo rider is delivering today's orders."
+        },
+        "delivered": {
+          "title": "Delivered",
+          "body": "Your order is complete. Enjoy your fresh products!"
+        }
+      }
     },
     "messages": {
       "orderBeingPrepared": "Your order is being prepared.",
@@ -537,6 +609,11 @@
   "supplierDashboard": {
     "packingDashboard": "Packing Dashboard",
     "prepareProducts": "Prepare products before opening customer orders",
+    "dashboardTab": "Working Dashboard",
+    "scheduleTab": "Delivery Schedule",
+    "deliveryBatchTitle": "Today's Delivery Batch",
+    "deliveryBatchSubtitle": "Delivery date: {{date}}",
+    "backToQueues": "← Back to Queues",
     "todaysProgress": "Today's Progress",
     "customersCompleted": "{{completed}} / {{total}} Customers Completed",
     "pendingCount": "🟡 Pending: {{count}}",
@@ -594,6 +671,7 @@
     "noOrdersInCategory": "No orders in this category.",
     "filterProducts": "Products",
     "contains": "Contains",
+    "slicesRequested": "Customer requested: {{count}} slices",
     "filterDeliveryFee": "Delivery Fee",
     "actualTotal": "Actual Total",
     "viewOrder": "View Order",
@@ -632,6 +710,21 @@
     "paymentStatus": "Payment Status",
     "completionTime": "Completion Time",
     "close": "Close"
+  },
+  "supplierQueues": {
+    "waitingTitle": "Waiting For Weighing",
+    "waitingSubtitle": "Orders that still need actual weight. Weigh these first.",
+    "noWaiting": "No orders waiting for weighing.",
+    "weighButton": "Start Weighing",
+    "startButton": "Start Order",
+    "viewButton": "View Order",
+    "awaitingPaymentTitle": "Awaiting Payment",
+    "awaitingPaymentSubtitle": "Weighed and total confirmed. Waiting for customer payment.",
+    "editWeightButton": "Edit Weight",
+    "readyTitle": "Ready To Prepare",
+    "readySubtitle": "Only paid orders can be prepared.",
+    "noReady": "No paid orders ready to prepare.",
+    "prepareButton": "Prepare Order"
   },
   "packingSummary": {
     "title": "Packing Summary",
@@ -769,6 +862,8 @@
       "total": "Total",
       "grandTotal": "Grand Total",
       "deliveryFee": "Delivery Fee",
+      "supplierCost": "Supplier Cost",
+      "grossProfit": "Gross Profit",
       "free": "FREE"
     },
     "input": {
@@ -843,6 +938,7 @@
       "completionTime": "Completion Time",
       "qtyLine": "Qty: {{qty}} × RM{{price}}{{suffix}}",
       "perKg": "/kg",
+      "slices": "Slices: {{count}}",
       "quantity": "Quantity",
       "preparation": "Preparation: {{prep}}",
       "estimatedWeight": "Estimated Weight",
@@ -851,6 +947,8 @@
       "actualPrice": "Actual Price",
       "subtotal": "Subtotal",
       "deliveryFee": "Delivery Fee",
+      "supplierCost": "Supplier Cost",
+      "grossProfit": "Gross Profit",
       "grandTotal": "Grand Total",
       "fixedPrice": "✅ Fixed Price",
       "totalProducts": "Total Products",
@@ -996,7 +1094,9 @@
     "tabs": {
       "products": "Products",
       "settings": "Settings",
-      "users": "Users"
+      "users": "Users",
+      "delivery": "Delivery Points",
+      "batches": "Delivery Batches"
     }
   },
   "adminOrders": {
@@ -1111,7 +1211,9 @@
       "delete": "Delete",
       "cancel": "Cancel",
       "update": "Update Product",
-      "create": "Create Product"
+      "create": "Create Product",
+      "duplicate": "Duplicate",
+      "save": "Save"
     },
     "labels": {
       "productName": "Product Name",
@@ -1126,7 +1228,9 @@
       "combo": "Combo",
       "available": "Available",
       "limited": "Limited",
-      "soldOut": "Sold Out"
+      "soldOut": "Sold Out",
+      "selectAll": "Select all",
+      "dragHint": "Drag or use arrows to reorder"
     },
     "messages": {
       "noSearchResults": "No products match your search.",
@@ -1134,9 +1238,16 @@
       "deleteFailed": "Delete failed",
       "deleting": "Deleting...",
       "saving": "Saving...",
+      "savingOrder": "Saving order...",
+      "reorderFailed": "Failed to save the new order. Please try again.",
+      "duplicateFailed": "Duplicate failed",
       "added": "Product added successfully. Redirecting...",
       "updated": "Product updated successfully. Redirecting...",
-      "operationFailed": "Operation failed"
+      "operationFailed": "Operation failed",
+      "invalidPrice": "Please enter a valid selling price.",
+      "invalidCost": "Please enter a valid supplier cost.",
+      "loadingHistory": "Loading price history...",
+      "noPriceHistory": "No price history recorded yet."
     },
     "delete": {
       "title": "Delete Product",
@@ -1145,6 +1256,46 @@
     "pagination": {
       "showing": "Showing {{count}} of {{total}} products",
       "total": "Total Products: {{count}}"
+    },
+    "sort": {
+      "manual": "Custom",
+      "name": "Name A–Z",
+      "price_low": "Price: Low → High",
+      "price_high": "Price: High → Low",
+      "newest": "Newest First",
+      "manualHint": "Drag to reorder, or use the arrows to move items.",
+      "searchHint": "Clear the search to reorder items.",
+      "reset": "Reset order",
+      "resetConfirm": "Restore the original product order?"
+    },
+    "bulk": {
+      "selected": "{{count}} selected",
+      "activate": "Activate",
+      "deactivate": "Deactivate",
+      "pin": "Pin",
+      "unpin": "Unpin",
+      "delete": "Delete",
+      "clear": "Clear"
+    },
+    "actions": {
+      "pin": "Pin to top",
+      "unpin": "Unpin",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "togglePin": "Toggle pin",
+      "activated": "activated",
+      "deactivated": "deactivated",
+      "pinned": "pinned",
+      "unpinned": "unpinned"
+    },
+    "toast": {
+      "reordered": "Order saved.",
+      "reorderFailed": "Failed to save the new order. Please try again.",
+      "pinned": "Product pinned.",
+      "unpinned": "Product unpinned.",
+      "bulkChanged": "{{count}} product(s) {{label}}.",
+      "undoFailed": "Could not undo the last change.",
+      "undo": "Undo"
     },
     "form": {
       "addTitle": "Add New Product",
@@ -1157,6 +1308,25 @@
       "category": "Category *",
       "freshness": "Freshness Status",
       "pricing": "Pricing & Units",
+      "pricingManagement": "Pricing Management",
+      "pricingManagementHelper": "Selling price and supplier cost snapshots are frozen into each order at checkout. Changing a price here only affects future orders — existing orders and the price history below are never overwritten.",
+      "sellingPrice": "Selling Price (RM)",
+      "supplierCost": "Supplier Cost (RM)",
+      "supplierCostPlaceholder": "e.g. 15.00",
+      "supplierName": "Supplier Name",
+      "supplierNamePlaceholder": "e.g. FreshGo Poultry Sdn Bhd",
+      "grossMargin": "Gross Margin",
+      "marginPercent": "Margin",
+      "sellingPriceHistory": "Selling Price History",
+      "supplierPriceHistory": "Supplier Price History",
+      "addNewPrice": "Add New Price",
+      "addNewCost": "Add New Cost",
+      "historyDate": "Effective From",
+      "historyPrice": "Price",
+      "historyCost": "Cost",
+      "historySupplier": "Supplier",
+      "historyUpdatedBy": "Updated By",
+      "historyActive": "Active",
       "price": "Price (RM) *",
       "pricePlaceholder": "e.g. 19.00",
       "unit": "Unit *",
@@ -1192,7 +1362,20 @@
       "fixedQuantity": "🐔 Fixed Price (Per Item)",
       "weightOnly": "⚖️ By Weight (kg / gram)",
       "wholeOrWeight": "🐟 Whole Fish or By Weight",
-      "combo": "📦 Family Combo"
+      "combo": "📦 Family Combo",
+      "sliceMode": "🔪 By Slice (Supplier Weighs)",
+      "sliceConfigTitle": "Slice Settings",
+      "sliceConfigHelper": "Price is per kg. Customers pick a slice count; the supplier weighs the slices and the system calculates the final price.",
+      "slice": {
+        "unit": "Slice Unit",
+        "unitPlaceholder": "slice",
+        "min": "Minimum Slice",
+        "max": "Maximum Slice",
+        "default": "Default Slice Quantity",
+        "increment": "Slice Increment",
+        "instruction": "Customer Information Text",
+        "instructionPlaceholder": "Customer selects number of slices. Supplier will weigh the selected slices. Final price will be calculated after weighing."
+      }
     },
     "upload": {
       "dragOrClick": "Drag & drop an image, or click to browse",
@@ -1207,6 +1390,76 @@
       "noImages": "No images uploaded yet"
     }
   },
+  "adminCombos": {
+    "title": "Combo Packages",
+    "add": "Add Combo",
+    "count": "{{count}} combos",
+    "search": {
+      "placeholder": "Search by name, tagline, or category..."
+    },
+    "messages": {
+      "noCombos": "No combo packages yet.",
+      "loading": "Loading combos...",
+      "reorderFailed": "Failed to save the new order. Please try again.",
+      "duplicateFailed": "Failed to duplicate combo.",
+      "deleteFailed": "Failed to delete combo.",
+      "deleteConfirm": "Delete this combo permanently?"
+    },
+    "badges": {
+      "featured": "Featured",
+      "active": "Active",
+      "inactive": "Inactive",
+      "pinned": "Pinned"
+    },
+    "buttons": {
+      "edit": "Edit",
+      "feature": "Feature",
+      "featured": "Featured",
+      "deactivate": "Deactivate",
+      "activate": "Activate",
+      "duplicate": "Duplicate",
+      "delete": "Delete",
+      "servings": "{{count}} servings",
+      "items": "{{count}} items"
+    },
+    "actions": {
+      "pin": "Pin to top",
+      "unpin": "Unpin",
+      "activated": "activated",
+      "deactivated": "deactivated",
+      "pinned": "pinned",
+      "unpinned": "unpinned"
+    },
+    "sort": {
+      "manual": "Custom",
+      "name": "Name A–Z",
+      "price_low": "Price: Low → High",
+      "price_high": "Price: High → Low",
+      "newest": "Newest First",
+      "manualHint": "Drag to reorder, or use the arrows to move items.",
+      "searchHint": "Clear the search to reorder items.",
+      "reset": "Reset order",
+      "resetConfirm": "Restore the original combo order?"
+    },
+    "bulk": {
+      "selected": "{{count}} selected",
+      "activate": "Activate",
+      "deactivate": "Deactivate",
+      "pin": "Pin",
+      "unpin": "Unpin",
+      "delete": "Delete",
+      "clear": "Clear"
+    },
+    "toast": {
+      "reordered": "Order saved.",
+      "reorderFailed": "Failed to save the new order. Please try again.",
+      "pinned": "Combo pinned.",
+      "unpinned": "Combo unpinned.",
+      "bulkChanged": "{{count}} combo(s) {{label}}.",
+      "undoFailed": "Could not undo the last change.",
+      "undo": "Undo"
+    }
+  },
   "adminUsers": {
     "labels": {
       "email": "Email",
@@ -1214,11 +1467,20 @@
       "actions": "Actions",
       "you": "(you)"
     },
+    "roles": {
+      "admin": "Admin",
+      "supplier": "Supplier",
+      "delivery_rider": "Delivery Rider",
+      "customer": "Customer"
+    },
     "buttons": {
       "promoteToSupplier": "Promote to Supplier",
+      "promoteToRider": "Promote to Delivery Rider",
       "promoteToAdmin": "Promote to Admin",
       "makeCustomer": "Make Customer",
-      "makeSupplier": "Make Supplier"
+      "makeSupplier": "Make Supplier",
+      "makeRider": "Make Delivery Rider",
+      "makeAdmin": "Make Admin"
     },
     "messages": {
       "failedLoad": "Failed to load users",
@@ -1236,6 +1498,112 @@
       "language": "Language",
       "notifications": "Notifications"
     },
+    "website": {
+      "title": "Website Visibility",
+      "description": "Control which public pages and website sections are visible to customers. Changes apply instantly.",
+      "refresh": "Reload settings",
+      "navigation": "Navigation & Pages",
+      "homepage": "Homepage Sections",
+      "business": "Business & Access",
+      "shop": "Shop",
+      "shopDesc": "Show the shop, categories, and product pages.",
+      "familyCombo": "Family Combo",
+      "familyComboDesc": "Show the family combo page and detail pages.",
+      "suppliers": "Our Suppliers",
+      "suppliersDesc": "Show the suppliers page.",
+      "recurringBasket": "Recurring Basket",
+      "recurringBasketDesc": "Show the recurring basket page.",
+      "featuredProducts": "Popular Products",
+      "featuredProductsDesc": "Show the popular products section on the homepage.",
+      "featuredCombos": "Featured Combos",
+      "featuredCombosDesc": "Show the featured combos section on the homepage.",
+      "homeSuppliers": "Suppliers Spotlight",
+      "homeSuppliersDesc": "Show the suppliers section on the homepage.",
+      "testimonials": "Testimonials",
+      "testimonialsDesc": "Show the testimonials section on the homepage.",
+      "deliverySchedule": "Delivery Slot Selector",
+      "deliveryScheduleDesc": "Show the delivery slot selector on the homepage.",
+      "whyFreshGo": "Why FreshGo",
+      "whyFreshGoDesc": "Show the trust indicators section on the homepage.",
+      "registration": "Customer Registration",
+      "registrationDesc": "Allow visitors to create new customer accounts.",
+      "orders": "Customer Orders",
+      "ordersDesc": "Allow customers to place orders at checkout.",
+      "maintenance": "Maintenance Mode",
+      "maintenanceDesc": "Show a maintenance page to visitors while keeping admin access."
+    },
+    "nav": {
+      "general": "General",
+      "branding": "Branding",
+      "navigation": "Navigation",
+      "footer": "Footer",
+      "contact": "Contact",
+      "social": "Social Media",
+      "delivery": "Delivery",
+      "visibility": "Website Visibility",
+      "sorting": "Display & Sorting"
+    },
+    "sorting": {
+      "title": "Display & Sorting",
+      "description": "Choose how products and combos are ordered for customers by default. Admins can still override this with pinned items and custom order.",
+      "defaultProductSort": "Default Product Sort",
+      "defaultProductSortHelper": "Applied on the shop page unless an item is pinned to the top.",
+      "defaultComboSort": "Default Combo Sort",
+      "defaultComboSortHelper": "Applied on the combo packages page.",
+      "manual": "Custom Order",
+      "name": "Name A–Z",
+      "price_low": "Price: Low → High",
+      "price_high": "Price: High → Low",
+      "newest": "Newest First"
+    },
+    "general": {
+      "title": "General",
+      "description": "Site-wide messages shown to customers.",
+      "announcement": "Announcement Bar Message",
+      "announcementHelper": "Shown in the green bar at the top of every page.",
+      "announcementPreview": "Announcement Bar Preview"
+    },
+    "branding": {
+      "title": "Branding",
+      "description": "Global website identity. The logo appears everywhere across the site — navbar, footer, auth screens and admin.",
+      "siteName": "Site Name",
+      "logo": "Logo",
+      "logoHelper": "Upload a logo image. Only the storage path is saved and rendered site-wide via BrandLogo.",
+      "preview": "Live Preview",
+      "refresh": "Reload settings",
+      "remove": "Remove logo"
+    },
+    "contact": {
+      "title": "Contact",
+      "description": "How customers can reach you.",
+      "phone": "Phone",
+      "whatsapp": "WhatsApp",
+      "email": "Email",
+      "address": "Address",
+      "deliveryArea": "Delivery Area"
+    },
+    "social": {
+      "title": "Social Media",
+      "description": "Social links shown in the footer. Only icons with valid URLs appear.",
+      "helper": "Leave a field empty to hide that icon."
+    },
+    "navigation": {
+      "title": "Navigation",
+      "description": "Which links appear in the footer. Page links also respect Website Visibility.",
+      "faq": "FAQ",
+      "howItWorks": "How It Works",
+      "privacy": "Privacy Policy",
+      "terms": "Terms of Service"
+    },
+    "footer": {
+      "title": "Footer",
+      "description": "Footer-specific content. Brand identity (site name & logo) lives in Branding.",
+      "refresh": "Reload settings",
+      "livePreview": "Live Preview",
+      "description": "Footer Description (use {{days}} for delivery days)",
+      "copyright": "Copyright",
+      "copyrightText": "Copyright Text (use {{year}} for current year)"
+    },
     "delivery": {
       "description": "These settings affect the entire site -- announcement bar, product pages, checkout, and footer",
       "dayPlaceholder": "Type a day name (e.g. Monday, 1st Saturday)...",
@@ -1244,6 +1612,21 @@
       "timeHelper": "Shown on delivery slots, checkout, and product pages.",
       "announcementPlaceholder": "e.g. We deliver to your door every Tuesday & Saturday, 9:00 AM - 12:00 PM",
       "announcementHelper": "Full custom message shown in the green bar at the top of every page."
+    },
+    "deliveryCapacity": {
+      "title": "Delivery Capacity",
+      "description": "Maximum number of orders accepted per delivery day. When full, checkout automatically closes that slot.",
+      "maxOrders": "Maximum Orders Per Day",
+      "helper": "Set to 20 for the default FreshGo capacity.",
+      "failedSave": "Failed to save delivery capacity"
+    },
+    "deliveryPoints": {
+      "title": "Delivery Points",
+      "description": "Set the handover method and Google Maps search query for each delivery point.",
+      "method": "Handover Method",
+      "mapsQuery": "Google Maps Search Query",
+      "empty": "No delivery points configured yet.",
+      "failedSave": "Failed to save delivery points"
     },
     "pickup": {
       "description": "Manage the delivery drop-off points shown to customers during checkout",
@@ -1320,8 +1703,8 @@
   "comboDetail": {
     "breadcrumbHome": "Home",
     "breadcrumbCombo": "Family Combo",
+    "breadcrumbCombos": "Combo Packages",
     "bestValue": "Best Value",
-    "signatureBundle": "Signature Bundle",
     "savePrice": "Save RM{{savings}} ({{pct}}% off)",
     "whatsIncluded": "What's Included",
     "ifBoughtSeparately": "If bought separately",
@@ -1330,6 +1713,13 @@
     "increase": "Increase",
     "addedToCart": "Added to Cart!",
     "addCombo": "Add {{qty}}Combo — RM{{total}}",
+    "preparedAs": "Prep: {{prep}}",
+    "vendor": "From {{vendor}}",
+    "notFound": "Combo not found.",
+    "backToCombos": "Browse all combos",
+    "relatedTitle": "You may also like",
+    "relatedSubtitle": "Other bundles our customers love.",
+    "viewAllCombos": "View all combos",
     "whyTitle": "Why the Family Combo?",
     "whySubtitle": "Everything you need for a week of home-cooked meals.",
     "maxSavings": "Maximum Savings",
@@ -1338,6 +1728,38 @@
     "feedsFamilyDesc": "Generously portioned for a family of {{servings}}. Enough variety for 2–3 different meals.",
     "zeroEffort": "Zero Effort",
     "zeroEffortDesc": "All items are prepared fresh the morning of your delivery. Cleaned, descaled, and ready to cook."
+  },
+  "comboList": {
+    "breadcrumbHome": "Home",
+    "breadcrumbCombos": "Combos",
+    "title": "FreshGo Combo Packages",
+    "subtitle": "Choose the perfect bundle and save more than buying individually.",
+    "searchPlaceholder": "Search combos...",
+    "allCategories": "All",
+    "sortLabel": "Sort",
+    "sortFeatured": "Featured",
+    "sortPopular": "Popular",
+    "sortNewest": "Newest",
+    "sortName": "Name A–Z",
+    "sortPrice": "Price: Low to High",
+    "featuredTitle": "Featured Combos",
+    "featuredSubtitle": "Our most popular bundles, hand-picked.",
+    "allTitle": "All Combo Packages",
+    "itemsLabel": "items",
+    "feedsLabel": "Feeds {{count}} people",
+    "saveLabel": "Save RM{{amount}} ({{pct}}%)",
+    "deliveryBadge": "Delivered {{days}}",
+    "viewCombo": "View Combo",
+    "addCombo": "Add Combo",
+    "addedToCart": "Added to Cart!",
+    "emptyAllTitle": "No combo packages yet",
+    "emptyAllDescription": "Check back soon — fresh bundles are being prepared.",
+    "startShopping": "Start Shopping",
+    "emptyTitle": "No combos found",
+    "emptyDescription": "Try a different search or browse all combos.",
+    "clearFilters": "Clear filters",
+    "resultCount": "{{count}} combo",
+    "resultCountPlural": "{{count}} combos"
   },
   "recurringBasket": {
     "editBasket": "Edit Basket",
@@ -1371,5 +1793,411 @@
     "english": "English",
     "melayu": "Bahasa Melayu",
     "select": "Select language"
+  },
+  "featureDisabled": {
+    "badge": "Coming Soon",
+    "title": "Coming Soon",
+    "description": "This feature is currently unavailable.",
+    "subtitle": "Please check back soon.",
+    "backHome": "Back to Home"
+  },
+  "deliveryDashboard": {
+    "title": "Delivery Dashboard",
+    "subtitle": "Your assigned delivery run. Mark orders as Arrived and Delivered as you go.",
+    "today": "Today",
+    "status": {
+      "pending": "Pending",
+      "arrived": "Arrived",
+      "delivered": "Delivered"
+    },
+    "payment": {
+      "paid": "Paid",
+      "collect": "Collect {{amount}}"
+    },
+    "progress": {
+      "title": "Deliveries Completed",
+      "remaining": "{{count}} remaining",
+      "complete": "All delivered!"
+    },
+    "suggest": {
+      "title": "Suggested route",
+      "body": "Start with the largest cluster, then work through the remaining points."
+    },
+    "empty": {
+      "title": "No delivery runs assigned yet",
+      "body": "When the admin assigns you to a delivery day, your orders will appear here.",
+      "noOrders": "No orders for this run yet."
+    },
+    "method": {
+      "default": "Customer Come Down"
+    },
+    "buttons": {
+      "refresh": "Refresh",
+      "maps": "Maps",
+      "call": "Call",
+      "whatsapp": "WhatsApp",
+      "arrived": "Arrived",
+      "delivered": "Delivered",
+      "viewOrder": "View order"
+    },
+    "waMessage": "Hi {{name}}, Rimbun FreshGo delivery here. Your order {{ref}} is on its way.",
+    "messages": {
+      "failedLoad": "Failed to load deliveries",
+      "failedUpdate": "Failed to update delivery status"
+    }
+  },
+  "riderDelivery": {
+    "title": "Today's Delivery",
+    "subtitle": "Complete today's delivery round.",
+    "batch": "Batch",
+    "supplier": "Supplier",
+    "hub": "Hub",
+    "incomingTitle": "Incoming Shipments",
+    "todayTitle": "Today's Deliveries",
+    "incomingSubtitle": "Dispatched by suppliers, arriving at the FreshGo hub.",
+    "todaySubtitle": "Received at the hub, ready to deliver.",
+    "shipmentBadge": "In Transit",
+    "trackLalamove": "Track Lalamove",
+    "noTrackingUrl": "No tracking link",
+    "receivedAtHub": "Received at FreshGo Hub",
+    "bookingRef": "Booking Ref",
+    "readyForDelivery": "Ready",
+    "outForDelivery": "Out For Delivery",
+    "noIncoming": "No incoming shipments right now.",
+    "noToday": "No deliveries ready yet. Receive shipments at the hub first.",
+    "progressTitle": "Today's Progress",
+    "deliveredLabel": "Delivered",
+    "remainingLabel": "Remaining",
+    "completionLabel": "Completion",
+    "startDelivery": "Start Delivery",
+    "startDeliveryHint": "Begin the round once the batch is ready.",
+    "notReady": "This batch is not ready yet",
+    "notReadyBody": "The batch will unlock for delivery once it arrives at the hub.",
+    "stopNumber": "Stop {{n}}",
+    "ordersCount": "{{count}} orders",
+    "startStop": "Start Stop",
+    "stopCompleted": "Stop Completed",
+    "nextStop": "Go To Next Stop",
+    "unit": "Unit",
+    "orderRef": "Order",
+    "remarks": "Remarks",
+    "products": "Products Ordered",
+    "maps": "Maps",
+    "markDelivered": "Mark Delivered",
+    "delivered": "Delivered",
+    "emptyTitle": "No delivery batch for today",
+    "emptyBody": "You're all caught up. Check back later.",
+    "completedTitle": "Delivery Completed",
+    "completedBody": "All orders have been delivered. Great job!",
+    "waMessage": "Hello. FreshGo Delivery has arrived at {{point}}. Please collect your order. Thank you.",
+    "messages": {
+      "failedLoad": "Failed to load today's delivery",
+      "failedUpdate": "Failed to update delivery status"
+    }
+  },
+  "adminDelivery": {
+    "tab": "Delivery",
+    "subTabs": {
+      "runs": "Delivery Runs",
+      "points": "Delivery Points"
+    },
+    "points": {
+      "title": "Delivery Points",
+      "description": "Delivery points shown at checkout. Each has a name, fee, handover method and active state.",
+      "add": "Add Point",
+      "newTitle": "New Delivery Point",
+      "editTitle": "Edit Delivery Point",
+      "name": "Name",
+      "namePlaceholder": "e.g. Rimbun Lobby A",
+      "method": "Handover Method",
+      "fee": "Delivery Fee (RM)",
+      "active": "Active",
+      "inactive": "Inactive",
+      "save": "Save Point",
+      "saving": "Saving...",
+      "cancel": "Cancel",
+      "edit": "Edit",
+      "delete": "Delete",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "empty": "No delivery points configured yet.",
+      "nameRequired": "Delivery point name is required.",
+      "feeInvalid": "Enter a valid delivery fee.",
+      "deleteConfirm": "Delete delivery point \"{{name}}\"?",
+      "failedLoad": "Failed to load delivery points",
+      "failedSave": "Failed to save delivery point",
+      "failedDelete": "Failed to delete delivery point",
+      "deleting": "Deleting...",
+      "area": "Area / Residence",
+      "areaRequired": "Area is required.",
+      "areaPlaceholder": "e.g. Residensi Rimbun",
+      "displayOrder": "Display Order",
+      "displayOrderInvalid": "Display order must be a whole number.",
+      "pickupNotes": "Pickup Notes (optional)",
+      "pickupNotesPlaceholder": "e.g. Wait at the lobby",
+      "latitude": "GPS Latitude",
+      "longitude": "GPS Longitude",
+      "searchPlaceholder": "Search delivery point...",
+      "noResults": "No delivery points match your search.",
+      "reordered": "Display order updated.",
+      "deleted": "Delivery point deleted.",
+      "nameExists": "A delivery point with this name already exists.",
+      "deleteDialogTitle": "Delete delivery point?",
+      "deleteDialogBody": "This action cannot be undone.",
+      "enable": "Enable",
+      "disable": "Disable",
+      "actions": "Actions",
+      "dragHint": "Drag to reorder",
+      "showing": "Showing {{count}} of {{total}}",
+      "count": "{{count}} delivery points",
+      "tableOrder": "Order",
+      "tableName": "Name",
+      "tableArea": "Area",
+      "tableFee": "Fee",
+      "tableStatus": "Status",
+      "tableActions": "Actions"
+    },
+    "summary": {
+      "title": "Deliveries Completed"
+    },
+    "assignment": {
+      "title": "Rider Assignment",
+      "description": "Assign a rider to this delivery date. A delivery day only appears for assigned riders.",
+      "selectRider": "Select a delivery rider...",
+      "assign": "Assign",
+      "remove": "Remove",
+      "noRider": "No rider assigned to this date yet. Assign one so the run appears on their dashboard.",
+      "noRidersHint": "No delivery riders found. Promote a user to the Delivery Rider role in the Users tab first."
+    },
+    "payment": {
+      "status": "Collect on delivery"
+    },
+    "empty": "No orders for this delivery date.",
+    "messages": {
+      "failedLoad": "Failed to load deliveries",
+      "failedUpdate": "Failed to update delivery status",
+      "failedAssign": "Failed to update rider assignment"
+    }
+  },
+  "adminBatches": {
+    "title": "Delivery Batches",
+    "description": "One Lalamove trip per batch. Many packed orders travel together from Pasar Tani Putrajaya to the FreshGo Hub.",
+    "add": "New Batch",
+    "newTitle": "New Delivery Batch",
+    "editTitle": "Edit Delivery Batch",
+    "tableCode": "Batch Code",
+    "tableDate": "Delivery Date",
+    "tableSupplier": "Supplier",
+    "tableStatus": "Status",
+    "tableOrders": "Orders",
+    "tableCreated": "Created At",
+    "tableActions": "Actions",
+    "searchPlaceholder": "Search batch, supplier or date...",
+    "empty": "No delivery batches yet.",
+    "noResults": "No delivery batches match your search.",
+    "showing": "Showing {{count}} of {{total}}",
+    "count": "{{count}} delivery batches",
+    "batchCodeLabel": "Batch Code",
+    "batchCodeAuto": "Generated automatically on save",
+    "fieldDate": "Delivery Date",
+    "fieldDateRequired": "Delivery date is required.",
+    "fieldSupplier": "Supplier Name",
+    "fieldSupplierPlaceholder": "e.g. Pasar Tani Putrajaya",
+    "fieldNotes": "Supplier Notes",
+    "fieldNotesPlaceholder": "e.g. Packed all orders, ready by 7am",
+    "fieldStatus": "Status",
+    "fieldTracking": "Lalamove Tracking URL (optional)",
+    "fieldTrackingPlaceholder": "https://lalamove.my/track/...",
+    "save": "Save Batch",
+    "saving": "Saving...",
+    "cancel": "Cancel",
+    "edit": "Edit",
+    "delete": "Delete",
+    "deleting": "Deleting...",
+    "deleteTitle": "Delete batch?",
+    "deleteConfirm": "Delete batch \"{{code}}\"?",
+    "deleteBody": "This action cannot be undone.",
+    "deleteNotEmpty": "This batch still contains orders.",
+    "saved": "Batch saved.",
+    "deleted": "Batch deleted.",
+    "failedLoad": "Failed to load delivery batches",
+    "failedSave": "Failed to save delivery batch",
+    "failedDelete": "Failed to delete delivery batch",
+    "view": "View",
+    "detailTitle": "Batch Details",
+    "detailSubtitle": "Supplier dispatch progress for this batch",
+    "detailDate": "Delivery Date",
+    "detailSupplier": "Supplier",
+    "detailOrders": "Orders",
+    "detailTracking": "Tracking URL",
+    "detailBookingRef": "Booking Reference",
+    "openTracking": "Open Lalamove Tracking",
+    "supplierProgress": "Supplier Progress",
+    "tlStartPacking": "Start Packing",
+    "tlPackingCompleted": "Packing Completed",
+    "tlLalamoveBooked": "Lalamove Booked",
+    "tlHubArrived": "Arrived at Hub",
+    "tlReadyForRider": "Ready For Rider",
+    "notStarted": "Not started",
+    "confirmArrived": "Confirm Arrived At Hub",
+    "markReady": "Ready For Rider",
+    "arrivalNoTracking": "Cannot confirm arrival - no Lalamove tracking URL yet.",
+    "arrivalNotArrived": "Batch has not arrived at the hub yet.",
+    "trackingUrlLabel": "Lalamove Tracking URL",
+    "trackingUrlPlaceholder": "https://...",
+    "bookingRefLabel": "Booking Reference (optional)",
+    "bookingRefPlaceholder": "e.g. LML-123456",
+    "overviewTab": "Overview",
+    "manifestTab": "Manifest",
+    "status": {
+      "pending": "Pending",
+      "packing": "Packing",
+      "awaiting_lalamove": "Awaiting Lalamove",
+      "in_transit_to_hub": "In Transit to Hub",
+      "arrived_at_hub": "Arrived at Hub",
+      "out_for_delivery": "Out For Delivery",
+      "completed": "Completed",
+      "cancelled": "Cancelled"
+    }
+  },
+  "adminManifest": {
+    "empty": "No orders assigned to this batch yet.",
+    "sectionSummary": "Batch Summary",
+    "sectionPoints": "Delivery Points",
+    "sectionProducts": "Products Summary",
+    "sectionOrders": "Orders",
+    "sectionPacking": "Packing Checklist",
+    "sectionLoading": "Loading Checklist",
+    "batchCode": "Batch Code",
+    "deliveryDate": "Delivery Date",
+    "supplier": "Supplier",
+    "status": "Status",
+    "totalOrders": "Total Orders",
+    "totalCustomers": "Total Customers",
+    "totalStops": "Total Stops",
+    "product": "Product",
+    "qty": "Quantity",
+    "noProducts": "No products in this batch.",
+    "orderNumber": "Order Number",
+    "customer": "Customer",
+    "deliveryPoint": "Delivery Point",
+    "paymentStatus": "Payment Status",
+    "items": "Items",
+    "packedProgress": "{{done}} / {{total}} Packed",
+    "packingComplete": "All orders packed - Packing Complete",
+    "loadedProgress": "{{done}} / {{total}} Loaded",
+    "yes": "Yes",
+    "no": "No",
+    "markYes": "Yes",
+    "markNo": "No",
+    "readyForRider": "Ready For Rider",
+    "loadAllFirst": "Load every order to enable Ready For Rider.",
+    "readyDone": "Batch marked Ready For Rider.",
+    "printTitle": "Print Manifest",
+    "printHint": "A4 printable summary for the rider before departure.",
+    "printButton": "Print Manifest",
+    "printHeader": "Delivery Manifest",
+    "printedAt": "Printed {{time}}",
+    "ordersShort": "orders",
+    "printProducts": "Products Summary",
+    "printPoints": "Delivery Points",
+    "printOrders": "Order List",
+    "printFooter": "FreshGo Hub"
+  },
+  "supplierDispatch": {
+    "title": "Today's Delivery Batches",
+    "subtitle": "Pack this batch, then hand it off to Lalamove.",
+    "empty": "No delivery batches scheduled for today.",
+    "batchOrders": "{{count}} orders",
+    "stepStartPacking": "Start Packing",
+    "stepStartPackingDone": "Packing Started",
+    "stepPackingCompleted": "Packing Completed",
+    "stepBookLalamove": "Book Lalamove",
+    "stepBookLalamoveDone": "Lalamove Booked",
+    "btnStartPacking": "Start Packing",
+    "btnPackingCompleted": "Packing Completed",
+    "btnBookLalamove": "Book Lalamove",
+    "trackingUrlLabel": "Lalamove Tracking URL",
+    "trackingUrlPlaceholder": "https://...",
+    "bookingRefLabel": "Booking Reference (optional)",
+    "bookingRefPlaceholder": "e.g. LML-123456",
+    "trackingLink": "Open Lalamove Tracking",
+    "errorTrackingRequired": "Tracking URL is required.",
+    "errorTrackingInvalid": "Tracking URL must start with https://",
+    "saved": "Saved.",
+    "failed": "Something went wrong. Please try again.",
+    "startedAt": "Started {{time}}",
+    "completedAt": "Completed {{time}}",
+    "bookedAt": "Booked {{time}}",
+    "arrivedAt": "Arrived at hub {{time}}",
+    "readyForRiderAt": "Ready for rider {{time}}",
+    "noBatchForDate": "No delivery batch scheduled for this date."
+  },
+  "maintenance": {
+    "title": "We'll be right back",
+    "description": "Rimbun FreshGo is currently undergoing scheduled maintenance. Please check back soon.",
+    "refresh": "Refresh"
+  },
+  "businessReports": {
+    "title": "Business Reports",
+    "subtitle": "Supplier cost, selling price, gross profit and margins",
+    "period": "{{from}} — {{to}}",
+    "errors": {
+      "loadFailed": "Failed to load orders. Please try again."
+    },
+    "filters": {
+      "period": "Period",
+      "from": "From",
+      "to": "To",
+      "category": "Category",
+      "supplier": "Supplier",
+      "all": "All"
+    },
+    "periods": {
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "week": "This Week",
+      "month": "This Month",
+      "custom": "Custom",
+      "all": "All Time"
+    },
+    "summary": {
+      "orders": "Orders",
+      "revenue": "Revenue",
+      "cost": "Supplier Cost",
+      "profit": "Gross Profit",
+      "margin": "Avg Margin"
+    },
+    "sections": {
+      "daily": "Daily Report",
+      "monthly": "Monthly Report",
+      "product": "Product Report",
+      "supplier": "Supplier Report"
+    },
+    "table": {
+      "date": "Date",
+      "month": "Month",
+      "product": "Product",
+      "supplier": "Supplier",
+      "qtySold": "Qty Sold",
+      "orders": "Orders",
+      "revenue": "Revenue",
+      "cost": "Supplier Cost",
+      "profit": "Gross Profit",
+      "margin": "Margin"
+    },
+    "charts": {
+      "revenueVsProfit": "Revenue vs Profit",
+      "dailyProfit": "Daily Profit",
+      "monthlyProfit": "Monthly Profit",
+      "topProducts": "Top Selling Products"
+    },
+    "messages": {
+      "noData": "No orders in this period."
+    },
+    "export": {
+      "csv": "Export CSV",
+      "pdf": "Export PDF"
+    }
   }
 }

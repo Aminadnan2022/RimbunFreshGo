@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
+import { getWeightOptions } from '../../lib/sellingOptions';
 
 interface Props {
   value: number;
@@ -10,11 +11,9 @@ interface Props {
   unit?: 'g' | 'kg';
 }
 
-export default function EstimatedWeightStepper({ value, onChange, min = 250, max = 2000, size = 'md', unit = 'g' }: Props) {
+export default function EstimatedWeightStepper({ value, onChange, min = 250, max = 3000, size = 'md', unit = 'g' }: Props) {
   const { t } = useLanguage();
-  const weightOptions = [
-    250, 500, 750, 1000, 1250, 1500, 1750, 2000
-  ];
+  const weightOptions = getWeightOptions();
 
   const handleDecrease = () => {
     const currentIndex = weightOptions.findIndex(w => w === value);
