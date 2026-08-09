@@ -19,22 +19,27 @@ VALUES (
 )
 ON CONFLICT (id) DO NOTHING;
 
-CREATE POLICY "Public Access"
+-- NOTE: Policy names are unique per table. 20260729000001 already created
+-- "Public Access" / "Authenticated users can ..." on storage.objects for the
+-- product-images bucket, so the branding policies below are prefixed to allow
+-- both buckets' policies to coexist on the shared storage.objects table.
+
+CREATE POLICY "Branding Public Access"
 ON storage.objects FOR SELECT
 TO public
 USING (bucket_id = 'branding');
 
-CREATE POLICY "Authenticated users can upload"
+CREATE POLICY "Branding Authenticated users can upload"
 ON storage.objects FOR INSERT
 TO authenticated
 WITH CHECK (bucket_id = 'branding');
 
-CREATE POLICY "Authenticated users can update"
+CREATE POLICY "Branding Authenticated users can update"
 ON storage.objects FOR UPDATE
 TO authenticated
 USING (bucket_id = 'branding');
 
-CREATE POLICY "Authenticated users can delete"
+CREATE POLICY "Branding Authenticated users can delete"
 ON storage.objects FOR DELETE
 TO authenticated
 USING (bucket_id = 'branding');
@@ -53,6 +58,6 @@ DELETE FROM site_settings WHERE key IN ('brand_name', 'brand_logo');
 
 -- 4. Ensure defaults exist
 INSERT INTO site_settings (key, value) VALUES
-  ('site_name', 'Rimbun FreshGo'),
-  ('site_logo', '')
+  ('site_name', '"Rimbun FreshGo"'),
+  ('site_logo', '""')
 ON CONFLICT (key) DO NOTHING;

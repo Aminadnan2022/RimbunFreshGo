@@ -19,7 +19,22 @@ ALTER TABLE combo_items
   ADD COLUMN IF NOT EXISTS selling_unit TEXT NOT NULL DEFAULT 'piece';
 
 -- Migrate existing rows: copy quantity → quantity_value
-UPDATE combo_items SET quantity_value = quantity WHERE quantity IS NOT NULL;
+-- The legacy quantity column only exists on databases upgraded from an older
+-- schema; fresh databases created by 20260730000001 never have it. Guard the
+-- copy so it only runs when the column is actually present.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'combo_items'
+      AND column_name = 'quantity'
+  ) THEN
+    UPDATE combo_items SET quantity_value = quantity WHERE quantity IS NOT NULL;
+  END IF;
+END;
+$$;
 
 -- Drop the old INTEGER quantity column
 ALTER TABLE combo_items DROP COLUMN IF EXISTS quantity;

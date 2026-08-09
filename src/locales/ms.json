@@ -2166,6 +2166,7 @@
       "revenue": "Hasil",
       "cost": "Kos Pembekal",
       "profit": "Untung Kasar",
+      "delivery": "Penghantaran",
       "margin": "Margin Purata"
     },
     "sections": {
@@ -2182,6 +2183,7 @@
       "qtySold": "Kuantiti Dijual",
       "orders": "Pesanan",
       "revenue": "Hasil",
+      "delivery": "Penghantaran",
       "cost": "Kos Pembekal",
       "profit": "Untung Kasar",
       "margin": "Margin"
@@ -2198,6 +2200,59 @@
     "export": {
       "csv": "Eksport CSV",
       "pdf": "Eksport PDF"
+    }
+  },
+  "historicalData": {
+    "title": "Data Perniagaan Sejarah",
+    "subtitle": "Jumlah harian perniagaan sebelum platform (April–Julai 2026)",
+    "summary": {
+      "orders": "Pesanan",
+      "revenue": "Hasil",
+      "cost": "Kos Pembekal",
+      "delivery": "Penghantaran",
+      "profit": "Untung Kasar"
+    },
+    "table": {
+      "date": "Tarikh",
+      "orders": "Pesanan",
+      "revenue": "Hasil",
+      "cost": "Kos Pembekal",
+      "delivery": "Penghantaran",
+      "profit": "Untung Kasar",
+      "notes": "Nota",
+      "actions": "Tindakan"
+    },
+    "buttons": {
+      "add": "Tambah Rekod",
+      "edit": "Sunting",
+      "delete": "Padam",
+      "save": "Simpan",
+      "cancel": "Batal"
+    },
+    "form": {
+      "date": "Tarikh Perniagaan",
+      "orders": "Bilangan Pesanan",
+      "revenue": "Hasil (RM)",
+      "cost": "Kos Pembekal (RM)",
+      "delivery": "Pendapatan Penghantaran (RM)",
+      "profit": "Untung Kasar (RM)",
+      "profitHint": "Disimpan tepat seperti yang dibekalkan — tidak dikira semula.",
+      "notes": "Nota"
+    },
+    "confirmDelete": {
+      "title": "Padam Rekod",
+      "body": "Padam rekod sejarah untuk {{date}}? Tindakan ini tidak boleh dibatalkan."
+    },
+    "messages": {
+      "saved": "Rekod sejarah disimpan.",
+      "deleted": "Rekod sejarah dipadam.",
+      "empty": "Tiada rekod sejarah lagi."
+    },
+    "errors": {
+      "load": "Gagal memuatkan data sejarah.",
+      "save": "Gagal menyimpan rekod.",
+      "delete": "Gagal memadam rekod.",
+      "dateRequired": "Tarikh perniagaan diperlukan."
     }
   }
 }

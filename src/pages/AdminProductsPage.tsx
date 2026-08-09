@@ -74,6 +74,13 @@ export default function AdminProductsPage() {
           <p className="text-sm text-gray-500 mt-1">{t("adminDashboard.subtitle")}</p>
         </div>
         <Link
+          to="/admin/historical"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-forest-800 bg-cream-100 hover:bg-cream-200 transition-all"
+        >
+          <FileText size={16} />
+          {t("historicalData.title")}
+        </Link>
+        <Link
           to="/admin/reports"
           className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-forest-700 hover:bg-forest-800 transition-all"
         >

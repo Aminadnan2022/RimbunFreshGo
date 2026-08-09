@@ -8,6 +8,7 @@ import { formatCurrency } from '../lib/currency';
 import { orderSelling, orderCost, orderGrossProfit, lineQuantity, isWeightLine, marginPercent } from '../lib/profit';
 import { downloadCsv } from '../lib/exportCsv';
 import { MultiLineChart, BarChart } from '../components/charts/ReportCharts';
+import { fetchHistoricalBusinessDaily, type HistoricalBusinessDaily } from '../data/historicalBusinessDaily';
 import type { CartItem } from '../types';
 
 type PeriodKey = 'today' | 'yesterday' | 'week' | 'month' | 'custom' | 'all';
@@ -33,6 +34,7 @@ interface MoneyRow {
   revenue: number;
   cost: number;
   profit: number;
+  delivery: number;
   margin: number;
   kgTotal: number | null;
   pcsTotal: number | null;
@@ -46,6 +48,12 @@ function toDateKey(d: Date): string {
 
 function startOfDay(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+/** Margin as % of revenue. Division-by-zero safe. */
+function historyMargin(profit: number, revenue: number): number {
+  if (!revenue || revenue <= 0) return 0;
+  return (profit / revenue) * 100;
 }
 
 function periodRange(period: PeriodKey, fromRaw: string, toRaw: string): { from: Date; to: Date } {
@@ -74,6 +82,7 @@ export default function BusinessReportsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [orders, setOrders] = useState<ReportOrder[]>([]);
+  const [history, setHistory] = useState<HistoricalBusinessDaily[]>([]);
 
   const [period, setPeriod] = useState<PeriodKey>('month');
   const [fromDate, setFromDate] = useState('');
@@ -85,12 +94,15 @@ export default function BusinessReportsPage() {
     setLoading(true);
     setError(null);
     try {
-      const { data, error: fetchErr } = await supabase
-        .from('Orders')
-        .select('id, created_at, order_summary, order_items, supplier_weights, delivery_fee')
-        .order('created_at', { ascending: true });
-      if (fetchErr) throw fetchErr;
-      const mapped: ReportOrder[] = (data ?? []).map((r) => ({
+      const [orderRes, histRes] = await Promise.all([
+        supabase
+          .from('Orders')
+          .select('id, created_at, order_summary, order_items, supplier_weights, delivery_fee')
+          .order('created_at', { ascending: true }),
+        fetchHistoricalBusinessDaily(),
+      ]);
+      if (orderRes.error) throw orderRes.error;
+      const mapped: ReportOrder[] = (orderRes.data ?? []).map((r) => ({
         id: String(r.id),
         ref: (r.order_summary as { orderRef?: string } | null)?.orderRef ?? String(r.id),
         placedAt: new Date(r.created_at),
@@ -100,6 +112,7 @@ export default function BusinessReportsPage() {
         deliveryFee: Number(r.delivery_fee ?? 0),
       }));
       setOrders(mapped);
+      setHistory(histRes);
     } catch (err) {
       setError(err instanceof Error ? err.message : t('businessReports.errors.loadFailed'));
     } finally {
@@ -128,49 +141,81 @@ export default function BusinessReportsPage() {
     };
   }, [orders, period, fromDate, toDate, category, supplier]);
 
+  // Historical days are a lone source for a date: if real orders exist for a
+  // date the orders win; historical data is added only for dates with none.
+  // Only shown when no category/supplier filter (history can't be split up).
+  const daily = useMemo(() => {
+    const map = new Map<string, MoneyRow>();
+    list.forEach((o) => {
+      const k = toDateKey(o.placedAt);
+      const row = map.get(k) ?? {
+        key: k, label: fmtDate(o.placedAt), orders: 0, revenue: 0, cost: 0, profit: 0, delivery: 0, margin: 0, kgTotal: 0, pcsTotal: 0,
+      };
+      row.orders += 1;
+      row.revenue += orderSelling(o.items, o.weights);
+      row.cost += orderCost(o.items, o.weights);
+      row.profit += orderGrossProfit(o.items, o.weights);
+      map.set(k, row);
+    });
+    if (category === 'all' && supplier === 'all') {
+      history.forEach((h) => {
+        const k = String(h.business_date);
+        const dt = new Date(`${k}T00:00:00`);
+        if (dt < from || dt > to) return;
+        if (map.has(k)) return; // real orders for this date win; never combine
+        map.set(k, {
+          key: k,
+          label: fmtDate(dt),
+          orders: h.order_count,
+          revenue: h.revenue_amount,
+          cost: h.supplier_cost_amount,
+          profit: h.gross_profit_amount,
+          delivery: h.delivery_income_amount,
+          margin: 0,
+          kgTotal: null,
+          pcsTotal: null,
+        });
+      });
+    }
+    const rows = Array.from(map.values()).sort((a, b) => a.key.localeCompare(b.key));
+    rows.forEach((r) => { r.margin = historyMargin(r.profit, r.revenue); });
+    return rows;
+  }, [list, history, from, to, category, supplier]);
+
   const totals = useMemo(() => {
     let revenue = 0;
     let cost = 0;
     let profit = 0;
-    list.forEach((o) => {
-      revenue += orderSelling(o.items, o.weights);
-      cost += orderCost(o.items, o.weights);
-      profit += orderGrossProfit(o.items, o.weights);
+    let delivery = 0;
+    let orders = 0;
+    daily.forEach((r) => {
+      revenue += r.revenue;
+      cost += r.cost;
+      profit += r.profit;
+      delivery += r.delivery;
+      orders += r.orders;
     });
-    return { revenue, cost, profit, orders: list.length, margin: marginPercent(revenue, cost) };
-  }, [list]);
-
-  const daily = useMemo(() => {
-    const map = new Map<string, MoneyRow & { revenue: number; cost: number; profit: number }>();
-    list.forEach((o) => {
-      const k = toDateKey(o.placedAt);
-      const row = map.get(k) ?? { key: k, label: fmtDate(o.placedAt), orders: 0, revenue: 0, cost: 0, profit: 0, margin: 0, kgTotal: 0, pcsTotal: 0 };
-      row.orders += 1;
-      row.revenue += orderSelling(o.items, o.weights);
-      row.cost += orderCost(o.items, o.weights);
-      row.profit += orderGrossProfit(o.items, o.weights);
-      map.set(k, row);
-    });
-    const rows = Array.from(map.values()).sort((a, b) => a.key.localeCompare(b.key));
-    rows.forEach((r) => { r.margin = marginPercent(r.revenue, r.cost); });
-    return rows;
-  }, [list]);
+    return { revenue, cost, profit, delivery, orders, margin: historyMargin(profit, revenue) };
+  }, [daily]);
 
   const monthly = useMemo(() => {
     const map = new Map<string, MoneyRow>();
-    list.forEach((o) => {
-      const k = `${o.placedAt.getFullYear()}-${String(o.placedAt.getMonth() + 1).padStart(2, '0')}`;
-      const row = map.get(k) ?? { key: k, label: fmtMonth(o.placedAt), orders: 0, revenue: 0, cost: 0, profit: 0, margin: 0, kgTotal: null, pcsTotal: null };
-      row.orders += 1;
-      row.revenue += orderSelling(o.items, o.weights);
-      row.cost += orderCost(o.items, o.weights);
-      row.profit += orderGrossProfit(o.items, o.weights);
+    daily.forEach((d) => {
+      const k = d.key.slice(0, 7);
+      const row = map.get(k) ?? {
+        key: k, label: fmtMonth(new Date(`${k}-01T00:00:00`)), orders: 0, revenue: 0, cost: 0, profit: 0, delivery: 0, margin: 0, kgTotal: null, pcsTotal: null,
+      };
+      row.orders += d.orders;
+      row.revenue += d.revenue;
+      row.cost += d.cost;
+      row.profit += d.profit;
+      row.delivery += d.delivery;
       map.set(k, row);
     });
     const rows = Array.from(map.values()).sort((a, b) => a.key.localeCompare(b.key));
-    rows.forEach((r) => { r.margin = marginPercent(r.revenue, r.cost); });
+    rows.forEach((r) => { r.margin = historyMargin(r.profit, r.revenue); });
     return rows;
-  }, [list]);
+  }, [daily]);
 
   const products = useMemo(() => {
     const map = new Map<string, MoneyRow>();
@@ -184,6 +229,7 @@ export default function BusinessReportsPage() {
           revenue: 0,
           cost: 0,
           profit: 0,
+          delivery: 0,
           margin: 0,
           kgTotal: 0,
           pcsTotal: 0,
@@ -218,7 +264,7 @@ export default function BusinessReportsPage() {
         bySupplier.set(s, row);
       });
       bySupplier.forEach((v, s) => {
-        const row = map.get(s) ?? { key: s, label: s, orders: 0, revenue: 0, cost: 0, profit: 0, margin: 0, kgTotal: null, pcsTotal: null };
+        const row = map.get(s) ?? { key: s, label: s, orders: 0, revenue: 0, cost: 0, profit: 0, delivery: 0, margin: 0, kgTotal: null, pcsTotal: null };
         row.orders += 1;
         row.revenue += v.revenue;
         row.cost += v.cost;
@@ -233,8 +279,8 @@ export default function BusinessReportsPage() {
 
   const exportDaily = () => {
     downloadCsv(`business-report-${toDateKey(new Date())}.csv`, [
-      [t('businessReports.table.date'), t('businessReports.table.orders'), t('businessReports.table.revenue'), t('businessReports.table.cost'), t('businessReports.table.profit'), t('businessReports.table.margin')],
-      ...daily.map((r) => [r.label, r.orders, r.revenue.toFixed(2), r.cost.toFixed(2), r.profit.toFixed(2), `${r.margin.toFixed(1)}%`]),
+      [t('businessReports.table.date'), t('businessReports.table.orders'), t('businessReports.table.revenue'), t('businessReports.table.delivery'), t('businessReports.table.cost'), t('businessReports.table.profit'), t('businessReports.table.margin')],
+      ...daily.map((r) => [r.label, r.orders, r.revenue.toFixed(2), r.delivery.toFixed(2), r.cost.toFixed(2), r.profit.toFixed(2), `${r.margin.toFixed(1)}%`]),
     ]);
   };
 
@@ -396,7 +442,7 @@ export default function BusinessReportsPage() {
   );
 }
 
-function SummaryCards({ totals, t }: { totals: { orders: number; revenue: number; cost: number; profit: number; margin: number }; t: (k: string, p?: Record<string, string | number>) => string }) {
+function SummaryCards({ totals, t }: { totals: { orders: number; revenue: number; cost: number; profit: number; delivery: number; margin: number }; t: (k: string, p?: Record<string, string | number>) => string }) {
   return (
     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
       <div className="bg-white rounded-2xl border border-cream-200 shadow-soft p-5">
@@ -406,6 +452,10 @@ function SummaryCards({ totals, t }: { totals: { orders: number; revenue: number
       <div className="bg-white rounded-2xl border border-cream-200 shadow-soft p-5">
         <p className="text-xs text-gray-400 font-medium">{t('businessReports.summary.revenue')}</p>
         <p className="text-2xl font-bold text-forest-800 mt-1">{money(totals.revenue)}</p>
+      </div>
+      <div className="bg-white rounded-2xl border border-cream-200 shadow-soft p-5">
+        <p className="text-xs text-gray-400 font-medium">{t('businessReports.summary.delivery')}</p>
+        <p className="text-2xl font-bold text-sky-700 mt-1">{money(totals.delivery)}</p>
       </div>
       <div className="bg-white rounded-2xl border border-cream-200 shadow-soft p-5">
         <p className="text-xs text-gray-400 font-medium">{t('businessReports.summary.cost')}</p>
@@ -424,6 +474,8 @@ function MoneyTable({ header, rows, t, showUnit }: { header: string; rows: Money
   if (rows.length === 0) {
     return <p className="text-sm text-gray-400 py-6 text-center">{t('businessReports.messages.noData')}</p>;
   }
+  const hasDelivery = rows.some((r) => r.delivery !== 0);
+  const currency = (v: number | null) => v != null ? money(v) : '—';
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
@@ -433,6 +485,7 @@ function MoneyTable({ header, rows, t, showUnit }: { header: string; rows: Money
             {showUnit && <th className="text-left px-4 py-3 font-semibold text-gray-700">{t('businessReports.table.qtySold')}</th>}
             <th className="text-right px-4 py-3 font-semibold text-gray-700">{t('businessReports.table.orders')}</th>
             <th className="text-right px-4 py-3 font-semibold text-gray-700">{t('businessReports.table.revenue')}</th>
+            {hasDelivery && <th className="text-right px-4 py-3 font-semibold text-gray-700">{t('businessReports.table.delivery')}</th>}
             <th className="text-right px-4 py-3 font-semibold text-gray-700">{t('businessReports.table.cost')}</th>
             <th className="text-right px-4 py-3 font-semibold text-gray-700">{t('businessReports.table.profit')}</th>
             <th className="text-right px-4 py-3 font-semibold text-gray-700">{t('businessReports.table.margin')}</th>
@@ -451,9 +504,10 @@ function MoneyTable({ header, rows, t, showUnit }: { header: string; rows: Money
                 </td>
               )}
               <td className="px-4 py-3 text-right text-gray-600">{r.orders}</td>
-              <td className="px-4 py-3 text-right text-gray-900 font-medium">{money(r.revenue)}</td>
-              <td className="px-4 py-3 text-right text-amber-700">{money(r.cost)}</td>
-              <td className="px-4 py-3 text-right font-semibold text-green-700">{money(r.profit)}</td>
+              <td className="px-4 py-3 text-right text-gray-900 font-medium">{currency(r.revenue)}</td>
+              {hasDelivery && <td className="px-4 py-3 text-right text-sky-700">{currency(r.delivery)}</td>}
+              <td className="px-4 py-3 text-right text-amber-700">{currency(r.cost)}</td>
+              <td className="px-4 py-3 text-right font-semibold text-green-700">{currency(r.profit)}</td>
               <td className="px-4 py-3 text-right text-gray-500">{r.margin.toFixed(1)}%</td>
             </tr>
           ))}

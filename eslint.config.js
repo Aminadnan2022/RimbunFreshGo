@@ -24,5 +24,14 @@ export default tseslint.config(
         { allowConstantExport: true },
       ],
     },
+  },
+  {
+    // Playwright config and E2E specs run in Node, so they need Node globals
+    // (e.g. process.env) in addition to browser globals.
+    files: ['playwright.config.ts', 'e2e/**/*.ts'],
+    languageOptions: {
+      ecmaVersion: 2020,
+      globals: { ...globals.browser, ...globals.node },
+    },
   }
 );

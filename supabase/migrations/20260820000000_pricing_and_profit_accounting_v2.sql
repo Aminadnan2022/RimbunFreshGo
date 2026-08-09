@@ -104,6 +104,8 @@ ALTER TABLE public.selling_price_history
   ADD COLUMN IF NOT EXISTS updated_by uuid REFERENCES auth.users(id) ON DELETE SET NULL,
   ALTER COLUMN effective_from TYPE timestamptz USING effective_from::timestamptz,
   ALTER COLUMN effective_to   TYPE timestamptz USING effective_to::timestamptz;
+ALTER TABLE public.suppliers
+  ADD COLUMN IF NOT EXISTS updated_by uuid REFERENCES auth.users(id) ON DELETE SET NULL;
 
 ALTER TABLE public.supplier_price_history
   DROP CONSTRAINT IF EXISTS chk_supplier_price_range,

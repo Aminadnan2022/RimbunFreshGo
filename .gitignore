@@ -11,6 +11,11 @@ dist
 dist-ssr
 *.local
 
+# Playwright
+playwright-report/
+test-results/
+blob-report/
+
 .vscode/*
 !.vscode/extensions.json
 .idea
@@ -21,3 +26,4 @@ dist-ssr
 *.sln
 *.sw?
 .env
+.env.test

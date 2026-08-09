@@ -208,7 +208,7 @@ SET delivery_date = (
         ELSE 3
       END
     ) - EXTRACT(dow FROM created_at)::int + 7) % 7)
-  )::int
+   )
 WHERE delivery_date IS NULL;
 -- 8. RPC: rider marks arrival/delivery (admin allowed too)
 CREATE OR REPLACE FUNCTION public.rider_update_delivery_status(p_order_id bigint, p_status text)

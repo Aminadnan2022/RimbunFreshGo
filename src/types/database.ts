@@ -606,6 +606,54 @@ export type Database = {
         };
         Relationships: [];
       };
+      historical_business_daily: {
+        Row: {
+          id: number;
+          business_date: string;
+          order_count: number;
+          revenue_amount: number;
+          supplier_cost_amount: number;
+          delivery_income_amount: number;
+          gross_profit_amount: number;
+          source: string;
+          notes: string | null;
+          created_by: string | null;
+          updated_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: number;
+          business_date: string;
+          order_count?: number;
+          revenue_amount?: number;
+          supplier_cost_amount?: number;
+          delivery_income_amount?: number;
+          gross_profit_amount?: number;
+          source?: string;
+          notes?: string | null;
+          created_by?: string | null;
+          updated_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: number;
+          business_date?: string;
+          order_count?: number;
+          revenue_amount?: number;
+          supplier_cost_amount?: number;
+          delivery_income_amount?: number;
+          gross_profit_amount?: number;
+          source?: string;
+          notes?: string | null;
+          created_by?: string | null;
+          updated_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       delivery_assignments: {
         Row: {
           id: number;

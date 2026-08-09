@@ -2166,6 +2166,7 @@
       "revenue": "Revenue",
       "cost": "Supplier Cost",
       "profit": "Gross Profit",
+      "delivery": "Delivery",
       "margin": "Avg Margin"
     },
     "sections": {
@@ -2182,6 +2183,7 @@
       "qtySold": "Qty Sold",
       "orders": "Orders",
       "revenue": "Revenue",
+      "delivery": "Delivery",
       "cost": "Supplier Cost",
       "profit": "Gross Profit",
       "margin": "Margin"
@@ -2198,6 +2200,59 @@
     "export": {
       "csv": "Export CSV",
       "pdf": "Export PDF"
+    }
+  },
+  "historicalData": {
+    "title": "Historical Business Data",
+    "subtitle": "Pre-platform daily business totals (April–July 2026)",
+    "summary": {
+      "orders": "Orders",
+      "revenue": "Revenue",
+      "cost": "Supplier Cost",
+      "delivery": "Delivery",
+      "profit": "Gross Profit"
+    },
+    "table": {
+      "date": "Date",
+      "orders": "Orders",
+      "revenue": "Revenue",
+      "cost": "Supplier Cost",
+      "delivery": "Delivery",
+      "profit": "Gross Profit",
+      "notes": "Notes",
+      "actions": "Actions"
+    },
+    "buttons": {
+      "add": "Add Entry",
+      "edit": "Edit",
+      "delete": "Delete",
+      "save": "Save",
+      "cancel": "Cancel"
+    },
+    "form": {
+      "date": "Business Date",
+      "orders": "Order Count",
+      "revenue": "Revenue (RM)",
+      "cost": "Supplier Cost (RM)",
+      "delivery": "Delivery Income (RM)",
+      "profit": "Gross Profit (RM)",
+      "profitHint": "Stored exactly as supplied — never recomputed.",
+      "notes": "Notes"
+    },
+    "confirmDelete": {
+      "title": "Delete Entry",
+      "body": "Delete the historical entry for {{date}}? This cannot be undone."
+    },
+    "messages": {
+      "saved": "Historical entry saved.",
+      "deleted": "Historical entry deleted.",
+      "empty": "No historical entries yet."
+    },
+    "errors": {
+      "load": "Failed to load historical data.",
+      "save": "Failed to save the entry.",
+      "delete": "Failed to delete the entry.",
+      "dateRequired": "A business date is required."
     }
   }
 }
