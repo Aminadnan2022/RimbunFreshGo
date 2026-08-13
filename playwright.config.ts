@@ -22,8 +22,10 @@ export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  retries: process.env.CI ? 2 : 1,
+  // Cap local parallelism: a single Vite dev server + external Supabase stalls
+  // under many simultaneous browser workers. CI is fully serial.
+  workers: process.env.CI ? 1 : 2,
   timeout: 90_000,
   expect: { timeout: 15_000 },
   reporter: [
@@ -47,7 +49,7 @@ export default defineConfig({
     ? {
         command: 'npm run dev',
         url: localUrl,
-        reuseExistingServer: !process.env.CI,
+        reuseExistingServer: !process.env.CI && !hasTestSupabase,
         timeout: 120_000,
         env: webServerEnv,
       }

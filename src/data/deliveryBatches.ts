@@ -214,25 +214,24 @@ async function callDispatchRpc(
 
 /**
  * Step 1 — Supplier: start packing.
- * Independent of Delivery Batch — sets packing_started_at directly on the order.
- * Idempotent.
+ * Independent of Delivery Batch — routes through the idempotent SECURITY
+ * DEFINER RPC supplier_start_packing_order which sets packing_started_at on
+ * the order (no-op if already started; enforces Paid precondition).
  */
 export async function supplierStartPacking(orderId: string): Promise<void> {
-  const { error } = await (supabase.from('Orders') as any)
-    .update({ packing_started_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-    .eq('id', Number(orderId));
+  const { error } = await callDispatchRpc('supplier_start_packing_order', { p_order_id: Number(orderId) });
   if (error) throw error;
 }
 
 /**
  * Step 2 — Supplier: packing completed.
- * Independent of Delivery Batch — sets packing_completed_at directly on the order.
- * Idempotent.
+ * Independent of Delivery Batch — routes through the idempotent SECURITY
+ * DEFINER RPC supplier_complete_packing_order which sets packing_completed_at
+ * on the order (no-op if already completed; enforces packing-started
+ * precondition).
  */
 export async function supplierCompletePacking(orderId: string): Promise<void> {
-  const { error } = await (supabase.from('Orders') as any)
-    .update({ packing_completed_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-    .eq('id', Number(orderId));
+  const { error } = await callDispatchRpc('supplier_complete_packing_order', { p_order_id: Number(orderId) });
   if (error) throw error;
 }
 
