@@ -27,3 +27,18 @@ blob-report/
 *.sw?
 .env
 .env.test
+.env.test.probe
+.env.*.probe
+*.probe
+
+# Environment / secrets
+.env.local
+.env.production
+.env.production.backup
+
+# Supabase local secrets
+supabase/.env
+supabase/.env.local
+
+# E2E generated results
+e2e/results/
