@@ -17,7 +17,7 @@ function LanguageSwitcher() {
     <div className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-forest-700 bg-forest-50 border border-forest-200 hover:bg-forest-100 transition-all"
+        className="touch-target flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-forest-700 bg-forest-50 border border-forest-200 hover:bg-forest-100 transition-all"
         aria-label={t('language.select') || 'Select language'}
         aria-expanded={open}
         aria-haspopup="listbox"

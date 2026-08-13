@@ -43,7 +43,7 @@ export default function DeliverySlotSelector({ selected, onChange, compact = fal
           key={day}
           onClick={() => onChange(day)}
           aria-pressed={selected === day}
-          className={`flex-1 flex items-center gap-2.5 rounded-2xl border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-forest-500 focus:ring-offset-2 ${
+          className={`touch-target flex-1 flex items-center gap-2.5 rounded-2xl border-2 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-forest-500 focus:ring-offset-2 ${
             compact ? 'px-3 py-2' : 'px-4 py-3'
           } ${
             selected === day

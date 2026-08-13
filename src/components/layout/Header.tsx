@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ShoppingCart, Search, User, Menu, X, Eye, EyeOff, LogIn, LogOut, ShieldCheck, Warehouse, Truck, BarChart3 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useCart } from '../../context/CartContext';
@@ -307,6 +307,12 @@ export default function Header() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    setMenuOpen(false);
+    setSearchOpen(false);
+  }, [location.pathname]);
 
   const navLinks: { to: string; label: string; page: PublicPage }[] = [
     { to: '/shop', label: 'header.shop', page: 'shop' as PublicPage },
@@ -332,8 +338,8 @@ export default function Header() {
   const restName = siteNameParts.slice(1).join(' ');
 
   return (
-    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-sm border-b border-cream-200 shadow-soft">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <header className="sticky top-0 z-40 safe-area-top bg-white/95 backdrop-blur-sm border-b border-cream-200 shadow-soft">
+      <div className="max-w-7xl mx-auto safe-area-x sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Wordmark */}
           <Link to="/" className="flex items-center gap-2 group flex-shrink-0">
@@ -415,7 +421,7 @@ export default function Header() {
             {!isSupplier && !isRider && (
               <button
                 onClick={() => setSearchOpen(!searchOpen)}
-                className="p-2.5 rounded-xl text-gray-500 hover:text-forest-700 hover:bg-forest-50 transition-all"
+                className="touch-target p-2.5 rounded-xl text-gray-500 hover:text-forest-700 hover:bg-forest-50 transition-all"
                 aria-label={t("header.search")}
               >
                 <Search size={20} />
@@ -471,7 +477,7 @@ export default function Header() {
             {user && !isSupplier && !isRider && (
               <Link
                 to="/cart"
-                className="relative flex items-center gap-2 px-3 py-2 rounded-xl bg-forest-700 text-white hover:bg-forest-800 transition-all ml-1"
+                className="touch-target relative flex items-center gap-2 px-3 py-2 rounded-xl bg-forest-700 text-white hover:bg-forest-800 transition-all ml-1"
                 aria-label={`${t("header.cart")}, ${itemCount} items`}
               >
                 <ShoppingCart size={18} />
@@ -486,9 +492,11 @@ export default function Header() {
 
             {/* Mobile menu button */}
             <button
-              onClick={() => setMenuOpen(!menuOpen)}
-              className="md:hidden p-2.5 rounded-xl text-gray-500 hover:text-forest-700 hover:bg-forest-50 transition-all"
+              onClick={() => { setMenuOpen((open) => !open); setSearchOpen(false); }}
+              className="touch-target md:hidden p-2.5 rounded-xl text-gray-500 hover:text-forest-700 hover:bg-forest-50 transition-all"
               aria-label={t("header.menu")}
+              aria-expanded={menuOpen}
+              aria-controls="mobile-navigation"
             >
               {menuOpen ? <X size={20} /> : <Menu size={20} />}
             </button>
@@ -517,7 +525,7 @@ export default function Header() {
 
       {/* Mobile nav */}
       {menuOpen && (
-        <div className="md:hidden border-t border-cream-200 bg-white px-4 py-3 space-y-1">
+        <div id="mobile-navigation" className="mobile-menu-panel safe-area-x safe-area-bottom md:hidden border-t border-cream-200 bg-white py-3 space-y-1">
           {!isSupplier && navLinks.map((link) => (
             <Link
               key={link.to}

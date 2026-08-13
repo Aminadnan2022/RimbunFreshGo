@@ -43,6 +43,22 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
+      testIgnore: '**/mobile.spec.ts',
+    },
+    {
+      name: 'mobile-320',
+      testMatch: '**/mobile.spec.ts',
+      use: { viewport: { width: 320, height: 640 }, isMobile: true, hasTouch: true },
+    },
+    {
+      name: 'mobile-390',
+      testMatch: '**/mobile.spec.ts',
+      use: { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true },
+    },
+    {
+      name: 'mobile-412',
+      testMatch: '**/mobile.spec.ts',
+      use: { viewport: { width: 412, height: 915 }, isMobile: true, hasTouch: true },
     },
   ],
   webServer: isLocal
