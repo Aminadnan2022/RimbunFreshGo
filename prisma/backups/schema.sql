@@ -480,6 +480,103 @@ $$;
 ALTER FUNCTION "public"."freeze_order_pricing"() OWNER TO "postgres";
 
 
+CREATE OR REPLACE FUNCTION "public"."guard_order_supplier_allowlist"() RETURNS "trigger"
+    LANGUAGE "plpgsql"
+    SET "search_path" TO 'public', 'pg_temp'
+    AS $$
+DECLARE
+  allowed_columns text[] := ARRAY[
+    'supplier_weights',
+    'order_items',
+    'total',
+    'gross_profit',
+    'payment_status',
+    'updated_at',
+    'updated_by',
+    'packing_started_at',
+    'packing_completed_at'
+  ];
+BEGIN
+  -- Applicability gate: enforce ONLY for a direct (non SECURITY DEFINER)
+  -- UPDATE issued by an authenticated supplier who is not also an admin.
+  -- In this Supabase project, SECURITY DEFINER functions run as the owner
+  -- ('postgres'); direct requests run as the JWT role ('authenticated').
+  IF auth.uid() IS NULL
+     OR current_user = 'postgres'
+     OR NOT public.is_supplier()
+     OR public.is_admin()
+  THEN
+    RETURN NEW;
+  END IF;
+
+  -- JSONB set subtraction: any change to a column outside the allowlist makes
+  -- the two reduced objects differ. Fail-closed — future columns are
+  -- automatically disallowed for supplier direct updates.
+  IF (to_jsonb(NEW) - allowed_columns) IS DISTINCT FROM
+     (to_jsonb(OLD) - allowed_columns)
+  THEN
+    RAISE EXCEPTION 'Suppliers may only update approved order workflow columns';
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."guard_order_supplier_allowlist"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."guard_order_write_once"() RETURNS "trigger"
+    LANGUAGE "plpgsql"
+    SET "search_path" TO 'public', 'pg_temp'
+    AS $$
+BEGIN
+  -- SECURITY DEFINER workflow RPCs (trusted, idempotent or one-shot) pass
+  -- through untouched; write-once is enforced for all direct UPDATEs.
+  -- In this Supabase project, SECURITY DEFINER functions run as the owner
+  -- ('postgres'); direct requests run as the JWT role ('authenticated').
+  IF current_user = 'postgres' THEN
+    RETURN NEW;
+  END IF;
+
+  IF OLD.packing_started_at IS NOT NULL
+     AND OLD.packing_started_at IS DISTINCT FROM NEW.packing_started_at
+  THEN
+    RAISE EXCEPTION 'packing_started_at is write-once';
+  END IF;
+
+  IF OLD.packing_completed_at IS NOT NULL
+     AND OLD.packing_completed_at IS DISTINCT FROM NEW.packing_completed_at
+  THEN
+    RAISE EXCEPTION 'packing_completed_at is write-once';
+  END IF;
+
+  IF OLD.supplier_dispatch_started_at IS NOT NULL
+     AND OLD.supplier_dispatch_started_at IS DISTINCT FROM NEW.supplier_dispatch_started_at
+  THEN
+    RAISE EXCEPTION 'supplier_dispatch_started_at is write-once';
+  END IF;
+
+  IF OLD.supplier_dispatch_completed_at IS NOT NULL
+     AND OLD.supplier_dispatch_completed_at IS DISTINCT FROM NEW.supplier_dispatch_completed_at
+  THEN
+    RAISE EXCEPTION 'supplier_dispatch_completed_at is write-once';
+  END IF;
+
+  IF OLD.ready_for_rider_at IS NOT NULL
+     AND OLD.ready_for_rider_at IS DISTINCT FROM NEW.ready_for_rider_at
+  THEN
+    RAISE EXCEPTION 'ready_for_rider_at is write-once';
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."guard_order_write_once"() OWNER TO "postgres";
+
+
 CREATE OR REPLACE FUNCTION "public"."is_admin"() RETURNS boolean
     LANGUAGE "sql" STABLE SECURITY DEFINER
     AS $$
@@ -705,6 +802,79 @@ $$;
 
 
 ALTER FUNCTION "public"."normalize_product_order"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."r4_context_probe"() RETURNS "jsonb"
+    LANGUAGE "plpgsql" SECURITY DEFINER
+    SET "search_path" TO 'public', 'pg_temp'
+    AS $$
+BEGIN
+  RETURN jsonb_build_object(
+    'current_user', current_user::text,
+    'session_user', session_user::text,
+    'auth_uid', auth.uid()::text,
+    'is_admin', public.is_admin(),
+    'is_supplier', public.is_supplier()
+  );
+END;
+$$;
+
+
+ALTER FUNCTION "public"."r4_context_probe"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."r4_context_probe_direct"() RETURNS "jsonb"
+    LANGUAGE "plpgsql"
+    SET "search_path" TO 'public', 'pg_temp'
+    AS $$
+BEGIN
+  RETURN jsonb_build_object(
+    'current_user', current_user::text,
+    'session_user', session_user::text,
+    'auth_uid', auth.uid()::text,
+    'is_admin', public.is_admin(),
+    'is_supplier', public.is_supplier()
+  );
+END;
+$$;
+
+
+ALTER FUNCTION "public"."r4_context_probe_direct"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."r4_debug_runtime_context"() RETURNS "trigger"
+    LANGUAGE "plpgsql"
+    SET "search_path" TO 'public', 'pg_temp'
+    AS $$
+BEGIN
+  RAISE EXCEPTION
+    'R4_DEBUG current_user=% session_user=% auth_uid=% is_supplier=% is_admin=% tg_name=%',
+    current_user,
+    session_user,
+    COALESCE(auth.uid()::text, 'NULL'),
+    public.is_supplier(),
+    public.is_admin(),
+    TG_NAME;
+END;
+$$;
+
+
+ALTER FUNCTION "public"."r4_debug_runtime_context"() OWNER TO "postgres";
+
+
+CREATE OR REPLACE FUNCTION "public"."r4_trigger_order"() RETURNS "text"[]
+    LANGUAGE "sql" SECURITY DEFINER
+    SET "search_path" TO 'public', 'pg_temp'
+    AS $$
+  SELECT array_agg(t.tgname ORDER BY t.tgname)
+  FROM pg_trigger t
+  JOIN pg_class c ON c.oid = t.tgrelid
+  JOIN pg_namespace n ON n.oid = c.relnamespace
+  WHERE n.nspname = 'public' AND c.relname = 'Orders' AND NOT t.tgisinternal
+$$;
+
+
+ALTER FUNCTION "public"."r4_trigger_order"() OWNER TO "postgres";
 
 
 CREATE OR REPLACE FUNCTION "public"."refresh_monthly_report_mv"() RETURNS "void"
@@ -2244,6 +2414,10 @@ CREATE UNIQUE INDEX "suppliers_name_unique_idx" ON "public"."suppliers" USING "b
 
 
 
+CREATE OR REPLACE TRIGGER "trg_aa_guard_order_supplier_allowlist" BEFORE UPDATE ON "public"."Orders" FOR EACH ROW EXECUTE FUNCTION "public"."guard_order_supplier_allowlist"();
+
+
+
 CREATE OR REPLACE TRIGGER "trg_freeze_order_pricing" BEFORE UPDATE OF "order_items", "supplier_weights", "gross_profit", "payment_status" ON "public"."Orders" FOR EACH ROW EXECUTE FUNCTION "public"."freeze_order_pricing"();
 
 
@@ -2269,6 +2443,10 @@ CREATE OR REPLACE TRIGGER "trg_supplier_price_history_touch" BEFORE UPDATE ON "p
 
 
 CREATE OR REPLACE TRIGGER "trg_suppliers_touch" BEFORE UPDATE ON "public"."suppliers" FOR EACH ROW EXECUTE FUNCTION "public"."touch_updated_at"();
+
+
+
+CREATE OR REPLACE TRIGGER "trg_zz_guard_order_timestamps" BEFORE UPDATE ON "public"."Orders" FOR EACH ROW EXECUTE FUNCTION "public"."guard_order_write_once"();
 
 
 
@@ -2907,6 +3085,18 @@ GRANT ALL ON FUNCTION "public"."freeze_order_pricing"() TO "service_role";
 
 
 
+GRANT ALL ON FUNCTION "public"."guard_order_supplier_allowlist"() TO "anon";
+GRANT ALL ON FUNCTION "public"."guard_order_supplier_allowlist"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."guard_order_supplier_allowlist"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."guard_order_write_once"() TO "anon";
+GRANT ALL ON FUNCTION "public"."guard_order_write_once"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."guard_order_write_once"() TO "service_role";
+
+
+
 GRANT ALL ON FUNCTION "public"."is_admin"() TO "anon";
 GRANT ALL ON FUNCTION "public"."is_admin"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."is_admin"() TO "service_role";
@@ -2958,6 +3148,33 @@ GRANT ALL ON FUNCTION "public"."normalize_combo_order"() TO "service_role";
 GRANT ALL ON FUNCTION "public"."normalize_product_order"() TO "anon";
 GRANT ALL ON FUNCTION "public"."normalize_product_order"() TO "authenticated";
 GRANT ALL ON FUNCTION "public"."normalize_product_order"() TO "service_role";
+
+
+
+REVOKE ALL ON FUNCTION "public"."r4_context_probe"() FROM PUBLIC;
+GRANT ALL ON FUNCTION "public"."r4_context_probe"() TO "anon";
+GRANT ALL ON FUNCTION "public"."r4_context_probe"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."r4_context_probe"() TO "service_role";
+
+
+
+REVOKE ALL ON FUNCTION "public"."r4_context_probe_direct"() FROM PUBLIC;
+GRANT ALL ON FUNCTION "public"."r4_context_probe_direct"() TO "anon";
+GRANT ALL ON FUNCTION "public"."r4_context_probe_direct"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."r4_context_probe_direct"() TO "service_role";
+
+
+
+GRANT ALL ON FUNCTION "public"."r4_debug_runtime_context"() TO "anon";
+GRANT ALL ON FUNCTION "public"."r4_debug_runtime_context"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."r4_debug_runtime_context"() TO "service_role";
+
+
+
+REVOKE ALL ON FUNCTION "public"."r4_trigger_order"() FROM PUBLIC;
+GRANT ALL ON FUNCTION "public"."r4_trigger_order"() TO "anon";
+GRANT ALL ON FUNCTION "public"."r4_trigger_order"() TO "authenticated";
+GRANT ALL ON FUNCTION "public"."r4_trigger_order"() TO "service_role";
 
 
 
