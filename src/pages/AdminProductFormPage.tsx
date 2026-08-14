@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate, Navigate } from 'react-router-dom';
+import { useParams, useNavigate, Navigate, Link } from 'react-router-dom';
 import { ArrowLeft, Save, Loader2, CheckCircle2, AlertCircle, Info, Plus, TrendingUp } from 'lucide-react';
 import { getPrepOptionsByCategory, getPrepLabel } from '../lib/preparationOptions';
 import { useAuth } from '../context/AuthContext';
@@ -358,6 +358,9 @@ export default function AdminProductFormPage() {
 
   return (
     <main className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
+      <div className="mb-4 text-right">
+        <Link to="/admin/preparation-configurations" className="text-sm text-forest-700 hover:underline">Manage versioned preparation configuration</Link>
+      </div>
       {/* Header */}
       <div className="flex items-center gap-3 mb-8">
         <button

@@ -2254,5 +2254,29 @@
       "delete": "Failed to delete the entry.",
       "dateRequired": "A business date is required."
     }
+  },
+  "preparationConfig": {
+    "back": "Back to products",
+    "title": "Preparation configuration",
+    "subtitle": "Create versioned, product-specific customer preparation questionnaires. Current checkout remains unchanged.",
+    "newSchema": "New preparation schema",
+    "code": "Code (for example chicken-standard)",
+    "name": "English name",
+    "name_ms": "Malay name",
+    "description": "English description",
+    "description_ms": "Malay description",
+    "blank": "Create blank draft",
+    "chickenPreset": "Create chicken preset",
+    "fishPreset": "Create fish preset",
+    "schemas": "Schemas and versions",
+    "selectVersion": "Select a schema version to edit or preview it.",
+    "newDraft": "New draft version",
+    "publish": "Publish version",
+    "questions": "Questions",
+    "addQuestion": "Add question",
+    "saveDraft": "Save draft",
+    "preview": "Customer questionnaire preview",
+    "assign": "Assign to product",
+    "selectProduct": "Select a product"
   }
 }

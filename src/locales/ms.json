@@ -2254,5 +2254,29 @@
       "delete": "Gagal memadam rekod.",
       "dateRequired": "Tarikh perniagaan diperlukan."
     }
+  },
+  "preparationConfig": {
+    "back": "Kembali ke produk",
+    "title": "Konfigurasi penyediaan",
+    "subtitle": "Cipta soal selidik penyediaan pelanggan yang berversio dan khusus untuk produk. Checkout semasa kekal tidak berubah.",
+    "newSchema": "Skema penyediaan baharu",
+    "code": "Kod (contoh chicken-standard)",
+    "name": "Nama Inggeris",
+    "name_ms": "Nama Melayu",
+    "description": "Penerangan Inggeris",
+    "description_ms": "Penerangan Melayu",
+    "blank": "Cipta draf kosong",
+    "chickenPreset": "Cipta praset ayam",
+    "fishPreset": "Cipta praset ikan",
+    "schemas": "Skema dan versi",
+    "selectVersion": "Pilih versi skema untuk mengedit atau melihat pratonton.",
+    "newDraft": "Versi draf baharu",
+    "publish": "Terbitkan versi",
+    "questions": "Soalan",
+    "addQuestion": "Tambah soalan",
+    "saveDraft": "Simpan draf",
+    "preview": "Pratonton soal selidik pelanggan",
+    "assign": "Tugaskan kepada produk",
+    "selectProduct": "Pilih produk"
   }
 }

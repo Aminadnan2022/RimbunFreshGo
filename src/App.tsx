@@ -29,6 +29,7 @@ import AdminProductFormPage from './pages/AdminProductFormPage';
 import AdminComboFormPage from './pages/AdminComboFormPage';
 import BusinessReportsPage from './pages/BusinessReportsPage';
 import AdminHistoricalDataPage from './pages/AdminHistoricalDataPage';
+import AdminPreparationConfigurationsPage from './pages/AdminPreparationConfigurationsPage';
 import AuthRedirectPage from './pages/AuthRedirectPage';
 import SupplierDashboardPage from './pages/SupplierDashboardPage';
 import DeliveryDashboardPage from './pages/DeliveryDashboardPage';
@@ -108,6 +109,7 @@ function AppRoutes() {
           <Route path="/admin/products" element={<AdminProductsPage />} />
           <Route path="/admin/reports" element={<BusinessReportsPage />} />
           <Route path="/admin/historical" element={<AdminHistoricalDataPage />} />
+          <Route path="/admin/preparation-configurations" element={<AdminPreparationConfigurationsPage />} />
           <Route path="/admin/products/new" element={<AdminProductFormPage />} />
           <Route path="/admin/products/edit/:id" element={<AdminProductFormPage />} />
           <Route path="/admin/combos" element={<AdminProductsPage />} />
