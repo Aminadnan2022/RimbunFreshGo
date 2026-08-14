@@ -102,8 +102,14 @@ async function fillCheckoutDetails(page: import('@playwright/test').Page): Promi
   await page.getByLabel('Full name').fill('E2E Customer');
   await page.getByLabel('Phone number').fill('0123456789');
   await page.getByLabel('House / unit number').fill('A-18-08');
-  await page.getByLabel('Delivery point').selectOption(point.name);
-  await expect(page.getByText('Next delivery:')).toBeVisible();
+  const deliveryPoint = page.getByLabel('Delivery point');
+  await deliveryPoint.selectOption(point.name);
+  await expect(deliveryPoint).toHaveValue(point.name);
+
+  // Phase 3 shows the chosen delivery date in the selected slot button, rather
+  // than as the legacy "Next delivery:" summary. The cart selection must carry
+  // into checkout so the Details step is ready to continue.
+  await expect(page.locator('[aria-pressed="true"]')).toHaveCount(1);
 }
 
 async function continueThroughPreparationAndReview(page: import('@playwright/test').Page): Promise<void> {
