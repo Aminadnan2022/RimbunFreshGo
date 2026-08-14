@@ -19,7 +19,7 @@ CREATE TABLE public.sales_orders (
   source_payload jsonb NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(source_payload) = 'object'),
   created_at timestamptz NOT NULL DEFAULT now(),
   created_by uuid REFERENCES auth.users(id) ON DELETE SET NULL,
-  CONSTRAINT sales_orders_total_check CHECK (total = subtotal + delivery_fee - discount_amount)
+  CONSTRAINT sales_orders_total_balance_check CHECK (total = subtotal + delivery_fee - discount_amount)
 );
 
 CREATE TABLE public.sales_order_lines (
