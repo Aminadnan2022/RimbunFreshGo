@@ -66,8 +66,6 @@ test.beforeAll(async () => {
 });
 
 test.afterAll(async () => {
-  const svc = getServiceClient();
-  await svc.from('Orders').delete().eq('email_address', customer.email);
   await cleanupTestRun(RUN_ID);
 });
 

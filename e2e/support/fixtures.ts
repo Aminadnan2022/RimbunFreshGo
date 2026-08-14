@@ -119,7 +119,16 @@ export async function cleanupTestRun(runId: string): Promise<{ deletedUsers: num
 
   const client = getServiceClient();
   const runIdLower = runId.toLowerCase();
+const { error: phase3CleanupError } = await client.rpc(
+  'e2e_cleanup_phase3_test_run',
+  { p_run_id: runId },
+);
 
+if (phase3CleanupError) {
+  throw new Error(
+    `e2e_cleanup_phase3_test_run(${runId}) failed: ${phase3CleanupError.message}`,
+  );
+}
   const matches = [];
   let page = 1;
   let hasMore = true;
