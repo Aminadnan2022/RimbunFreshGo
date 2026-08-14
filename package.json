@@ -10,6 +10,7 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "check:schema-drift": "node scripts/check-schema-drift.mjs",
+    "check:phase1-schema": "node scripts/check-phase1-schema.mjs",
     "test:e2e": "node --experimental-strip-types e2e/run-all.ts",
     "test:e2e:playwright": "playwright test",
     "test:e2e:ui": "playwright test --ui",
