@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { cloneElement, isValidElement, useEffect, useId, useState } from 'react';
 import { Navigate, Link, useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, Info, Lock } from 'lucide-react';
 import { useCart } from '../context/CartContext';
@@ -18,7 +18,11 @@ import type { CustomerDetails, DeliveryDay, Order, CartItem } from '../types';
 const blank: CustomerDetails = { name: '', phone: '', email: '', apartment: '', houseUnit: '', pickupLocation: '', deliveryPointName: '', deliveryMethod: '', notes: '' };
 const days: Record<string, number> = { sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6 };
 const nextDate = (day: DeliveryDay) => { const d = new Date(); let offset = (days[day.toLowerCase()] ?? 3) - d.getDay(); if (offset < 0) offset += 7; d.setDate(d.getDate() + offset); return d.toLocaleDateString('en-MY', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }); };
-const Field = ({ label, required, error, children }: { label: string; required?: boolean; error?: string; children: React.ReactNode }) => <div><label className="block text-sm font-semibold text-gray-700 mb-1.5">{label}{required && ' *'}</label>{children}{error && <p className="mt-1 text-xs text-red-500">{error}</p>}</div>;
+const Field = ({ label, required, error, children }: { label: string; required?: boolean; error?: string; children: React.ReactNode }) => {
+  const id = useId();
+  const control = isValidElement<{ id?: string }>(children) ? cloneElement(children, { id }) : children;
+  return <div><label htmlFor={id} className="block text-sm font-semibold text-gray-700 mb-1.5">{label}{required && ' *'}</label>{control}{error && <p className="mt-1 text-xs text-red-500">{error}</p>}</div>;
+};
 
 export default function CheckoutPage() {
   const { cart, subtotal, clearCart } = useCart(); const { addOrder } = useOrders(); const { user, loading: authLoading } = useAuth(); const { config } = useDeliveryConfig(); const { t, language } = useLanguage(); const { settings } = useWebsiteSettings(); const navigate = useNavigate();

@@ -7,7 +7,7 @@ import {
 } from './support/fixtures';
 import { loadTestEnv } from './support/env';
 import { assertSafeForDestructiveSetup } from './support/safety';
-import { signInViaHeader, createAuthenticatedClient, forceEnglish, rm } from './support/ui';
+import { signInViaHeader, createAuthenticatedClient, rm } from './support/ui';
 
 /**
  * Phase 11 — customer checkout journey (browser E2E).
@@ -99,12 +99,25 @@ async function goToCheckoutWithDay(page: import('@playwright/test').Page): Promi
 }
 
 async function fillCheckoutDetails(page: import('@playwright/test').Page): Promise<void> {
-  await page.getByPlaceholder('Ahmad bin Abdullah').fill('E2E Customer');
-  await page.getByPlaceholder('012-345 6789').fill('0123456789');
-  await page.getByPlaceholder('e.g. Rimbun Apartment, Block B').fill('Test Block');
-  await page.getByPlaceholder('e.g. A-18-08').fill('A-18-08');
-  await page.locator('select').selectOption(point.name);
+  await page.getByLabel('Full name').fill('E2E Customer');
+  await page.getByLabel('Phone number').fill('0123456789');
+  await page.getByLabel('House / unit number').fill('A-18-08');
+  await page.getByLabel('Delivery point').selectOption(point.name);
   await expect(page.getByText('Next delivery:')).toBeVisible();
+}
+
+async function continueThroughPreparationAndReview(page: import('@playwright/test').Page): Promise<void> {
+  await page.getByRole('button', { name: 'Continue to Preparation' }).click();
+  await expect(page.getByRole('heading', { name: 'Preparation preferences' })).toBeVisible();
+
+  // The stable catalogue fixture intentionally has no published questionnaire.
+  // The empty preparation step must still be part of the Phase 3 journey.
+  await expect(page.getByText('No preparation choices are needed for these items.')).toBeVisible();
+  await page.getByRole('button', { name: 'Continue to Review' }).click();
+  await expect(page.getByRole('heading', { name: 'Review your order' })).toBeVisible();
+  await expect(page.getByText(product.name, { exact: false })).toBeVisible();
+  await expect(page.getByText(`A-18-08, ${point.name}`)).toBeVisible();
+  await page.getByRole('button', { name: 'Continue to Payment' }).click();
 }
 
 test('customer completes the full checkout journey and sees the order confirmed page', async ({
@@ -119,9 +132,9 @@ test('customer completes the full checkout journey and sees the order confirmed 
   // Cart: verify subtotal and pick a delivery day.
   await goToCheckoutWithDay(page);
 
-  // Checkout: fill details, continue to payment.
+  // Checkout: details -> empty preparation -> review -> payment.
   await fillCheckoutDetails(page);
-  await page.getByRole('button', { name: /Continue to Payment/ }).click();
+  await continueThroughPreparationAndReview(page);
 
   // Payment: the place-order button shows the exact expected total.
   const placeOrder = page.getByRole('button', {
@@ -162,15 +175,15 @@ test('customer sees checkout validation errors before payment and resolves them'
   await goToCheckoutWithDay(page);
 
   // Submit empty: every required field errors.
-  await page.getByRole('button', { name: /Continue to Payment/ }).click();
+  await page.getByRole('button', { name: 'Continue to Preparation' }).click();
   await expect(page.getByText('Full name is required.')).toBeVisible();
-  await expect(page.getByText('Phone number is required.')).toBeVisible();
+  await expect(page.getByText('Enter a valid Malaysian phone number.')).toBeVisible();
   await expect(page.getByText('House unit number is required (e.g. A-18-08).')).toBeVisible();
   await expect(page.getByText('Please select a delivery point.')).toBeVisible();
 
-  // Fill in the missing fields and continue — payment step is reached.
+  // Fill in the missing fields and complete the remaining Phase 3 steps.
   await fillCheckoutDetails(page);
-  await page.getByRole('button', { name: /Continue to Payment/ }).click();
+  await continueThroughPreparationAndReview(page);
   await expect(
     page.getByRole('button', {
       name: new RegExp(`^Place Order \\u2014 ${rm(total).replace('.', '\\.')}$`),
