@@ -156,10 +156,15 @@ export type Database = {
           email_address: string | null;
           full_name: string | null;
           phone: string | null;
+          address: string | null;
+          postcode: string | null;
+          city: string | null;
+          state: string | null;
           apartment: string | null;
           house_unit: string | null;
           pickup_location: string | null;
           notes: string | null;
+          created_at: string | null;
           updated_at: string | null;
         };
         Insert: {
@@ -167,10 +172,15 @@ export type Database = {
           email_address?: string | null;
           full_name?: string | null;
           phone?: string | null;
+          address?: string | null;
+          postcode?: string | null;
+          city?: string | null;
+          state?: string | null;
           apartment?: string | null;
           house_unit?: string | null;
           pickup_location?: string | null;
           notes?: string | null;
+          created_at?: string | null;
           updated_at?: string | null;
         };
         Update: {
@@ -178,10 +188,15 @@ export type Database = {
           email_address?: string | null;
           full_name?: string | null;
           phone?: string | null;
+          address?: string | null;
+          postcode?: string | null;
+          city?: string | null;
+          state?: string | null;
           apartment?: string | null;
           house_unit?: string | null;
           pickup_location?: string | null;
           notes?: string | null;
+          created_at?: string | null;
           updated_at?: string | null;
         };
         Relationships: [];

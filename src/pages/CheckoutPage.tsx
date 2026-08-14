@@ -100,7 +100,7 @@ export default function CheckoutPage() {
     setDetails((prev) => ({ ...prev, email: user.email ?? '' }));
     supabase
       .from('customer_profiles')
-      .select('full_name, phone, apartment, house_unit, pickup_location', 'notes', 'notes')
+      .select('full_name, phone, apartment, house_unit, pickup_location, notes')
       .eq('id', user.id)
       .maybeSingle()
       .then(({ data, error }) => {
