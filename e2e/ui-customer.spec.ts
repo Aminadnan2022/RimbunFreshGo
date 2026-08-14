@@ -120,9 +120,10 @@ async function continueThroughPreparationAndReview(page: import('@playwright/tes
   // The empty preparation step must still be part of the Phase 3 journey.
   await expect(page.getByText('No preparation choices are needed for these items.')).toBeVisible();
   await page.getByRole('button', { name: 'Continue to Review' }).click();
-  await expect(page.getByRole('heading', { name: 'Review your order' })).toBeVisible();
-  await expect(page.getByText(product.name, { exact: false })).toBeVisible();
-  await expect(page.getByText(`A-18-08, ${point.name}`)).toBeVisible();
+  const review = page.getByRole('heading', { name: 'Review your order' }).locator('..');
+  await expect(review).toBeVisible();
+  await expect(review.getByText(`${product.name} · Qty 1`, { exact: true })).toBeVisible();
+  await expect(review.getByText(`A-18-08, ${point.name}`, { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Continue to Payment' }).click();
 }
 
