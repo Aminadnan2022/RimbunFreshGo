@@ -12,6 +12,7 @@
     "check:schema-drift": "node scripts/check-schema-drift.mjs",
     "check:phase1-schema": "node scripts/check-phase1-schema.mjs",
     "test:phase2-preparation": "node scripts/check-phase2-preparation.mjs",
+    "test:phase3-preparation": "node scripts/check-phase3-preparation.mjs",
     "test:e2e": "node --experimental-strip-types e2e/run-all.ts",
     "test:e2e:playwright": "playwright test",
     "test:e2e:ui": "playwright test --ui",
@@ -43,5 +44,8 @@
     "typescript": "^5.5.3",
     "typescript-eslint": "^8.3.0",
     "vite": "^5.4.2"
+  },
+  "allowScripts": {
+    "esbuild@0.21.5": true
   }
 }

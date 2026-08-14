@@ -99,6 +99,7 @@ const toRow = (order: Order) => {
       deliveryWindow: order.deliveryWindow,
       statusTimeline: order.statusTimeline,
       orderRef: order.id,
+      preparationSnapshot: order.preparationSnapshot ?? null,
     },
     subtotal: order.subtotal,
     delivery_fee: order.deliveryFee,
@@ -163,6 +164,15 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       .single();
 
     if (error) throw error;
+    // Additive compatibility write: Orders stays authoritative in Phase 3.
+    // A failed optional structured write must never invalidate a valid legacy order.
+    if (order.preparationSnapshot && data?.id) {
+      const { error: snapshotError } = await (supabase as any).rpc('record_order_preparation_snapshot', {
+        p_legacy_order_id: data.id,
+        p_questionnaire_snapshot: order.preparationSnapshot,
+      });
+      if (snapshotError) console.warn('Preparation snapshot was not recorded:', snapshotError.message);
+    }
     const orderRef = (data.order_summary as { orderRef?: string })?.orderRef ?? String(data.id);
     return { id: orderRef };
   };

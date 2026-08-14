@@ -235,6 +235,8 @@ export interface Order {
   supplierDispatchCompletedAt?: string | null;
   readyForRiderAt?: string | null;
   lalamoveTrackingUrl?: string | null;
+  /** Phase 3 immutable, bilingual checkout preparation snapshot. */
+  preparationSnapshot?: Record<string, unknown>;
 }
 
 export interface Vendor {
