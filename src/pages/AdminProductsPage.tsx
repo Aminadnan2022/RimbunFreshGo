@@ -886,10 +886,11 @@ function UsersTab() {
         if (error) throw error;
       }
 
-      // Optimistic update — re-fetch to confirm
+      // Re-fetch to confirm the updated role
       await load();
     } catch (err) {
       setError(err instanceof Error ? err.message : t("adminUsers.messages.failedUpdate"));
+    } finally {
       setMutating(null);
     }
   };
