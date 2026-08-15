@@ -397,7 +397,7 @@
     "qty": "Kuantiti {{count}}",
     "estimatedOnly": "anggaran sahaja",
     "contains": "Mengandungi",
-    "preparation": "Penyediaan: {{prep}}",
+    "preparation": "Penyediaan",
     "finalPriceAfterWeighing": "Harga akhir akan disahkan selepas ditimbang.",
     "afterWeighing": "selepas pembekal menimbang",
     "slices": "Kepingan: {{count}}",

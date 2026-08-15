@@ -397,7 +397,7 @@
     "qty": "Qty {{count}}",
     "estimatedOnly": "est. only",
     "contains": "Contains",
-    "preparation": "Preparation: {{prep}}",
+    "preparation": "Preparation",
     "finalPriceAfterWeighing": "Final price will be confirmed after weighing.",
     "afterWeighing": "After supplier weighs",
     "slices": "Slices: {{count}}",

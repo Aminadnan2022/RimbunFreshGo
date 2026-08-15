@@ -32,7 +32,35 @@ export default function CheckoutPage() {
   const fee = points.find((p) => p.name === details.deliveryPointName)?.delivery_fee ?? 0; const total = subtotal + fee; const input = (e?: string) => `w-full bg-cream-50 border rounded-2xl px-4 py-3 text-sm ${e ? 'border-red-300 bg-red-50' : 'border-cream-300'}`;
   useEffect(() => { fetchActiveDeliveryPoints().then(setPoints).catch(() => {}); }, []);
   useEffect(() => { if (!user) return; setDetails((x) => ({ ...x, email: user.email ?? '' })); supabase.from('customer_profiles').select('full_name, phone, apartment, house_unit, pickup_location, notes').eq('id', user.id).maybeSingle().then(({ data }) => { if (data) setDetails((x) => ({ ...x, name: data.full_name || x.name, phone: data.phone || x.phone, apartment: data.apartment || x.apartment, houseUnit: data.house_unit || x.houseUnit, pickupLocation: data.pickup_location || x.pickupLocation, deliveryPointName: data.pickup_location || x.deliveryPointName, notes: data.notes || x.notes })); }); }, [user?.id]);
-  useEffect(() => { let mounted = true; setPrepLoading(true); loadPreparationTargets(cart.items).then((x) => mounted && setTargets(x)).catch(() => mounted && setPrepError(t('checkout.preparationLoadError'))).finally(() => mounted && setPrepLoading(false)); return () => { mounted = false; }; }, [cart.items, t]);
+useEffect(() => {
+  let mounted = true;
+
+  setPrepLoading(true);
+  setPrepError(null);
+
+  loadPreparationTargets(cart.items)
+    .then((loadedTargets) => {
+      if (!mounted) return;
+
+      setTargets(loadedTargets);
+      setPrepError(null);
+    })
+    .catch(() => {
+      if (!mounted) return;
+
+      setTargets([]);
+      setPrepError(t('checkout.preparationLoadError'));
+    })
+    .finally(() => {
+      if (mounted) {
+        setPrepLoading(false);
+      }
+    });
+
+  return () => {
+    mounted = false;
+  };
+}, [cart.items, t]);
   const display = (x: { label: string; label_ms: string }) => language === 'ms' && x.label_ms ? x.label_ms : x.label;
   const setField = (field: keyof CustomerDetails) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => { setDetails((x) => ({ ...x, [field]: e.target.value })); setErrors((x) => ({ ...x, [field]: '' })); };
   const setPoint = (name: string) => { const p = points.find((x) => x.name === name); setDetails((x) => ({ ...x, pickupLocation: name, deliveryPointName: name, deliveryMethod: p?.delivery_method ?? '' })); };
@@ -41,7 +69,133 @@ export default function CheckoutPage() {
   const createOrder = async () => { if (!settings.allow_customer_orders) return setPlaceError(t('checkout.validation.ordersDisabled')); setPlacing(true); try { const ref = `RFG-${Date.now().toString(36).toUpperCase()}`; const order: Order = { id: ref, items: cart.items, customer: details, deliveryDay: deliveryDay!, deliveryDate: nextDate(deliveryDay!), deliveryWindow: config.time, subtotal, deliveryFee: fee, total, status: 'confirmed', createdAt: new Date().toISOString(), statusTimeline: [{ status: 'Order Confirmed', time: new Date().toLocaleTimeString('en-MY', { hour: '2-digit', minute: '2-digit' }), done: true }], paymentStatus: 'Pending', paidAt: null, preparationSnapshot: snapshotPreparation(targets, answers) }; const { id } = await addOrder(order); await supabase.from('customer_profiles').upsert({ id: user!.id, email_address: user!.email, full_name: details.name, phone: details.phone, apartment: details.apartment, house_unit: details.houseUnit, pickup_location: details.pickupLocation, notes: details.notes || null, updated_at: new Date().toISOString() }, { onConflict: 'id' }); clearCart(); navigate(`/order/${id}`); } catch (err) { setPlaceError(err instanceof Error ? err.message : t('checkout.validation.failedToPlaceOrder')); setPlacing(false); } };
   const Question = ({ target, unit, question }: { target: PreparationTarget; unit: number | null; question: PreparationQuestion }) => { const value = answers[answerKey(target, unit)]?.[question.code]; if (question.answer_type === 'boolean') return <fieldset><legend className="text-sm font-medium">{display(question)}{question.required && ' *'}</legend><div className="mt-2 flex gap-3"><button type="button" onClick={() => setAnswer(target, unit, question, true)} className={`rounded-xl px-4 py-2 text-sm ${value === true ? 'bg-forest-700 text-white' : 'bg-cream-100'}`}>{t('checkout.yes')}</button><button type="button" onClick={() => setAnswer(target, unit, question, false)} className={`rounded-xl px-4 py-2 text-sm ${value === false ? 'bg-forest-700 text-white' : 'bg-cream-100'}`}>{t('checkout.no')}</button></div></fieldset>; if (question.answer_type === 'single_select') return <Field label={`${display(question)}${question.required ? ' *' : ''}`}><select className={input()} value={String(value ?? '')} onChange={(e) => setAnswer(target, unit, question, e.target.value)}><option value="">{t('checkout.selectOption')}</option>{question.options.map((o) => <option key={o.code} value={o.code}>{display(o)}</option>)}</select></Field>; return <Field label={`${display(question)}${question.required ? ' *' : ''}`}><input className={input()} value={String(value ?? '')} onChange={(e) => setAnswer(target, unit, question, e.target.value)} /></Field>; };
   const Totals = () => <div className="border-t pt-3 space-y-1 text-sm"><p className="flex justify-between"><span>{t('checkout.subtotal')}</span><span>RM{formatCurrency(subtotal)}</span></p><p className="flex justify-between"><span>{t('checkout.delivery')}</span><span>RM{formatCurrency(fee)}</span></p><p className="flex justify-between font-bold"><span>{t('checkout.total')}</span><span>RM{formatCurrency(total)}</span></p></div>;
-  const Preparation = () => <div className="card p-5 sm:p-8 space-y-6"><h2 className="font-semibold text-lg">{t('checkout.preparationTitle')}</h2>{prepLoading && <p>{t('checkout.preparationLoading')}</p>}{!prepLoading && !targets.length && <p className="text-gray-500">{t('checkout.noPreparationNeeded')}</p>}{targets.map((target) => { const physical = target.questionnaire.questions.some((q) => q.selection_scope === 'physical_unit'); const unitName = target.category === 'chicken' ? t('checkout.chicken') : t('checkout.unit'); return <section key={target.key} className="border border-cream-200 rounded-2xl p-4 space-y-4"><h3 className="font-semibold">{target.name}</h3>{physical && target.quantity > 1 && <button type="button" className="text-sm text-forest-700 underline" onClick={() => { const first = answers[answerKey(target, 0)] ?? {}; setAnswers((x) => ({ ...x, ...Object.fromEntries(Array.from({ length: target.quantity }, (_, i) => [answerKey(target, i), { ...(x[answerKey(target, i)] ?? {}), ...first }])) })); }}>{t('checkout.applySameToAll')}</button>}{target.questionnaire.questions.filter((q) => q.selection_scope === 'line').map((q) => <Question key={q.code} target={target} unit={null} question={q}/>)}{physical && Array.from({ length: target.quantity }, (_, unit) => <div key={unit} className="border-t pt-4 space-y-4"><h4 className="font-medium">{unitName} #{unit + 1}</h4>{target.questionnaire.questions.filter((q) => q.selection_scope === 'physical_unit').map((q) => <Question key={q.code} target={target} unit={unit} question={q}/>)}</div>)}</section>; })}{prepError && <p className="text-sm text-red-600">{prepError}</p>}<div className="flex gap-3"><button className="btn-secondary flex-1" onClick={() => setStep('details')}>{t('checkout.back')}</button><button className="btn-primary flex-1" onClick={() => { if (requiredMissing(targets, answers)) setPrepError(t('checkout.preparationRequired')); else { setPrepError(null); setStep('review'); } }}>{t('checkout.continueToReview')}</button></div></div>;
+const Preparation = () => (
+  <div className="card p-5 sm:p-8 space-y-6">
+    <h2 className="font-semibold text-lg">
+      {t('checkout.preparationTitle')}
+    </h2>
+
+    {prepLoading && (
+      <p>{t('checkout.preparationLoading')}</p>
+    )}
+
+    {!prepLoading && !prepError && targets.length === 0 && (
+      <p className="text-gray-500">
+        {t('checkout.noPreparationNeeded')}
+      </p>
+    )}
+
+    {targets.map((target) => {
+      const physical = target.questionnaire.questions.some(
+        (q) => q.selection_scope === 'physical_unit'
+      );
+
+      const unitName =
+        target.category === 'chicken'
+          ? t('checkout.chicken')
+          : t('checkout.unit');
+
+      return (
+        <section
+          key={target.key}
+          className="border border-cream-200 rounded-2xl p-4 space-y-4"
+        >
+          <h3 className="font-semibold">{target.name}</h3>
+
+          {physical && target.quantity > 1 && (
+            <button
+              type="button"
+              className="text-sm text-forest-700 underline"
+              onClick={() => {
+                const first = answers[answerKey(target, 0)] ?? {};
+
+                setAnswers((current) => ({
+                  ...current,
+                  ...Object.fromEntries(
+                    Array.from({ length: target.quantity }, (_, i) => [
+                      answerKey(target, i),
+                      {
+                        ...(current[answerKey(target, i)] ?? {}),
+                        ...first,
+                      },
+                    ])
+                  ),
+                }));
+              }}
+            >
+              {t('checkout.applySameToAll')}
+            </button>
+          )}
+
+          {target.questionnaire.questions
+            .filter((q) => q.selection_scope === 'line')
+            .map((q) => (
+              <Question
+                key={q.code}
+                target={target}
+                unit={null}
+                question={q}
+              />
+            ))}
+
+          {physical &&
+            Array.from({ length: target.quantity }, (_, unit) => (
+              <div
+                key={unit}
+                className="border-t pt-4 space-y-4"
+              >
+                <h4 className="font-medium">
+                  {unitName} #{unit + 1}
+                </h4>
+
+                {target.questionnaire.questions
+                  .filter((q) => q.selection_scope === 'physical_unit')
+                  .map((q) => (
+                    <Question
+                      key={q.code}
+                      target={target}
+                      unit={unit}
+                      question={q}
+                    />
+                  ))}
+              </div>
+            ))}
+        </section>
+      );
+    })}
+
+    {prepError && (
+      <p className="text-sm text-red-600">
+        {prepError}
+      </p>
+    )}
+
+    <div className="flex gap-3">
+      <button
+        className="btn-secondary flex-1"
+        onClick={() => setStep('details')}
+      >
+        {t('checkout.back')}
+      </button>
+
+      <button
+        className="btn-primary flex-1"
+        disabled={prepLoading || Boolean(prepError)}
+        onClick={() => {
+          if (requiredMissing(targets, answers)) {
+            setPrepError(t('checkout.preparationRequired'));
+            return;
+          }
+
+          setPrepError(null);
+          setStep('review');
+        }}
+      >
+        {t('checkout.continueToReview')}
+      </button>
+    </div>
+  </div>
+);
   const Review = () => <div className="card p-5 sm:p-8 space-y-5"><h2 className="font-semibold text-lg">{t('checkout.reviewTitle')}</h2>{cart.items.map((item, index) => <div key={index} className="border-b pb-3"><p className="font-medium">{item.name} · {weighted(item) ? `~${item.estimatedWeight ?? 0} kg` : t('checkout.qty', { count: item.quantity })}</p>{targets.filter((x) => x.lineKey === `line-${index}`).map((target) => <div key={target.key} className="ml-3 mt-2 text-sm text-gray-600">{target.questionnaire.questions.some((q) => q.selection_scope === 'physical_unit') && Array.from({ length: target.quantity }, (_, unit) => <p key={unit}>{target.category === 'chicken' ? t('checkout.chicken') : t('checkout.unit')} #{unit + 1}: {target.questionnaire.questions.filter((q) => q.selection_scope === 'physical_unit').map((q) => `${display(q)}: ${String(answers[answerKey(target, unit)]?.[q.code] ?? '—')}`).join(' · ')}</p>)}{target.questionnaire.questions.filter((q) => q.selection_scope === 'line').map((q) => <p key={q.code}>{display(q)}: {String(answers[answerKey(target, null)]?.[q.code] ?? '—')}</p>)}</div>)}</div>)}<div className="rounded-xl bg-cream-50 p-4 text-sm"><p className="font-semibold">{details.name}</p><p>{details.houseUnit}, {details.deliveryPointName}</p><p>{details.phone} · {details.email}</p><p>{nextDate(deliveryDay!)} · {config.time}</p></div><Totals/><p className="text-xs text-amber-700">{t('checkout.finalPriceAfterWeighing')}</p><div className="flex gap-3"><button className="btn-secondary flex-1" onClick={() => setStep('preparation')}>{t('checkout.back')}</button><button className="btn-primary flex-1" onClick={() => setStep('payment')}>{t('checkout.continueToPayment')}</button></div></div>;
   if (authLoading) return <main className="py-20 text-center">Loading…</main>; if (!user) return <Navigate to="/" replace/>; if (!cart.items.length && !placing) return <Navigate to="/cart" replace/>;
   const steps = [['details', t('checkout.yourDetails')], ['preparation', t('checkout.preparation')], ['review', t('checkout.review')], ['payment', t('checkout.payment')]] as const;

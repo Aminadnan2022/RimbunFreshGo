@@ -45,20 +45,40 @@ test.beforeAll(async () => {
     .select('id, name, price, ordering_mode')
     .eq('id', PRODUCT_ENABLER)
     .single();
-  if (productError) throw new Error(`product fetch failed: ${productError.message}`);
-  if (productData.ordering_mode !== 'fixed_quantity') {
-    throw new Error(`expected fixed_quantity product, got ${productData.ordering_mode}`);
+
+  if (productError) {
+    throw new Error(`product fetch failed: ${productError.message}`);
   }
-  product = { name: productData.name, price: Number(productData.price) };
+
+  if (productData.ordering_mode !== 'fixed_quantity') {
+    throw new Error(
+      `expected fixed_quantity product, got ${productData.ordering_mode}`,
+    );
+  }
+
+  product = {
+    name: productData.name,
+    price: Number(productData.price),
+  };
 
   const { data: points, error: pointsError } = await authClient
     .from('delivery_points')
     .select('name, delivery_fee')
     .eq('active', true)
     .order('display_order', { ascending: true });
-  if (pointsError) throw new Error(`delivery points fetch failed: ${pointsError.message}`);
-  if (!points || points.length === 0) throw new Error('no active delivery points in test project');
-  point = { name: points[0].name, delivery_fee: Number(points[0].delivery_fee) };
+
+  if (pointsError) {
+    throw new Error(`delivery points fetch failed: ${pointsError.message}`);
+  }
+
+  if (!points || points.length === 0) {
+    throw new Error('no active delivery points in test project');
+  }
+
+  point = {
+    name: points[0].name,
+    delivery_fee: Number(points[0].delivery_fee),
+  };
 
   subtotal = product.price;
   fee = point.delivery_fee;
@@ -69,38 +89,67 @@ test.afterAll(async () => {
   await cleanupTestRun(RUN_ID);
 });
 
-async function signInAndReturnHome(page: import('@playwright/test').Page): Promise<void> {
-  await signInViaHeader(page, customer.email, customer.password, (url) => url.pathname === '/');
+async function signInAndReturnHome(
+  page: import('@playwright/test').Page,
+): Promise<void> {
+  await signInViaHeader(
+    page,
+    customer.email,
+    customer.password,
+    (url) => url.pathname === '/',
+  );
 }
 
-async function addProductToCart(page: import('@playwright/test').Page): Promise<void> {
+async function addProductToCart(
+  page: import('@playwright/test').Page,
+): Promise<void> {
   const card = page.locator('article', { hasText: product.name }).first();
+
   await card.getByRole('button', { name: 'Add to Cart' }).click();
   await expect(card.getByRole('button', { name: 'Added!' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Cart, 1 items' })).toBeVisible();
 }
 
-async function goToCheckoutWithDay(page: import('@playwright/test').Page): Promise<void> {
+async function goToCheckoutWithDay(
+  page: import('@playwright/test').Page,
+): Promise<void> {
   await page.goto('/cart');
-  await expect(page.getByRole('heading', { name: 'Your Cart (1 item)' })).toBeVisible();
+
+  await expect(
+    page.getByRole('heading', { name: 'Your Cart (1 item)' }),
+  ).toBeVisible();
+
   await expect(page.locator('body')).toContainText(rm(subtotal));
 
-  const slotCard = page.locator('div.card', { has: page.getByRole('heading', { name: 'Delivery Slot' }) }).first();
+  const slotCard = page
+    .locator('div.card', {
+      has: page.getByRole('heading', { name: 'Delivery Slot' }),
+    })
+    .first();
+
   // Pick the first unselected day. Use a pressed-count assertion rather than
-  // re-reading the (now re-resolved) first unselected button after clicking.
+  // re-reading the now re-resolved first unselected button after clicking.
   const dayButton = slotCard.getByRole('button', { pressed: false }).first();
+
   await dayButton.click();
   await expect(slotCard.locator('[aria-pressed="true"]')).toHaveCount(1);
 
   await page.getByRole('link', { name: 'Proceed to Checkout' }).click();
-  await expect(page.getByRole('heading', { name: 'Checkout' })).toBeVisible();
+
+  await expect(
+    page.getByRole('heading', { name: 'Checkout' }),
+  ).toBeVisible();
 }
 
-async function fillCheckoutDetails(page: import('@playwright/test').Page): Promise<void> {
+async function fillCheckoutDetails(
+  page: import('@playwright/test').Page,
+): Promise<void> {
   await page.getByLabel('Full name').fill('E2E Customer');
   await page.getByLabel('Phone number').fill('0123456789');
   await page.getByLabel('House / unit number').fill('A-18-08');
+
   const deliveryPoint = page.getByLabel('Delivery point');
+
   await deliveryPoint.selectOption(point.name);
   await expect(deliveryPoint).toHaveValue(point.name);
 
@@ -110,88 +159,169 @@ async function fillCheckoutDetails(page: import('@playwright/test').Page): Promi
   await expect(page.locator('[aria-pressed="true"]')).toHaveCount(1);
 }
 
-async function continueThroughPreparationAndReview(page: import('@playwright/test').Page): Promise<void> {
+async function continueThroughPreparationAndReview(
+  page: import('@playwright/test').Page,
+): Promise<void> {
   await page.getByRole('button', { name: 'Continue to Preparation' }).click();
-  await expect(page.getByRole('heading', { name: 'Preparation preferences' })).toBeVisible();
+
+  await expect(
+    page.getByRole('heading', { name: 'Preparation preferences' }),
+  ).toBeVisible();
+
+  // Regression: the checkout step label must be a plain label and must not
+  // leak the i18n interpolation placeholder into the customer-facing UI.
+  await expect(
+    page.getByText('2. Preparation', { exact: true }),
+  ).toBeVisible();
+
+  await expect(
+    page.getByText('{{prep}}', { exact: false }),
+  ).toHaveCount(0);
 
   // The stable catalogue fixture intentionally has no published questionnaire.
-  // The empty preparation step must still be part of the Phase 3 journey.
-  await expect(page.getByText('No preparation choices are needed for these items.')).toBeVisible();
-  await page.getByRole('button', { name: 'Continue to Review' }).click();
-  const review = page.getByRole('heading', { name: 'Review your order' }).locator('..');
+  // The empty preparation state must be shown only after preparation loading
+  // succeeds, and must never be displayed together with a load error.
+  const emptyPreparationState = page.getByText(
+    'No preparation choices are needed for these items.',
+  );
+
+  const preparationLoadError = page.getByText(
+    'Preparation options could not be loaded. Please try again.',
+  );
+
+  await expect(emptyPreparationState).toBeVisible();
+  await expect(preparationLoadError).toHaveCount(0);
+
+  // When the preparation state has loaded successfully, the user can proceed.
+  const continueToReview = page.getByRole('button', {
+    name: 'Continue to Review',
+  });
+
+  await expect(continueToReview).toBeEnabled();
+  await continueToReview.click();
+
+  const review = page
+    .getByRole('heading', { name: 'Review your order' })
+    .locator('..');
+
   await expect(review).toBeVisible();
-  await expect(review.getByText(`${product.name} · Qty 1`, { exact: true })).toBeVisible();
-  await expect(review.getByText(`A-18-08, ${point.name}`, { exact: true })).toBeVisible();
+
+  await expect(
+    review.getByText(`${product.name} · Qty 1`, { exact: true }),
+  ).toBeVisible();
+
+  await expect(
+    review.getByText(`A-18-08, ${point.name}`, { exact: true }),
+  ).toBeVisible();
+
   await page.getByRole('button', { name: 'Continue to Payment' }).click();
 }
 
-test('customer completes the full checkout journey and sees the order confirmed page', async ({
-  page,
-}) => {
-  await signInAndReturnHome(page);
+test(
+  'customer completes the full checkout journey and sees the order confirmed page',
+  async ({ page }) => {
+    await signInAndReturnHome(page);
 
-  // Shop: add the fixed-price product to the cart.
-  await page.goto('/shop');
-  await addProductToCart(page);
+    // Shop: add the fixed-price product to the cart.
+    await page.goto('/shop');
+    await addProductToCart(page);
 
-  // Cart: verify subtotal and pick a delivery day.
-  await goToCheckoutWithDay(page);
+    // Cart: verify subtotal and pick a delivery day.
+    await goToCheckoutWithDay(page);
 
-  // Checkout: details -> empty preparation -> review -> payment.
-  await fillCheckoutDetails(page);
-  await continueThroughPreparationAndReview(page);
+    // Checkout: details -> empty preparation -> review -> payment.
+    await fillCheckoutDetails(page);
+    await continueThroughPreparationAndReview(page);
 
-  // Payment: the place-order button shows the exact expected total.
-  const placeOrder = page.getByRole('button', {
-    name: new RegExp(`^Place Order \\u2014 ${rm(total).replace('.', '\\.')}$`),
-  });
-  await expect(placeOrder).toBeVisible();
-  await placeOrder.click();
+    // Payment: the place-order button shows the exact expected total.
+    const placeOrder = page.getByRole('button', {
+      name: new RegExp(
+        `^Place Order \\u2014 ${rm(total).replace('.', '\\.')}$`,
+      ),
+    });
 
-  // Confirmation screen.
-  await page.waitForURL((url) => url.pathname.startsWith('/order/'));
-  await expect(page.getByRole('heading', { name: 'Order Confirmed!' })).toBeVisible();
-  await expect(page.getByText('Order ID', { exact: true })).toBeVisible();
+    await expect(placeOrder).toBeVisible();
+    await placeOrder.click();
 
-  // Back-end check: the order row was persisted with the expected money.
-  const svc = getServiceClient();
-  const { data: rows, error } = await svc
-    .from('Orders')
-    .select('id, total, subtotal, delivery_fee, payment_status, order_summary')
-    .eq('email_address', customer.email)
-    .order('id', { ascending: false })
-    .limit(1);
-  expect(error).toBeNull();
-  expect(rows).toHaveLength(1);
-  expect(Number(rows[0].subtotal)).toBe(subtotal);
-  expect(Number(rows[0].delivery_fee)).toBe(fee);
-  expect(Number(rows[0].total)).toBe(total);
-  expect(rows[0].payment_status).toBe('Pending');
-  expect((rows[0].order_summary as { status?: string }).status).toBe('confirmed');
-});
+    // Confirmation screen.
+    await page.waitForURL((url) => url.pathname.startsWith('/order/'));
 
-test('customer sees checkout validation errors before payment and resolves them', async ({
-  page,
-}) => {
-  await signInAndReturnHome(page);
+    await expect(
+      page.getByRole('heading', { name: 'Order Confirmed!' }),
+    ).toBeVisible();
 
-  await page.goto('/shop');
-  await addProductToCart(page);
-  await goToCheckoutWithDay(page);
+    await expect(
+      page.getByText('Order ID', { exact: true }),
+    ).toBeVisible();
 
-  // Submit empty: every required field errors.
-  await page.getByRole('button', { name: 'Continue to Preparation' }).click();
-  await expect(page.getByText('Full name is required.')).toBeVisible();
-  await expect(page.getByText('Enter a valid Malaysian phone number.')).toBeVisible();
-  await expect(page.getByText('House unit number is required (e.g. A-18-08).')).toBeVisible();
-  await expect(page.getByText('Please select a delivery point.')).toBeVisible();
+    // Back-end check: the order row was persisted with the expected money.
+    const svc = getServiceClient();
 
-  // Fill in the missing fields and complete the remaining Phase 3 steps.
-  await fillCheckoutDetails(page);
-  await continueThroughPreparationAndReview(page);
-  await expect(
-    page.getByRole('button', {
-      name: new RegExp(`^Place Order \\u2014 ${rm(total).replace('.', '\\.')}$`),
-    }),
-  ).toBeVisible();
-});
+    const { data: rows, error } = await svc
+      .from('Orders')
+      .select(
+        'id, total, subtotal, delivery_fee, payment_status, order_summary',
+      )
+      .eq('email_address', customer.email)
+      .order('id', { ascending: false })
+      .limit(1);
+
+    expect(error).toBeNull();
+    expect(rows).toHaveLength(1);
+
+    expect(Number(rows[0].subtotal)).toBe(subtotal);
+    expect(Number(rows[0].delivery_fee)).toBe(fee);
+    expect(Number(rows[0].total)).toBe(total);
+    expect(rows[0].payment_status).toBe('Pending');
+
+    expect(
+      (rows[0].order_summary as { status?: string }).status,
+    ).toBe('confirmed');
+  },
+);
+
+test(
+  'customer sees checkout validation errors before payment and resolves them',
+  async ({ page }) => {
+    await signInAndReturnHome(page);
+
+    await page.goto('/shop');
+    await addProductToCart(page);
+    await goToCheckoutWithDay(page);
+
+    // Submit empty: every required field errors.
+    await page.getByRole('button', {
+      name: 'Continue to Preparation',
+    }).click();
+
+    await expect(
+      page.getByText('Full name is required.'),
+    ).toBeVisible();
+
+    await expect(
+      page.getByText('Enter a valid Malaysian phone number.'),
+    ).toBeVisible();
+
+    await expect(
+      page.getByText(
+        'House unit number is required (e.g. A-18-08).',
+      ),
+    ).toBeVisible();
+
+    await expect(
+      page.getByText('Please select a delivery point.'),
+    ).toBeVisible();
+
+    // Fill in the missing fields and complete the remaining Phase 3 steps.
+    await fillCheckoutDetails(page);
+    await continueThroughPreparationAndReview(page);
+
+    await expect(
+      page.getByRole('button', {
+        name: new RegExp(
+          `^Place Order \\u2014 ${rm(total).replace('.', '\\.')}$`,
+        ),
+      }),
+    ).toBeVisible();
+  },
+);
