@@ -110,15 +110,10 @@ async function createTestUser(role: Role): Promise<TestUser> {
 
   const { error: roleError } = await service
     .from('user_roles')
-    .upsert(
-      { id: user.id, role },
-      { onConflict: 'id' }
-    );
+    .upsert({ id: user.id, role }, { onConflict: 'id' });
 
   if (roleError) {
-    throw new Error(
-      `user_roles upsert(${role}) failed: ${roleError.message}`
-    );
+    throw new Error(`user_roles upsert(${role}) failed: ${roleError.message}`);
   }
 
   console.log(`created ${role}: id=${user.id} email=${user.email}`);
@@ -310,7 +305,9 @@ async function main() {
     if (error || !data || data.length === 0) {
       pass(
         `customer INSERT denied${
-          error ? ` (${error.message.slice(0, 80)})` : ' (0 rows affected by RLS)'
+          error
+            ? ` (${error.message.slice(0, 80)})`
+            : ' (0 rows affected by RLS)'
         }`
       );
     } else {
@@ -359,8 +356,10 @@ async function main() {
 
     if (readError) {
       fail(`admin read site_settings failed: ${readError.message}`);
+    } else if (!current) {
+      fail('required site_settings row max_orders_per_day is missing');
     } else {
-      const originalValue = current?.value ?? '{}';
+      const originalValue = current.value;
 
       const { data, error } = await admin
         .from('site_settings')
@@ -396,4 +395,8 @@ main()
   })
   .finally(async () => {
     await cleanup();
+
+    if (failures > 0) {
+      process.exitCode = 1;
+    }
   });
