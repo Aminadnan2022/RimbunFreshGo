@@ -152,7 +152,8 @@ interface OrderSummary {
 }
 
 interface SupplierOrder {
-  dbId: number;
+  source: 'legacy' | 'canonical';
+  dbId: string;
   orderRef: string;
   customerName: string;
   customerPhone: string;
@@ -194,6 +195,30 @@ const needsWeighing = (item: OrderItem): boolean => isPerKg(item) || isSliceItem
 
 const orderRequiresWeighing = (order: SupplierOrder): boolean => {
   return order.items.some(item => needsWeighing(item));
+};
+
+const canonicalPreparationCode = (code: string | null | undefined): string | undefined => {
+  if (!code) return undefined;
+  const aliases: Record<string, string> = {
+    cut_4: 'cut4',
+    cut_12: 'cut12',
+    cut_16: 'cut16',
+    cut_24: 'cut24',
+  };
+  return aliases[code] ?? code;
+};
+
+const canonicalPaymentStatus = (status: string | null | undefined): PaymentStatus =>
+  status === 'paid' ? 'Paid' : 'Pending';
+
+const canonicalPricingType = (
+  orderingMode: string | null | undefined
+): OrderItem['pricingType'] => {
+  if (orderingMode === 'slice') return 'slice';
+  if (orderingMode === 'weight_only' || orderingMode === 'whole_fish_by_weight') {
+    return 'per_kg';
+  }
+  return 'fixed';
 };
 
 const hasAllWeightsSubmitted = (order: SupplierOrder): boolean => {
@@ -267,11 +292,11 @@ export default function SupplierDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [completionTimes, setCompletionTimes] = useState<Record<number, string>>({});
+  const [completionTimes, setCompletionTimes] = useState<Record<string, string>>({});
   const [viewDetailsOrder, setViewDetailsOrder] = useState<SupplierOrder | null>(null);
   const [editMode, setEditMode] = useState(false);
 
-  const handleWeightsSaved = (dbId: number, weights: Record<string, number>) => {
+  const handleWeightsSaved = (dbId: string, weights: Record<string, number>) => {
     setOrders(prev => prev.map(o => {
       if (o.dbId !== dbId) return o;
       const perKgIndices = o.items.map((item, i) => ({ item, i })).filter(({ item }) => needsWeighing(item));
@@ -283,33 +308,55 @@ export default function SupplierDashboardPage() {
   const loadOrders = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     setError(null);
+
     try {
-      const orderRes = await supabase
-        .from('Orders')
-        .select('id, full_name, phone_number, apartment, house_unit, pickup_location, order_notes, order_items, order_summary, supplier_weights, delivery_fee, payment_status, paid_at, packing_started_at, packing_completed_at, supplier_dispatch_started_at, supplier_dispatch_completed_at, ready_for_rider_at, lalamove_tracking_url, booking_reference, lalamove_booked_at')
-        .order('created_at', { ascending: false });
+      const [
+        legacyOrderRes,
+        canonicalOrderRes,
+        canonicalLineRes,
+        canonicalUnitRes,
+        canonicalAnswerRes,
+      ] = await Promise.all([
+        supabase
+          .from('Orders')
+          .select('id, full_name, phone_number, apartment, house_unit, pickup_location, order_notes, order_items, order_summary, supplier_weights, delivery_fee, payment_status, paid_at, packing_started_at, packing_completed_at, supplier_dispatch_started_at, supplier_dispatch_completed_at, ready_for_rider_at, lalamove_tracking_url, booking_reference, lalamove_booked_at, created_at')
+          .order('created_at', { ascending: false }),
 
-      if (orderRes.error) throw orderRes.error;
+        supabase
+          .from('sales_orders')
+          .select('id, order_number, customer_snapshot, delivery_snapshot, delivery_fee, payment_status, paid_at, created_at')
+          .order('created_at', { ascending: false }),
 
-      // eslint-disable-next-line no-console
-      console.log('[DEBUG] loadOrders: total orders returned from Supabase =', (orderRes.data ?? []).length);
+        supabase
+          .from('sales_order_lines')
+          .select('id, sales_order_id, line_number, product_id, product_snapshot, quantity, selling_unit, unit_selling_price, unit_cost_price, supplier_snapshot, ordering_mode, actual_weight_kg, item_kind')
+          .order('line_number', { ascending: true }),
 
-      const mapped: SupplierOrder[] = (orderRes.data ?? []).map((row) => {
+        supabase
+          .from('sales_order_line_units')
+          .select('id, sales_order_line_id, unit_number, actual_weight_kg')
+          .order('unit_number', { ascending: true }),
+
+        supabase
+          .from('sales_order_preparation_answers')
+          .select('sales_order_line_id, sales_order_line_component_id, option_code, question_code'),
+      ]);
+
+      if (legacyOrderRes.error) throw legacyOrderRes.error;
+      if (canonicalOrderRes.error) throw canonicalOrderRes.error;
+      if (canonicalLineRes.error) throw canonicalLineRes.error;
+      if (canonicalUnitRes.error) throw canonicalUnitRes.error;
+      if (canonicalAnswerRes.error) throw canonicalAnswerRes.error;
+
+      const legacyMapped: SupplierOrder[] = (legacyOrderRes.data ?? []).map((row) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const r = row as any;
         const summary: OrderSummary = r.order_summary ?? {};
         const deliveryDate = toISODate(summary.deliveryDate ?? '');
-        // eslint-disable-next-line no-console
-        console.log('[DEBUG] loadOrders: raw order', {
-          id: r.id,
-          orderRef: summary.orderRef ?? String(r.id),
-          payment_status: r.payment_status,
-          created_at: r.created_at,
-          summary_deliveryDate: summary.deliveryDate,
-          resolvedDeliveryDate: deliveryDate,
-        });
+
         return {
-          dbId: r.id,
+          source: 'legacy',
+          dbId: String(r.id),
           orderRef: summary.orderRef ?? String(r.id),
           customerName: r.full_name,
           customerPhone: r.phone_number ?? '',
@@ -321,7 +368,7 @@ export default function SupplierDashboardPage() {
           items: (r.order_items as OrderItem[]) ?? [],
           summary,
           supplierWeights: (r.supplier_weights as Record<string, number>) ?? {},
-          deliveryFee: Number(r.delivery_fee),
+          deliveryFee: Number(r.delivery_fee ?? 0),
           paymentStatus: (r.payment_status as PaymentStatus) ?? 'Pending',
           orderNotes: r.order_notes ?? '',
           paidAt: r.paid_at ?? null,
@@ -336,7 +383,149 @@ export default function SupplierDashboardPage() {
         };
       });
 
-      setOrders(mapped);
+      // Canonical child tables are already supplier-scoped by Phase 4C.1 RLS.
+      // Do not client-filter all suppliers' rows.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const canonicalLines = (canonicalLineRes.data ?? []) as any[];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const canonicalUnits = (canonicalUnitRes.data ?? []) as any[];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const canonicalAnswers = (canonicalAnswerRes.data ?? []) as any[];
+
+      const answersByLine = new Map<string, string>();
+      canonicalAnswers.forEach((answer) => {
+        if (answer.sales_order_line_component_id != null) return;
+        if (!answer.sales_order_line_id || !answer.option_code) return;
+        if (!answersByLine.has(String(answer.sales_order_line_id))) {
+          answersByLine.set(
+            String(answer.sales_order_line_id),
+            canonicalPreparationCode(String(answer.option_code)) ?? String(answer.option_code),
+          );
+        }
+      });
+
+      const unitsByLine = new Map<string, any[]>();
+      canonicalUnits.forEach((unit) => {
+        const key = String(unit.sales_order_line_id);
+        const list = unitsByLine.get(key) ?? [];
+        list.push(unit);
+        unitsByLine.set(key, list);
+      });
+
+      const linesByOrder = new Map<string, any[]>();
+      canonicalLines.forEach((line) => {
+        // Phase 4C.1 read bridge currently maps direct product lines only.
+        // Combo parent/component mapping will be added from a real canonical
+        // combo test row rather than inferred from legacy vendor structures.
+        if (line.item_kind !== 'product') return;
+
+        const key = String(line.sales_order_id);
+        const list = linesByOrder.get(key) ?? [];
+        list.push(line);
+        linesByOrder.set(key, list);
+      });
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const canonicalMapped: SupplierOrder[] = ((canonicalOrderRes.data ?? []) as any[])
+        .map((row) => {
+          const ownedLines = linesByOrder.get(String(row.id)) ?? [];
+
+          // A combo-only order may be visible at order level due component
+          // ownership, but Phase 4C.1 does not fabricate its UI item mapping.
+          if (ownedLines.length === 0) return null;
+
+          const customer = row.customer_snapshot ?? {};
+          const delivery = row.delivery_snapshot ?? {};
+          const supplierWeights: Record<string, number> = {};
+
+          const items: OrderItem[] = ownedLines
+            .sort((a, b) => Number(a.line_number) - Number(b.line_number))
+            .map((line, index) => {
+              let actualWeight: number | undefined;
+
+              if (line.actual_weight_kg != null) {
+                actualWeight = Number(line.actual_weight_kg);
+              } else {
+                const units = unitsByLine.get(String(line.id)) ?? [];
+                const weights = units
+                  .map((unit) => unit.actual_weight_kg)
+                  .filter((value) => value != null)
+                  .map(Number);
+
+                if (weights.length > 0 && weights.length === units.length) {
+                  actualWeight = weights.reduce((sum, value) => sum + value, 0);
+                }
+              }
+
+              if (actualWeight != null && Number.isFinite(actualWeight) && actualWeight > 0) {
+                supplierWeights[String(index)] = actualWeight;
+              }
+
+              const snapshot = line.product_snapshot ?? {};
+
+              return {
+                productId: String(line.product_id ?? ''),
+                name: String(snapshot.name ?? line.product_id ?? 'Product'),
+                price: Number(line.unit_selling_price ?? 0),
+                unit:
+                  line.ordering_mode === 'fixed_quantity'
+                    ? (snapshot.category === 'chicken' ? 'per bird' : String(line.selling_unit ?? 'piece'))
+                    : 'per kg',
+                quantity: Number(line.quantity ?? 0),
+                preparation: answersByLine.get(String(line.id)),
+                pricingType: canonicalPricingType(line.ordering_mode),
+                orderingMode: String(line.ordering_mode ?? ''),
+                costPrice: Number(line.unit_cost_price ?? 0),
+              };
+            });
+
+          const summary: OrderSummary = {
+            orderRef: String(row.order_number),
+            deliveryDate: String(delivery.requested_date ?? ''),
+            deliveryWindow: '',
+          };
+
+          return {
+            source: 'canonical' as const,
+            dbId: String(row.id),
+            orderRef: String(row.order_number),
+            customerName: String(customer.name ?? ''),
+            customerPhone: String(customer.phone ?? ''),
+            apartment: String(delivery.apartment ?? delivery.zone_name ?? ''),
+            houseUnit: String(delivery.house_unit ?? ''),
+            pickupLocation: String(
+              delivery.pickup_location ??
+              delivery.delivery_point_name ??
+              delivery.zone_name ??
+              ''
+            ),
+            deliveryDate: toISODate(String(delivery.requested_date ?? '')),
+            deliveryWindow: '',
+            items,
+            summary,
+            supplierWeights,
+            deliveryFee: Number(row.delivery_fee ?? delivery.fee_amount ?? 0),
+            paymentStatus: canonicalPaymentStatus(row.payment_status),
+            orderNotes: String(customer.notes ?? ''),
+            paidAt: row.paid_at ?? null,
+
+            // Canonical packing/dispatch actions are intentionally not wired
+            // during the Phase 4C.1 read-only bridge.
+            packingStartedAt: null,
+            packingCompletedAt: null,
+            supplierDispatchStartedAt: null,
+            supplierDispatchCompletedAt: null,
+            readyForRiderAt: null,
+            lalamoveTrackingUrl: null,
+            bookingReference: null,
+            lalamoveBookedAt: null,
+          };
+        })
+        .filter((order): order is SupplierOrder => order !== null);
+
+      const merged = [...canonicalMapped, ...legacyMapped];
+
+      setOrders(merged);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load orders');
     } finally {
@@ -354,6 +543,10 @@ export default function SupplierDashboardPage() {
   }, [loadOrders]);
 
   const handleStartOrder = async (order: SupplierOrder) => {
+    if (order.source === 'canonical') {
+      setViewDetailsOrder(order);
+      return;
+    }
     if (order.paymentStatus === 'Paid') return;
     setEditMode(false);
 
@@ -392,6 +585,10 @@ export default function SupplierDashboardPage() {
   };
 
   const handleEditWeight = (order: SupplierOrder) => {
+    if (order.source === 'canonical') {
+      setViewDetailsOrder(order);
+      return;
+    }
     if (order.paymentStatus === 'Paid') return;
     // No local status update - status is derived from DB
     setSelected(order);
@@ -403,6 +600,10 @@ export default function SupplierDashboardPage() {
   };
 
   const handlePrepareOrder = async (order: SupplierOrder) => {
+    if (order.source === 'canonical') {
+      alert('Canonical supplier packing actions are not enabled yet.');
+      return;
+    }
     try {
       await supplierStartPacking(String(order.dbId));
       await Promise.all([loadOrders(true)]);
@@ -413,6 +614,10 @@ export default function SupplierDashboardPage() {
   };
 
   const handleCompletePacking = async (order: SupplierOrder) => {
+    if (order.source === 'canonical') {
+      alert('Canonical supplier packing actions are not enabled yet.');
+      return;
+    }
     try {
       await supplierCompletePacking(String(order.dbId));
       await Promise.all([loadOrders(true)]);
@@ -423,6 +628,10 @@ export default function SupplierDashboardPage() {
   };
 
   const handleStartDispatch = async (order: SupplierOrder, trackingUrl: string, bookingReference: string) => {
+    if (order.source === 'canonical') {
+      alert('Canonical supplier dispatch actions are not enabled yet.');
+      return;
+    }
     try {
       await supplierBookLalamoveForOrder(String(order.dbId), trackingUrl, bookingReference);
       await Promise.all([loadOrders(true)]);
@@ -743,9 +952,11 @@ function WaitingForWeighing({ orders, onStart, onEditWeight, onViewDetails }: {
                   <button onClick={() => onViewDetails(order)} className="flex-1 border-2 border-cream-200 rounded-xl py-3 text-[16px] font-semibold text-gray-600 min-h-[52px] hover:bg-cream-50 transition-all active:scale-[0.97]">
                     {t("supplierQueues.viewButton")}
                   </button>
-                  <button onClick={() => onEditWeight(order)} className="flex-1 border-2 border-amber-300 rounded-xl py-3 text-[16px] font-semibold text-amber-700 min-h-[52px] hover:bg-amber-50 transition-all active:scale-[0.97]">
-                    {t("supplierQueues.editWeightButton")}
-                  </button>
+                  {order.source === 'legacy' && orderRequiresWeighing(order) && (
+                    <button onClick={() => onEditWeight(order)} className="flex-1 border-2 border-amber-300 rounded-xl py-3 text-[16px] font-semibold text-amber-700 min-h-[52px] hover:bg-amber-50 transition-all active:scale-[0.97]">
+                      {t("supplierQueues.editWeightButton")}
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
@@ -923,8 +1134,8 @@ function ReadyForSupplierDispatch({ orders, onStartDispatch, onViewDetails }: {
   onViewDetails: (o: SupplierOrder) => void;
 }) {
   const { t } = useLanguage();
-  const [trackingInputs, setTrackingInputs] = useState<Record<number, string>>({});
-  const [refInputs, setRefInputs] = useState<Record<number, string>>({});
+  const [trackingInputs, setTrackingInputs] = useState<Record<string, string>>({});
+  const [refInputs, setRefInputs] = useState<Record<string, string>>({});
 
   // Queue: payment_status='Paid' AND packing_started_at IS NOT NULL
   // AND packing_completed_at IS NOT NULL AND supplier_dispatch_started_at IS NULL.
@@ -1426,9 +1637,9 @@ function OrderFilterModal({ orders, filterStatus, selectedDate, onClose, onOpenO
 }) {
   const { t } = useLanguage();
   const filteredOrders = orders.filter((o) => filterStatus === 'all' || o.paymentStatus === filterStatus);
-  const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
-  const toggleCard = (dbId: number) => {
+  const toggleCard = (dbId: string) => {
     setExpandedIds((prev) => {
       const next = new Set(prev);
       if (next.has(dbId)) next.delete(dbId); else next.add(dbId);
@@ -1613,7 +1824,7 @@ function WeightEntryView({
   onNext: () => void;
   onQueue?: () => void;
   editMode?: boolean;
-  onWeightsSaved?: (dbId: number, weights: Record<string, number>) => void;
+  onWeightsSaved?: (dbId: string, weights: Record<string, number>) => void;
 }) {
   const { t } = useLanguage();
   const { user } = useAuth();
@@ -1683,6 +1894,10 @@ function WeightEntryView({
   };
 
   const saveCurrentProduct = async (index: number) => {
+    if (order.source === 'canonical') {
+      setError('Canonical supplier weight entry is not enabled yet.');
+      return;
+    }
     if (isLocked) {
       setError(t("weightEntry.messages.orderLocked"));
       return;
@@ -2019,7 +2234,7 @@ function WeightEntryView({
 
 // ----------- Order Details View (read-only) -----------
 
-function OrderDetailsView({ order, completionTimes, onClose }: { order: SupplierOrder; completionTimes: Record<number, string>; onClose: () => void }) {
+function OrderDetailsView({ order, completionTimes, onClose }: { order: SupplierOrder; completionTimes: Record<string, string>; onClose: () => void }) {
   const { t } = useLanguage();
   const lineTotal = (item: OrderItem, weights: Record<string, number>): number => {
     if (item.pricingType === 'fixed' || item.unit === 'per bird' || item.comboId) {
