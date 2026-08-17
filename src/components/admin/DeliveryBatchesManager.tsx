@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { useLanguage } from '../../context/LanguageContext';
 import ManifestView from './ManifestView';
+import CanonicalSupplierDeliveryBatches from './CanonicalSupplierDeliveryBatches';
 import {
   fetchDeliveryBatches,
   createDeliveryBatch,
@@ -260,7 +261,18 @@ export default function DeliveryBatchesManager() {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-8">
+      <CanonicalSupplierDeliveryBatches />
+
+      <div className="border-t border-cream-200 pt-8">
+        <div className="mb-4">
+          <h2 className="font-semibold text-gray-800 text-sm">Legacy Delivery Batches</h2>
+          <p className="text-xs text-gray-400 mt-0.5">
+            Historical / legacy Orders workflow. Canonical orders do not use this section.
+          </p>
+        </div>
+
+      <div className="space-y-5">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="font-semibold text-forest-900 text-base">{t("adminBatches.title")}</h2>
@@ -617,6 +629,8 @@ export default function DeliveryBatchesManager() {
           </div>
         </div>
       )}
+      </div>
+      </div>
     </div>
   );
 }

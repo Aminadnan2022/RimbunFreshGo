@@ -90,7 +90,6 @@ export default function OrderTrackingPage() {
       setLoadError(null);
       return;
     }
-    setOrder(o);
     setLoadError(null);
 
     // Canonical payment metadata is intentionally loaded separately.
@@ -161,6 +160,30 @@ export default function OrderTrackingPage() {
         } else {
           setCanonicalPaymentDisplay(null);
         }
+
+        const {
+          data: fulfilmentTrackingData,
+          error: fulfilmentTrackingError,
+        } = await supabase.rpc(
+          'get_sales_order_supplier_fulfilment_tracking',
+          {
+            p_sales_order_id: canonicalRow.id,
+          }
+        );
+
+        if (fulfilmentTrackingError) throw fulfilmentTrackingError;
+
+        const fulfilmentTracking = Array.isArray(fulfilmentTrackingData)
+          ? fulfilmentTrackingData[0] ?? null
+          : null;
+
+        o = {
+          ...o,
+          packingStartedAt:
+            fulfilmentTracking?.packing_started_at ?? null,
+          packingCompletedAt:
+            fulfilmentTracking?.packing_completed_at ?? null,
+        };
       } else {
         setCanonicalPayment(null);
         setCanonicalPaymentDisplay(null);
@@ -170,6 +193,8 @@ export default function OrderTrackingPage() {
       setCanonicalPayment(null);
       setCanonicalPaymentDisplay(null);
     }
+
+    setOrder(o);
 
     try {
       // The delivery date is order-owned (order_summary.deliveryDate).

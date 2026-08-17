@@ -1400,7 +1400,273 @@ function buildPaymentMessage(order: AdminOrder): string {
   return lines.join('\n');
 }
 
+
+function CanonicalPaymentVerificationQueue() {
+  const [rows, setRows] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [actionId, setActionId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadCanonicalReceipts = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const { data: receipts, error: receiptError } = await supabase
+        .from('sales_order_payment_receipts')
+        .select(
+          'id, sales_order_id, storage_path, original_file_name, mime_type, file_size, uploaded_at, verification_status'
+        )
+        .eq('verification_status', 'submitted')
+        .order('uploaded_at', { ascending: true });
+
+      if (receiptError) throw receiptError;
+
+      const receiptRows = receipts ?? [];
+
+      if (receiptRows.length === 0) {
+        setRows([]);
+        return;
+      }
+
+      const orderIds = Array.from(
+        new Set(receiptRows.map((r: any) => String(r.sales_order_id)))
+      );
+
+      const { data: orders, error: orderError } = await supabase
+        .from('sales_orders')
+        .select(
+          'id, order_number, customer_snapshot, final_total, total, payment_status, price_status, created_at'
+        )
+        .in('id', orderIds);
+
+      if (orderError) throw orderError;
+
+      const ordersById = new Map(
+        (orders ?? []).map((o: any) => [String(o.id), o])
+      );
+
+      setRows(
+        receiptRows.map((receipt: any) => ({
+          ...receipt,
+          order: ordersById.get(String(receipt.sales_order_id)) ?? null,
+        }))
+      );
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Failed to load canonical payment receipts.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadCanonicalReceipts();
+  }, [loadCanonicalReceipts]);
+
+  const viewReceipt = async (row: any) => {
+    setError(null);
+
+    try {
+      const { data, error: signedUrlError } = await supabase.storage
+        .from('sales-order-payment-receipts')
+        .createSignedUrl(row.storage_path, 300);
+
+      if (signedUrlError) throw signedUrlError;
+      if (!data?.signedUrl) throw new Error('Unable to create receipt URL.');
+
+      window.open(data.signedUrl, '_blank', 'noopener,noreferrer');
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'Failed to open receipt.'
+      );
+    }
+  };
+
+  const confirmReceipt = async (row: any) => {
+    const ref = row.order?.order_number ?? row.sales_order_id;
+
+    if (!window.confirm(`Confirm payment for ${ref}?`)) return;
+
+    setActionId(row.id);
+    setError(null);
+
+    try {
+      const { error: rpcError } = await supabase.rpc(
+        'confirm_sales_order_payment',
+        {
+          p_receipt_id: row.id,
+        }
+      );
+
+      if (rpcError) throw rpcError;
+
+      await loadCanonicalReceipts();
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'Failed to confirm payment.'
+      );
+    } finally {
+      setActionId(null);
+    }
+  };
+
+  const rejectReceipt = async (row: any) => {
+    const reason = window.prompt(
+      'Reason for rejecting this payment receipt:'
+    );
+
+    if (reason == null) return;
+
+    const cleanReason = reason.trim();
+
+    if (!cleanReason) {
+      window.alert('Rejection reason is required.');
+      return;
+    }
+
+    setActionId(row.id);
+    setError(null);
+
+    try {
+      const { error: rpcError } = await supabase.rpc(
+        'reject_sales_order_payment_receipt',
+        {
+          p_receipt_id: row.id,
+          p_reason: cleanReason,
+        }
+      );
+
+      if (rpcError) throw rpcError;
+
+      await loadCanonicalReceipts();
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'Failed to reject payment receipt.'
+      );
+    } finally {
+      setActionId(null);
+    }
+  };
+
+  return (
+    <div className="mb-7">
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900">
+            Payment Verification
+          </h3>
+          <p className="text-sm text-gray-500 mt-0.5">
+            Customer receipts waiting for verification.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={loadCanonicalReceipts}
+          disabled={loading}
+          className="px-3 py-2 rounded-lg border border-cream-300 text-sm font-semibold text-gray-600 hover:bg-cream-50 disabled:opacity-50"
+        >
+          Refresh
+        </button>
+      </div>
+
+      {error && (
+        <div className="mb-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
+      {loading ? (
+        <div className="rounded-2xl border border-cream-200 bg-white p-5 text-sm text-gray-500">
+          Loading payment receipts...
+        </div>
+      ) : rows.length === 0 ? (
+        <div className="rounded-2xl border border-cream-200 bg-white p-5 text-sm text-gray-500">
+          No payment receipts awaiting verification.
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {rows.map((row) => {
+            const order = row.order ?? {};
+            const customer = order.customer_snapshot ?? {};
+            const total = Number(order.final_total ?? order.total ?? 0);
+            const busy = actionId === row.id;
+
+            return (
+              <div
+                key={row.id}
+                className="rounded-2xl border border-blue-200 bg-white p-5 shadow-soft"
+              >
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                  <div>
+                    <p className="font-mono font-semibold text-gray-900">
+                      {order.order_number ?? row.sales_order_id}
+                    </p>
+
+                    <p className="mt-2 font-semibold text-gray-900">
+                      {customer.name ?? 'Customer'}
+                    </p>
+
+                    <p className="text-sm text-gray-500">
+                      {customer.phone ?? ''}
+                    </p>
+
+                    <p className="mt-2 text-sm text-gray-600">
+                      Final total:{' '}
+                      <strong className="text-forest-800">
+                        RM{formatCurrency(total)}
+                      </strong>
+                    </p>
+
+                    <p className="mt-1 text-xs text-gray-400">
+                      {row.original_file_name}
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => viewReceipt(row)}
+                      disabled={busy}
+                      className="px-4 py-2.5 rounded-xl border border-blue-300 text-blue-700 font-semibold text-sm hover:bg-blue-50 disabled:opacity-50"
+                    >
+                      View Receipt
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => rejectReceipt(row)}
+                      disabled={busy}
+                      className="px-4 py-2.5 rounded-xl border border-red-300 text-red-700 font-semibold text-sm hover:bg-red-50 disabled:opacity-50"
+                    >
+                      Reject
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => confirmReceipt(row)}
+                      disabled={busy}
+                      className="px-4 py-2.5 rounded-xl bg-green-600 text-white font-semibold text-sm hover:bg-green-700 disabled:opacity-50"
+                    >
+                      {busy ? 'Processing...' : 'Confirm Payment'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function OrdersTab() {
+
   const { t } = useLanguage();
 const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1519,6 +1785,8 @@ const [orders, setOrders] = useState<AdminOrder[]>([]);
 
   return (
     <>
+      <CanonicalPaymentVerificationQueue />
+
       {/* Filter pills */}
       <div className="flex flex-wrap gap-2 mb-5">
         {PAYMENT_FILTERS(t).map((f) => {
