@@ -38,7 +38,7 @@ export default function OrderTrackingPage() {
 
   const isWeightItem = (item: CartItem) => {
     if (isSliceItem(item)) return false;
-    if (item.orderingMode) return item.orderingMode === 'weight_only' || item.orderingMode === 'whole_or_weight';
+    if (item.orderingMode) return item.orderingMode === 'weight_only' || item.orderingMode === 'whole_fish_by_weight';
     return item.pricingType === 'per_kg';
   };
 

@@ -45,16 +45,16 @@ const productConfig: Record<string, ProductConfig> = {
   // ── Chicken ──────────────────────────────────────────────────
   'broiler-chicken':   { orderingMode: 'fixed_quantity', averageWeight: 1600 },
 
-  // ── Fish – premium (whole_or_weight) ─────────────────────────
-  'bawal-emas':        { orderingMode: 'whole_or_weight', averageWeight: 600 },
-  'bawal-hitam':       { orderingMode: 'whole_or_weight', averageWeight: 600 },
-  'bawal-putih':       { orderingMode: 'whole_or_weight', averageWeight: 600 },
-  'jenahak-potong':    { orderingMode: 'whole_or_weight', averageWeight: 1000 },
-  'jenahak-b':         { orderingMode: 'whole_or_weight', averageWeight: 800 },
-  'tenggiri':          { orderingMode: 'whole_or_weight', averageWeight: 1000 },
-  'tenggiri-potong':   { orderingMode: 'whole_or_weight', averageWeight: 1000 },
-  'merah-potong':      { orderingMode: 'whole_or_weight', averageWeight: 1000 },
-  'merah-b':           { orderingMode: 'whole_or_weight', averageWeight: 800 },
+  // ── Fish – premium (whole_fish_by_weight) ─────────────────────────
+  'bawal-emas':        { orderingMode: 'whole_fish_by_weight', averageWeight: 600 },
+  'bawal-hitam':       { orderingMode: 'whole_fish_by_weight', averageWeight: 600 },
+  'bawal-putih':       { orderingMode: 'whole_fish_by_weight', averageWeight: 600 },
+  'jenahak-potong':    { orderingMode: 'whole_fish_by_weight', averageWeight: 1000 },
+  'jenahak-b':         { orderingMode: 'whole_fish_by_weight', averageWeight: 800 },
+  'tenggiri':          { orderingMode: 'whole_fish_by_weight', averageWeight: 1000 },
+  'tenggiri-potong':   { orderingMode: 'whole_fish_by_weight', averageWeight: 1000 },
+  'merah-potong':      { orderingMode: 'whole_fish_by_weight', averageWeight: 1000 },
+  'merah-b':           { orderingMode: 'whole_fish_by_weight', averageWeight: 800 },
 
   // ── Fish – small (weight_only) ───────────────────────────────
   'cencaru':           { orderingMode: 'weight_only', averageWeight: 400,  showEstimatedQuantity: true },
@@ -84,7 +84,7 @@ const productConfig: Record<string, ProductConfig> = {
 };
 
 function resolveOrderingMode(row: DbProduct): OrderingMode {
-  if (row.ordering_mode && ['fixed_quantity', 'weight_only', 'whole_or_weight', 'combo', 'slice'].includes(row.ordering_mode)) {
+  if (row.ordering_mode && ['fixed_quantity', 'weight_only', 'whole_fish_by_weight', 'combo', 'slice'].includes(row.ordering_mode)) {
     return row.ordering_mode as OrderingMode;
   }
   const cfg = productConfig[row.id];
@@ -212,6 +212,7 @@ export type ProductPayload = {
   tags?: string[];
   is_popular?: boolean;
   ordering_mode?: string;
+  selling_unit?: SellingUnit;
   display_order?: number;
   is_pinned?: boolean;
   slice_unit?: string;
@@ -301,6 +302,7 @@ export async function duplicateProduct(id: string): Promise<Product> {
     tags: original.tags,
     is_popular: false,
     ordering_mode: original.orderingMode,
+    selling_unit: original.selling_unit,
     display_order: displayOrder,
     is_pinned: false,
   });

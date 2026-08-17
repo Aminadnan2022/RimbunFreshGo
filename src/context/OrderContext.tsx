@@ -155,6 +155,82 @@ const fromRow = (row: OrderRow): Order => {
   };
 };
 
+type CanonicalOrderRow = {
+  id: string;
+  order_number: string;
+  status: string;
+  customer_snapshot: { name?: string; phone?: string; email?: string; notes?: string };
+  delivery_snapshot: {
+    requested_date?: string;
+    requested_time?: string | null;
+    pickup_location?: string;
+    delivery_point_name?: string;
+    method_code?: string;
+    apartment?: string;
+    house_unit?: string;
+  };
+  subtotal: number;
+  delivery_fee: number;
+  total: number;
+  payment_status: string;
+  created_at: string;
+};
+
+type CanonicalLineRow = {
+  product_id: string | null;
+  combo_id: string | null;
+  item_kind: 'product' | 'combo';
+  product_snapshot: { name?: string; image?: string; category?: Order['items'][number]['category']; selling_unit?: string; ordering_mode?: string };
+  quantity: number;
+  estimated_weight_kg: number | null;
+  actual_weight_kg: number | null;
+  selling_unit: string;
+  unit_selling_price: number;
+  ordering_mode: string;
+};
+
+const fromCanonicalRows = (order: CanonicalOrderRow, lines: CanonicalLineRow[]): Order => ({
+  id: order.order_number,
+  items: lines.map((line) => ({
+    productId: line.product_id ?? line.combo_id ?? '',
+    name: line.product_snapshot?.name ?? line.product_id ?? line.combo_id ?? 'Order item',
+    image: line.product_snapshot?.image ?? '',
+    price: Number(line.unit_selling_price),
+    unit: line.selling_unit || line.product_snapshot?.selling_unit || '',
+    category: line.product_snapshot?.category,
+    quantity: Number(line.quantity),
+    estimatedWeight: line.estimated_weight_kg ?? undefined,
+    orderingMode: line.ordering_mode as CartItem['orderingMode'],
+    pricingType: line.ordering_mode === 'slice' ? 'slice' : line.ordering_mode === 'fixed_quantity' ? 'fixed' : 'per_kg',
+    isCombo: line.item_kind === 'combo',
+    comboId: line.combo_id ?? undefined,
+  })),
+  customer: {
+    name: order.customer_snapshot?.name ?? '',
+    phone: order.customer_snapshot?.phone ?? '',
+    email: order.customer_snapshot?.email ?? '',
+    apartment: order.delivery_snapshot?.apartment ?? '',
+    houseUnit: order.delivery_snapshot?.house_unit ?? '',
+    pickupLocation: order.delivery_snapshot?.pickup_location ?? '',
+    deliveryPointName: order.delivery_snapshot?.delivery_point_name ?? '',
+    deliveryMethod: order.delivery_snapshot?.method_code ?? '',
+    notes: order.customer_snapshot?.notes ?? '',
+  },
+  deliveryDay: order.delivery_snapshot?.requested_date ?? '',
+  deliveryDate: order.delivery_snapshot?.requested_date ?? '',
+  deliveryWindow: order.delivery_snapshot?.requested_time ?? '',
+  subtotal: Number(order.subtotal),
+  deliveryFee: Number(order.delivery_fee),
+  total: Number(order.total),
+  status: order.status as Order['status'],
+  createdAt: order.created_at,
+  statusTimeline: [],
+  paymentStatus: order.payment_status === 'confirmed' ? 'Paid' : 'Pending',
+  paidAt: null,
+  deliveryStatus: 'pending',
+  deliveredAt: null,
+});
+
 export function OrderProvider({ children }: { children: React.ReactNode }) {
   const addOrder = async (order: Order): Promise<{ id: string }> => {
     const { data, error } = await supabase
@@ -185,7 +261,34 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
       .maybeSingle();
 
     if (error) throw error;
-    return data ? fromRow(data as OrderRow) : null;
+    if (data) return fromRow(data as OrderRow);
+
+    const { data: canonicalByNumber, error: canonicalNumberError } = await supabase
+      .from('sales_orders')
+      .select('id, order_number, status, customer_snapshot, delivery_snapshot, subtotal, delivery_fee, total, payment_status, created_at')
+      .eq('order_number', ref)
+      .maybeSingle();
+    if (canonicalNumberError) throw canonicalNumberError;
+    let canonicalOrder = canonicalByNumber;
+    if (!canonicalOrder && /^[0-9a-f-]{36}$/i.test(ref)) {
+      const { data: canonicalById, error: canonicalIdError } = await supabase
+        .from('sales_orders')
+        .select('id, order_number, status, customer_snapshot, delivery_snapshot, subtotal, delivery_fee, total, payment_status, created_at')
+        .eq('id', ref)
+        .maybeSingle();
+      if (canonicalIdError) throw canonicalIdError;
+      canonicalOrder = canonicalById;
+    }
+    if (!canonicalOrder) return null;
+
+    const { data: canonicalLines, error: linesError } = await supabase
+      .from('sales_order_lines')
+      .select('product_id, combo_id, item_kind, product_snapshot, quantity, estimated_weight_kg, actual_weight_kg, selling_unit, unit_selling_price, ordering_mode')
+      .eq('sales_order_id', canonicalOrder.id)
+      .order('line_number', { ascending: true });
+    if (linesError) throw linesError;
+
+    return fromCanonicalRows(canonicalOrder as CanonicalOrderRow, (canonicalLines ?? []) as CanonicalLineRow[]);
   };
 
   return (

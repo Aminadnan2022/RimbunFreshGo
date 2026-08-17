@@ -6,7 +6,7 @@ export type PreparationOption = 'whole' | 'cleaned' | 'descaled' | 'gutted' | 'c
 
 export type SellingUnit = 'piece' | 'kg' | 'pack';
 
-export type OrderingMode = 'fixed_quantity' | 'weight_only' | 'whole_or_weight' | 'combo' | 'slice';
+export type OrderingMode = 'fixed_quantity' | 'weight_only' | 'whole_fish_by_weight' | 'combo' | 'slice';
 
 export interface Product {
   id: string;
@@ -161,6 +161,8 @@ export interface CartItem {
   category?: Category;
   showEstimatedQuantity?: boolean;
   orderingMode?: OrderingMode;
+  /** Legacy customer-selected mode retained for historical cart/order compatibility. */
+  selectedOrderMode?: 'whole' | 'weight';
   averageWeight?: number;
   quantity: number;
   estimatedWeight?: number;

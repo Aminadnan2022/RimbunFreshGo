@@ -40,7 +40,28 @@ const statusConfig = (t: (key: string) => string): Record<Order['status'], { lab
   delivered: { label: t("ordersPage.delivered"), className: 'bg-forest-100 text-forest-700' },
 });
 
-function mapRow(row: OrderRow): { ref: string; deliveryDate: string; status: Order['status']; total: number; createdAt: string } {
+type DisplayOrder = {
+  ref: string;
+  deliveryDate: string;
+  status: Order['status'];
+  total: number;
+  createdAt: string;
+};
+
+type CanonicalOrderRow = {
+  id: string;
+  order_number: string;
+  status: string;
+  delivery_snapshot: {
+    requested_date?: string;
+  } | null;
+  total: number | null;
+  estimated_total: number | null;
+  final_total: number | null;
+  created_at: string;
+};
+
+function mapRow(row: OrderRow): DisplayOrder {
   return {
     ref: row.order_summary?.orderRef ?? String(row.id),
     deliveryDate: row.order_summary?.deliveryDate ?? '',
@@ -50,10 +71,51 @@ function mapRow(row: OrderRow): { ref: string; deliveryDate: string; status: Ord
   };
 }
 
+function canonicalStatus(status: string): Order['status'] {
+  switch (status) {
+    case 'confirmed':
+      return 'confirmed';
+
+    case 'preparing':
+    case 'packing':
+    case 'ready':
+    case 'ready_for_dispatch':
+      return 'preparing';
+
+    case 'out-for-delivery':
+    case 'out_for_delivery':
+    case 'dispatched':
+    case 'dispatch':
+      return 'out-for-delivery';
+
+    case 'delivered':
+    case 'completed':
+      return 'delivered';
+
+    default:
+      return 'confirmed';
+  }
+}
+
+function mapCanonicalRow(row: CanonicalOrderRow): DisplayOrder {
+  return {
+    ref: row.order_number,
+    deliveryDate: row.delivery_snapshot?.requested_date ?? '',
+    status: canonicalStatus(row.status),
+    total: Number(
+      row.final_total ??
+      row.total ??
+      row.estimated_total ??
+      0
+    ),
+    createdAt: row.created_at,
+  };
+}
+
 export default function OrdersPage() {
   const { user, loading: authLoading } = useAuth();
   const { t } = useLanguage();
-  const [orders, setOrders] = useState<ReturnType<typeof mapRow>[]>([]);
+  const [orders, setOrders] = useState<DisplayOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -62,12 +124,45 @@ export default function OrdersPage() {
     let active = true;
     (async () => {
       try {
-        const { data, error: fetchError } = await supabase
-          .from('Orders')
-          .select('id, created_at, order_summary, total')
-          .order('created_at', { ascending: false });
-        if (fetchError) throw fetchError;
-        if (active) setOrders((data as OrderRow[]).map(mapRow));
+        const [legacyResult, canonicalResult] = await Promise.all([
+          supabase
+            .from('Orders')
+            .select('id, created_at, order_summary, total')
+            .order('created_at', { ascending: false }),
+
+          supabase
+            .from('sales_orders')
+            .select('id, order_number, status, delivery_snapshot, total, estimated_total, final_total, created_at')
+            .order('created_at', { ascending: false }),
+        ]);
+
+        if (legacyResult.error) throw legacyResult.error;
+        if (canonicalResult.error) throw canonicalResult.error;
+
+        const legacyOrders = ((legacyResult.data ?? []) as OrderRow[]).map(mapRow);
+        const canonicalOrders = ((canonicalResult.data ?? []) as CanonicalOrderRow[]).map(mapCanonicalRow);
+
+        // Prefer the canonical order if the same customer-facing reference
+        // somehow exists in both stores during the migration period.
+        const merged = new Map<string, DisplayOrder>();
+
+        for (const order of canonicalOrders) {
+          merged.set(order.ref, order);
+        }
+
+        for (const order of legacyOrders) {
+          if (!merged.has(order.ref)) {
+            merged.set(order.ref, order);
+          }
+        }
+
+        const sortedOrders = Array.from(merged.values()).sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() -
+            new Date(a.createdAt).getTime(),
+        );
+
+        if (active) setOrders(sortedOrders);
       } catch (err) {
         if (active) setError(err instanceof Error ? err.message : t("myOrders.failedToLoad"));
       } finally {

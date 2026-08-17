@@ -123,7 +123,7 @@ export default function AdminComboFormPage() {
         custom_label: '',
         preparation: opts[0] ?? '',
         unit: product.unit,
-        mode: mode === 'whole_or_weight' ? 'whole' : undefined,
+        mode: mode === 'whole_fish_by_weight' ? 'whole' : undefined,
       },
     ]);
     setSearch('');
@@ -152,7 +152,7 @@ export default function AdminComboFormPage() {
     const product = item.product!;
     const mode = getSellingMode(product);
     if (mode === 'weight') return 'kg';
-    if (mode === 'whole_or_weight') return item.mode === 'weight' ? 'kg' : 'piece';
+    if (mode === 'whole_fish_by_weight') return item.mode === 'weight' ? 'kg' : 'piece';
     return item.selling_unit || product.selling_unit || 'piece';
   }
 
@@ -565,7 +565,7 @@ export default function AdminComboFormPage() {
               const product = item.product!;
               const mode = getSellingMode(product);
               const isWeightBased = mode === 'weight';
-              const isWholeOrWeight = mode === 'whole_or_weight';
+              const isWholeOrWeight = mode === 'whole_fish_by_weight';
               const currentMode = isWholeOrWeight ? (item.mode ?? 'whole') : (isWeightBased ? 'weight' : 'whole');
               const su = currentMode === 'weight' ? 'kg' : 'piece';
               const weightGrams = Math.round((item.quantity_value || 0) * 1000);
@@ -627,7 +627,7 @@ export default function AdminComboFormPage() {
                   </div>
 
                   <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    {/* Whole / Weight toggle for whole_or_weight products */}
+                    {/* Whole / Weight toggle for whole_fish_by_weight products */}
                     {isWholeOrWeight && (
                       <div className="flex items-center gap-2">
                         <span className="text-xs text-gray-500">Mode</span>

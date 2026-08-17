@@ -251,7 +251,7 @@ export default function RecurringBasketPage() {
                 </div>
                 <p className="font-bold text-forest-800">
                   RM{formatCurrency(basket.items.reduce((sum, i) => {
-                    const weightBased = i.orderingMode ? (i.orderingMode === 'weight_only' || i.orderingMode === 'whole_or_weight') : i.pricingType === 'per_kg';
+                    const weightBased = i.orderingMode ? (i.orderingMode === 'weight_only' || i.orderingMode === 'whole_fish_by_weight') : i.pricingType === 'per_kg';
                     if (weightBased) {
                       return sum + i.price * (i.estimatedWeight ?? 0);
                     }

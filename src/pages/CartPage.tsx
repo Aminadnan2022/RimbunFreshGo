@@ -19,9 +19,15 @@ export default function CartPage() {
   const { cart, removeItem, updateQty, updateEstimatedWeight, updateSlice, setDeliveryDay, subtotal, itemCount } = useCart();
   const { t, lang } = useLanguage();
 
+  const isWholeFishItem = (item: CartItem) =>
+    item.orderingMode === 'whole_fish_by_weight' ||
+    item.selectedOrderMode === 'whole';
+
   const isWeightItem = (item: CartItem) => {
     if (isSliceItem(item)) return false;
-    if (item.orderingMode) return item.orderingMode === 'weight_only' || item.orderingMode === 'whole_or_weight';
+    if (isWholeFishItem(item)) return false;
+    if (item.selectedOrderMode === 'weight') return true;
+    if (item.orderingMode === 'weight_only') return true;
     return item.pricingType === 'per_kg';
   };
   if (!user) return <Navigate to="/" replace />;
@@ -49,7 +55,10 @@ export default function CartPage() {
         {/* Items */}
         <div className="lg:col-span-2 space-y-4">
           {cart.items.map((item) => (
-            <div key={item.comboId ?? item.productId} className="card p-4 sm:p-5">
+            <div
+              key={`${item.comboId ?? item.productId}|${item.preparation ?? 'default'}|${item.selectedOrderMode ?? item.pricingType ?? 'default'}`}
+              className="card p-4 sm:p-5"
+            >
               {/* Combo header */}
               <div className="flex gap-4">
                 <ProductImage
@@ -71,7 +80,12 @@ export default function CartPage() {
                       )}
                     </div>
                     <button
-                      onClick={() => removeItem(item.productId, item.comboId, item.preparation)}
+                      onClick={() => removeItem(
+                        item.productId,
+                        item.comboId,
+                        item.preparation,
+                        item.selectedOrderMode,
+                      )}
                       className="p-1.5 rounded-xl text-gray-300 hover:text-red-500 hover:bg-red-50 transition-all flex-shrink-0"
                       aria-label={t("cartItem.remove", { name: item.name })}
                     >
@@ -83,7 +97,13 @@ export default function CartPage() {
                       <>
                         <EstimatedWeightStepper
                           value={(item.estimatedWeight ?? 0.5) * 1000}
-                          onChange={(v) => updateEstimatedWeight(item.productId, v / 1000, item.comboId, item.preparation)}
+                          onChange={(v) => updateEstimatedWeight(
+                            item.productId,
+                            v / 1000,
+                            item.comboId,
+                            item.preparation,
+                            item.selectedOrderMode,
+                          )}
                           size="sm"
                         />
                         <p className="font-bold text-forest-800">≈ RM{formatCurrency(item.price * (item.estimatedWeight ?? 0))}</p>
@@ -92,7 +112,13 @@ export default function CartPage() {
                       <>
                         <SliceStepper
                           value={item.sliceQuantity ?? item.quantity}
-                          onChange={(v) => updateSlice(item.productId, v, item.comboId, item.preparation)}
+                          onChange={(v) => updateSlice(
+                            item.productId,
+                            v,
+                            item.comboId,
+                            item.preparation,
+                            item.selectedOrderMode,
+                          )}
                           min={item.minSlice}
                           max={item.maxSlice}
                           increment={item.sliceIncrement}
@@ -105,10 +131,20 @@ export default function CartPage() {
                       <>
                         <QuantityStepper
                           value={item.quantity}
-                          onChange={(v) => updateQty(item.productId, v, item.comboId, item.preparation)}
+                          onChange={(v) => updateQty(
+                            item.productId,
+                            v,
+                            item.comboId,
+                            item.preparation,
+                            item.selectedOrderMode,
+                          )}
                           size="sm"
                         />
-                        <p className="font-bold text-forest-800">RM{formatCurrency(item.price * item.quantity)}</p>
+                        <p className="font-bold text-forest-800">
+                          {isWholeFishItem(item)
+                            ? `≈ RM${formatCurrency(item.price * (item.estimatedWeight ?? 0))}`
+                            : `RM${formatCurrency(item.price * item.quantity)}`}
+                        </p>
                       </>
                     )}
                   </div>
@@ -128,7 +164,19 @@ export default function CartPage() {
                       {t("cart.slices", { count: item.sliceQuantity ?? item.quantity })}
                     </p>
                   ) : (
-                    <p className="text-xs text-gray-400 mt-1">RM{formatCurrency(item.price)} × {item.quantity} {item.unit}</p>
+                    isWholeFishItem(item) ? (
+                      <p className="text-xs text-amber-600 mt-1">
+                        {item.quantity} {lang === 'ms' ? 'ekor' : 'fish'}
+                        {item.averageWeight && item.averageWeight > 0
+                          ? ` · ≈ ${((item.estimatedWeight ?? 0)).toFixed(2)}kg`
+                          : ''}
+                        {' · '}RM{formatCurrency(item.price)}/kg — {t("cart.estimatedPrice")}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-gray-400 mt-1">
+                        RM{formatCurrency(item.price)} × {item.quantity} {item.unit}
+                      </p>
+                    )
                   )}
                 </div>
               </div>

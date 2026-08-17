@@ -1377,7 +1377,7 @@
       "orderingModeHelper": "Choose how customers will purchase this product on the shop page.",
       "fixedQuantity": "🐔 Fixed Price (Per Item)",
       "weightOnly": "⚖️ By Weight (kg / gram)",
-      "wholeOrWeight": "🐟 Whole Fish or By Weight",
+      "wholeOrWeight": "🐟 Whole Fish — Price by Weight",
       "combo": "📦 Family Combo",
       "sliceMode": "🔪 By Slice (Supplier Weighs)",
       "sliceConfigTitle": "Slice Settings",

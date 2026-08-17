@@ -107,7 +107,7 @@ export async function loadPreparationTargets(
           productId: part.productId,
           name: part.name || part.label,
           category: part.category,
-          quantity: isFish ? 1 : part.quantity,
+          quantity: part.quantity,
         });
       });
 
@@ -124,7 +124,7 @@ export async function loadPreparationTargets(
       productId: item.productId,
       name: item.name,
       category: item.category,
-      quantity: item.category === 'fish' ? 1 : item.quantity,
+      quantity: item.quantity,
     });
   });
 

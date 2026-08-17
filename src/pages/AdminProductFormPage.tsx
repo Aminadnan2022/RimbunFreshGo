@@ -19,7 +19,7 @@ import type {
   SupplierPriceHistoryRow,
   SellingPriceHistoryRow,
 } from '../data/products';
-import type { Category, PreparationOption } from '../types';
+import type { Category, PreparationOption, SellingUnit } from '../types';
 import MultiImageUploader from '../components/ui/MultiImageUploader';
 
 const CATEGORIES: { value: Category; labelKey: string }[] = [
@@ -46,7 +46,7 @@ function slugify(text: string): string {
 const ORDERING_MODES: { value: string; labelKey: string }[] = [
   { value: 'fixed_quantity', labelKey: 'adminProducts.form.fixedQuantity' },
   { value: 'weight_only', labelKey: 'adminProducts.form.weightOnly' },
-  { value: 'whole_or_weight', labelKey: 'adminProducts.form.wholeOrWeight' },
+  { value: 'whole_fish_by_weight', labelKey: 'adminProducts.form.wholeOrWeight' },
   { value: 'combo', labelKey: 'adminProducts.form.combo' },
   { value: 'slice', labelKey: 'adminProducts.form.sliceMode' },
 ];
@@ -73,6 +73,7 @@ type FormData = {
   tags: string;
   is_popular: boolean;
   ordering_mode: string;
+  selling_unit: SellingUnit;
   slice_unit: string;
   min_slice: string;
   max_slice: string;
@@ -103,6 +104,7 @@ const EMPTY_FORM: FormData = {
   tags: '',
   is_popular: false,
   ordering_mode: 'weight_only',
+  selling_unit: 'kg',
   slice_unit: 'slice',
   min_slice: '1',
   max_slice: '20',
@@ -243,6 +245,7 @@ export default function AdminProductFormPage() {
           tags: product.tags.join(', '),
           is_popular: product.isPopular ?? false,
           ordering_mode: product.orderingMode,
+          selling_unit: product.selling_unit ?? 'piece',
           slice_unit: product.sliceUnit ?? 'slice',
           min_slice: String(product.minSlice ?? 1),
           max_slice: String(product.maxSlice ?? 20),
@@ -308,6 +311,7 @@ export default function AdminProductFormPage() {
       tags: form.tags.split(',').map((s) => s.trim()).filter(Boolean),
       is_popular: form.is_popular,
       ordering_mode: form.ordering_mode,
+      selling_unit: form.selling_unit,
       ...(form.ordering_mode === 'slice'
         ? {
             slice_unit: form.slice_unit.trim() || 'slice',
@@ -621,9 +625,40 @@ export default function AdminProductFormPage() {
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <select id="ordering_mode" value={form.ordering_mode} onChange={(e) => set('ordering_mode', e.target.value)} className="input-field">
-                {ORDERING_MODES.map((m) => <option key={m.value} value={m.value}>{t(m.labelKey)}</option>)}
+              <label htmlFor="ordering_mode" className="block text-sm font-medium text-gray-700 mb-1.5">
+                {t("adminProducts.form.orderingMode")}
+              </label>
+              <select
+                id="ordering_mode"
+                value={form.ordering_mode}
+                onChange={(e) => set('ordering_mode', e.target.value)}
+                className="input-field"
+              >
+                {ORDERING_MODES.map((m) => (
+                  <option key={m.value} value={m.value}>
+                    {t(m.labelKey)}
+                  </option>
+                ))}
               </select>
+            </div>
+
+            <div>
+              <label htmlFor="selling_unit" className="block text-sm font-medium text-gray-700 mb-1.5">
+                Selling Unit
+              </label>
+              <select
+                id="selling_unit"
+                value={form.selling_unit}
+                onChange={(e) => set('selling_unit', e.target.value as SellingUnit)}
+                className="input-field"
+              >
+                <option value="piece">Piece / Ekor / Unit</option>
+                <option value="kg">Kilogram (kg)</option>
+                <option value="pack">Pack</option>
+              </select>
+              <p className="text-xs text-gray-400 mt-1.5">
+                Choose how this product is represented as a selling unit.
+              </p>
             </div>
           </div>
 

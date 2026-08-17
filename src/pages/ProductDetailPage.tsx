@@ -20,7 +20,6 @@ import ProductCard from '../components/ui/ProductCard';
 import FeatureDisabledPage from '../components/system/FeatureDisabledPage';
 import { buildCartItem, computeSubtotal, getSliceRange } from '../lib/sellingOptions';
 import { formatCurrency } from '../lib/currency';
-import type { PreparationOption } from '../types';
 
 export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -38,15 +37,9 @@ export default function ProductDetailPage() {
   const [qty, setQty] = useState(1);
   const [estimatedWeight, setEstimatedWeight] = useState(500);
   const [sliceQty, setSliceQty] = useState(2);
-  const [orderMode, setOrderMode] = useState<'whole' | 'weight'>('whole');
-  const [prep, setPrep] = useState<PreparationOption>('whole');
   const [added, setAdded] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleting, setDeleting] = useState(false);
-
-  useEffect(() => {
-    if (product) setPrep(product.preparationOptions[0] ?? 'whole');
-  }, [product]);
 
   useEffect(() => {
     if (product) setSliceQty(getSliceRange(product).defaultSlice);
@@ -98,8 +91,6 @@ export default function ProductDetailPage() {
       quantity: qty,
       weightG: estimatedWeight,
       sliceQuantity: sliceQty,
-      orderMode: mode === 'whole_or_weight' ? orderMode : undefined,
-      preparation: prep,
     });
 
     addItem(itemData);
@@ -211,28 +202,6 @@ export default function ProductDetailPage() {
             ))}
           </div>
 
-          {/* Preparation */}
-          {product.preparationOptions.length > 1 && (
-            <div className="mb-6">
-              <label className="text-sm font-semibold text-gray-700 block mb-2">{t("productDetail.preparation")}</label>
-              <div className="flex flex-wrap gap-2">
-                {product.preparationOptions.map((o) => (
-                  <button
-                    key={o}
-                    onClick={() => setPrep(o)}
-                    className={`px-4 py-2 rounded-xl text-sm font-medium border-2 transition-all ${
-                      prep === o
-                        ? 'border-forest-700 bg-forest-700 text-white'
-                        : 'border-cream-300 bg-white text-gray-600 hover:border-forest-400'
-                    }`}
-                  >
-                    {t("product.preparation." + o)}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
           {/* Delivery reminder */}
           <div className="flex items-center gap-2.5 bg-jade-50 border border-jade-200 rounded-2xl px-4 py-3 mb-6">
             <Clock size={16} className="text-jade-600 flex-shrink-0" />
@@ -240,35 +209,6 @@ export default function ProductDetailPage() {
               {t("productDetail.deliveryReminder")} <strong>{config.days.map((d) => t("days." + d.toLowerCase())).join(' & ')}</strong>, {config.time}
             </p>
           </div>
-
-          {/* Ordering mode toggle (whole_or_weight only) */}
-          {product.orderingMode === 'whole_or_weight' && (
-            <div className="mb-4">
-              <p className="text-sm font-semibold text-gray-700 block mb-2">{t("product.howToOrder")}</p>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setOrderMode('whole')}
-                  className={`px-5 py-2.5 rounded-xl text-sm font-semibold border-2 transition-all ${
-                    orderMode === 'whole'
-                      ? 'border-forest-700 bg-forest-700 text-white'
-                      : 'border-cream-300 bg-white text-gray-600 hover:border-forest-400'
-                  }`}
-                >
-                  {t("product.wholeFish")}
-                </button>
-                <button
-                  onClick={() => setOrderMode('weight')}
-                  className={`px-5 py-2.5 rounded-xl text-sm font-semibold border-2 transition-all ${
-                    orderMode === 'weight'
-                      ? 'border-forest-700 bg-forest-700 text-white'
-                      : 'border-cream-300 bg-white text-gray-600 hover:border-forest-400'
-                  }`}
-                >
-                  {t("product.byWeight")}
-                </button>
-              </div>
-            </div>
-          )}
 
           {/* Add to cart */}
           <div className="flex items-center gap-4">
@@ -284,9 +224,9 @@ export default function ProductDetailPage() {
                   unit={product.sliceUnit ?? t("product.sliceUnitDefault")}
                 />
               </div>
-            ) : product.orderingMode === 'whole_or_weight' && orderMode === 'whole' ? (
+            ) : product.orderingMode === 'whole_fish_by_weight' ? (
               <QuantityStepper value={qty} onChange={setQty} />
-            ) : product.orderingMode === 'weight_only' || (product.orderingMode === 'whole_or_weight' && orderMode === 'weight') ? (
+            ) : product.orderingMode === 'weight_only' ? (
               <div className="flex items-center gap-2">
                 <span className="text-xs text-gray-500">{t("product.estimatedWeight")}</span>
                 <EstimatedWeightStepper value={estimatedWeight} onChange={setEstimatedWeight} />
@@ -313,10 +253,10 @@ export default function ProductDetailPage() {
           {/* Estimated price display */}
           {product.orderingMode !== 'fixed_quantity' && product.orderingMode !== 'slice' && (
             <div className="mt-3 text-sm text-gray-500">
-              {product.orderingMode === 'whole_or_weight' && orderMode === 'whole' && product.averageWeight && product.averageWeight > 0 ? (
-                <p>≈ {qty} × {product.averageWeight}g = <strong>{(qty * product.averageWeight / 1000).toFixed(2).replace(/\.?0+$/, '')}kg</strong> · ≈ <strong>RM{formatCurrency(computeSubtotal(product, { quantity: qty, orderMode: 'whole' }))}</strong></p>
+              {product.orderingMode === 'whole_fish_by_weight' && product.averageWeight && product.averageWeight > 0 ? (
+                <p>≈ {qty} × {product.averageWeight}g = <strong>{(qty * product.averageWeight / 1000).toFixed(2).replace(/\.?0+$/, '')}kg</strong> · ≈ <strong>RM{formatCurrency(computeSubtotal(product, { quantity: qty }))}</strong></p>
               ) : (
-                <p>{t("product.estimatedWeight")}: <strong>{estimatedWeight >= 1000 ? (estimatedWeight / 1000).toFixed(2).replace(/\.?0+$/, '') + 'kg' : estimatedWeight + 'g'}</strong> · ≈ <strong>RM{formatCurrency(computeSubtotal(product, { weightG: estimatedWeight, orderMode: 'weight' }))}</strong></p>
+                <p>{t("product.estimatedWeight")}: <strong>{estimatedWeight >= 1000 ? (estimatedWeight / 1000).toFixed(2).replace(/\.?0+$/, '') + 'kg' : estimatedWeight + 'g'}</strong> · ≈ <strong>RM{formatCurrency(computeSubtotal(product, { weightG: estimatedWeight }))}</strong></p>
               )}
             </div>
           )}
@@ -330,7 +270,7 @@ export default function ProductDetailPage() {
               </div>
             </div>
           )}
-          {product.orderingMode === 'whole_or_weight' && orderMode === 'whole' && product.showEstimatedQuantity && product.averageWeight && product.averageWeight > 0 && (
+          {product.orderingMode === 'whole_fish_by_weight' && product.showEstimatedQuantity && product.averageWeight && product.averageWeight > 0 && (
             <div className="mt-4">
               <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 leading-relaxed space-y-1">
                 <p className="font-semibold">{t("product.estimatedQuantity")}</p>
@@ -340,7 +280,7 @@ export default function ProductDetailPage() {
             </div>
           )}
 
-          {(product.orderingMode === 'weight_only' || (product.orderingMode === 'whole_or_weight' && orderMode === 'weight')) && product.showEstimatedQuantity && product.averageWeight && product.averageWeight > 0 && (
+          {(product.orderingMode === 'weight_only') && product.showEstimatedQuantity && product.averageWeight && product.averageWeight > 0 && (
             <div className="mt-4">
               <EstimatedQuantityNote
                 weightGrams={estimatedWeight}

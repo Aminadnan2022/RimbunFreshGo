@@ -62,7 +62,7 @@ export function sellsByWeight(item: ItemLike): boolean {
   if (item.comboId) return false;
   if (item.orderingMode === 'weight_only') return true;
   if (item.orderingMode === 'fixed_quantity') return false;
-  // whole_or_weight (or legacy items without orderingMode):
+  // whole_fish_by_weight (or legacy items without orderingMode):
   const qty = item.quantity ?? 1;
   if (qty > 1) return false; // multiple pieces -> whole-mode purchase
   const est = item.estimatedWeight;

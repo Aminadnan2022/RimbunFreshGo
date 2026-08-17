@@ -1161,12 +1161,18 @@ const [orders, setOrders] = useState<AdminOrder[]>([]);
     setDeleting(true);
     setDeleteError(null);
     try {
-      const { error: deleteErr } = await supabase
-        .from('Orders')
-        .delete()
-        .eq('id', deleteSelected.dbId);
+      const { error: deleteErr } = await supabase.rpc(
+        'admin_archive_order',
+        {
+          p_order_id: deleteSelected.dbId,
+          p_reason: 'Cancelled by admin',
+        },
+      );
       if (deleteErr) throw deleteErr;
-      setOrders((prev) => prev.filter((o) => o.dbId !== deleteSelected.dbId));
+
+      setOrders((prev) =>
+        prev.filter((o) => o.dbId !== deleteSelected.dbId)
+      );
       setDeleteSelected(null);
       alert(t("adminOrders.messages.deleted"));
     } catch (err) {
@@ -1183,6 +1189,7 @@ const [orders, setOrders] = useState<AdminOrder[]>([]);
       const { data, error: fetchErr } = await supabase
         .from('Orders')
         .select('id, full_name, phone_number, apartment, house_unit, pickup_location, order_notes, order_summary, order_items, supplier_weights, subtotal, delivery_fee, total, payment_status, paid_at, created_at, delivery_slot')
+        .is('archived_at', null)
         .order('created_at', { ascending: false });
       if (fetchErr) throw fetchErr;
 

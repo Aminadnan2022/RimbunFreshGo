@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ShoppingCart, Zap } from 'lucide-react';
-import type { Product, PreparationOption } from '../../types';
+import type { Product } from '../../types';
 import { useCart } from '../../context/CartContext';
 import { useAuth } from '../../context/AuthContext';
 import { useAuthModal } from '../../context/AuthModalContext';
@@ -26,9 +26,7 @@ export default function ProductCard({ product }: Props) {
   const [qty, setQty] = useState(1);
   const [estimatedWeight, setEstimatedWeight] = useState(500);
   const [sliceQty, setSliceQty] = useState(() => getSliceRange(product).defaultSlice);
-  const [prep, setPrep] = useState<PreparationOption>(product.preparationOptions[0]);
   const [added, setAdded] = useState(false);
-  const [orderMode, setOrderMode] = useState<'whole' | 'weight'>('whole');
 
   const freshnessConfig = {
     available: { label: t("product.status.available"), color: 'bg-jade-100 text-jade-700' },
@@ -53,8 +51,6 @@ export default function ProductCard({ product }: Props) {
       quantity: qty,
       weightG: estimatedWeight,
       sliceQuantity: sliceQty,
-      orderMode: mode === 'whole_or_weight' ? orderMode : undefined,
-      preparation: prep,
     });
 
     addItem(itemData);
@@ -84,26 +80,16 @@ export default function ProductCard({ product }: Props) {
       );
     }
 
-    if (mode === 'whole_or_weight') {
-      if (orderMode === 'whole') {
-        return (
-          <div className="flex flex-col items-end gap-0.5">
-            <QuantityStepper value={qty} onChange={setQty} size="sm" />
-            {product.averageWeight && product.averageWeight > 0 && (
-              <span className="text-[10px] text-gray-400 whitespace-nowrap">
-                ≈ {((qty * product.averageWeight) / 1000).toFixed(2).replace(/\.?0+$/, '')}kg
-                {' · '}≈ RM{formatCurrency(computeSubtotal(product, { quantity: qty, orderMode: 'whole' }))}
-              </span>
-            )}
-          </div>
-        );
-      }
+    if (mode === 'whole_fish_by_weight') {
       return (
         <div className="flex flex-col items-end gap-0.5">
-          <EstimatedWeightStepper value={estimatedWeight} onChange={setEstimatedWeight} size="sm" />
-          <span className="text-[10px] text-gray-400 whitespace-nowrap">
-            ≈ RM{formatCurrency(computeSubtotal(product, { weightG: estimatedWeight, orderMode: 'weight' }))}
-          </span>
+          <QuantityStepper value={qty} onChange={setQty} size="sm" />
+          {product.averageWeight && product.averageWeight > 0 && (
+            <span className="text-[10px] text-gray-400 whitespace-nowrap">
+              ≈ {((qty * product.averageWeight) / 1000).toFixed(2).replace(/\.?0+$/, '')}kg
+              {' · '}≈ RM{formatCurrency(computeSubtotal(product, { quantity: qty }))}
+            </span>
+          )}
         </div>
       );
     }
@@ -122,9 +108,7 @@ export default function ProductCard({ product }: Props) {
     return <QuantityStepper value={qty} onChange={setQty} size="sm" />;
   };
 
-  const estNoteMode =
-    product.orderingMode === 'weight_only' ||
-    (product.orderingMode === 'whole_or_weight' && orderMode === 'weight');
+  const estNoteMode = product.orderingMode === 'weight_only';
 
   const unitLabel = product.id === 'udang-a'
     ? 'prawns'
@@ -167,54 +151,17 @@ export default function ProductCard({ product }: Props) {
           </p>
         </div>
 
-        {product.preparationOptions.length > 1 && (
-          <select
-            value={prep}
-            onChange={(e) => setPrep(e.target.value as PreparationOption)}
-            className="text-xs bg-cream-50 border border-cream-300 rounded-xl px-3 py-1.5 text-gray-600 focus:outline-none focus:ring-2 focus:ring-forest-400"
-            aria-label={t("product.labels.preparation")}
-          >
-              {product.preparationOptions.map((o) => (
-                <option key={o} value={o}>{t("product.preparation." + o)}</option>
-            ))}
-          </select>
-        )}
-
         <div className="flex items-end justify-between mt-auto pt-1">
           <div>
             <p className="text-xl font-bold text-forest-800">RM{formatCurrency(product.price)}</p>
             <p className="text-xs text-gray-400">{productUnitLabel}</p>
           </div>
           <div className="flex flex-col items-end gap-1">
-            {(product.orderingMode === 'whole_or_weight') && (
-              <div className="flex gap-0.5 bg-cream-100 rounded-lg p-0.5 text-xs">
-                <button
-                  onClick={() => setOrderMode('whole')}
-                  className={`px-2 py-0.5 rounded-md transition-colors ${
-                    orderMode === 'whole'
-                      ? 'bg-white text-forest-800 font-semibold shadow-sm'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  {t("product.wholeFish")}
-                </button>
-                <button
-                  onClick={() => setOrderMode('weight')}
-                  className={`px-2 py-0.5 rounded-md transition-colors ${
-                    orderMode === 'weight'
-                      ? 'bg-white text-forest-800 font-semibold shadow-sm'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  {t("product.byWeight")}
-                </button>
-              </div>
-            )}
             {renderStepper()}
           </div>
         </div>
 
-        {product.orderingMode === 'whole_or_weight' && orderMode === 'whole' && product.showEstimatedQuantity && product.averageWeight && product.averageWeight > 0 && (
+        {product.orderingMode === 'whole_fish_by_weight' && product.showEstimatedQuantity && product.averageWeight && product.averageWeight > 0 && (
           <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 leading-relaxed">
             <p className="font-semibold">{t("product.estimatedQuantity")}</p>
             <p>≈ {qty} {lang === 'ms' ? 'ekor ikan' : 'fish'}</p>
