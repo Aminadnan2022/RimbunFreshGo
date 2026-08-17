@@ -474,6 +474,257 @@ function ProductsTab() {
   );
 }
 
+
+function PaymentQrSettingsCard() {
+  const [current, setCurrent] = useState<any | null>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [instructions, setInstructions] = useState(
+    'Scan the DuitNow QR below and pay the exact order amount. After payment, upload your receipt for verification.'
+  );
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  const loadCurrent = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const { data, error: rpcError } = await supabase.rpc(
+        'get_current_payment_configuration'
+      );
+
+      if (rpcError) throw rpcError;
+
+      const row = Array.isArray(data) ? data[0] ?? null : null;
+
+      setCurrent(row);
+
+      if (row?.instructions) {
+        setInstructions(String(row.instructions));
+      }
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Failed to load payment QR configuration.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadCurrent();
+  }, [loadCurrent]);
+
+  const currentQrUrl = current?.qr_storage_path
+    ? supabase.storage
+        .from('payment-qr')
+        .getPublicUrl(current.qr_storage_path).data.publicUrl
+    : null;
+
+  const saveQr = async () => {
+    if (!file) {
+      setError('Please choose a QR image first.');
+      return;
+    }
+
+    const extensions: Record<string, string> = {
+      'image/jpeg': 'jpg',
+      'image/png': 'png',
+      'image/webp': 'webp',
+    };
+
+    const ext = extensions[file.type];
+
+    if (!ext) {
+      setError('QR must be JPG, PNG or WebP.');
+      return;
+    }
+
+    if (file.size <= 0 || file.size > 5 * 1024 * 1024) {
+      setError('QR image must be 5 MB or smaller.');
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const nextVersion = Number(current?.version_number ?? 0) + 1;
+      const objectId = crypto.randomUUID();
+
+      const storagePath =
+        `freshgo_manual_qr/v${nextVersion}/${objectId}.${ext}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('payment-qr')
+        .upload(storagePath, file, {
+          cacheControl: '3600',
+          upsert: false,
+          contentType: file.type,
+        });
+
+      if (uploadError) throw uploadError;
+
+      const { error: publishError } = await supabase.rpc(
+        'replace_payment_qr_configuration',
+        {
+          p_qr_storage_path: storagePath,
+          p_instructions: instructions.trim() || null,
+        }
+      );
+
+      if (publishError) throw publishError;
+
+      setFile(null);
+      setSuccess('Payment QR published successfully.');
+
+      await loadCurrent();
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Failed to publish payment QR.'
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <section className="bg-white rounded-2xl border border-cream-200 shadow-soft p-6">
+      <div className="mb-5">
+        <h2 className="font-semibold text-forest-900 text-base">
+          Payment Settings
+        </h2>
+        <p className="text-xs text-gray-500 mt-0.5">
+          Manage the DuitNow QR shown to customers when their order is ready for payment.
+        </p>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center gap-2 text-sm text-gray-500">
+          <Loader2 size={16} className="animate-spin" />
+          Loading payment settings...
+        </div>
+      ) : (
+        <div className="space-y-5">
+          {currentQrUrl ? (
+            <div>
+              <p className="text-sm font-semibold text-gray-700 mb-3">
+                Current published QR
+              </p>
+
+              <div className="inline-block rounded-2xl border border-cream-200 bg-white p-3">
+                <img
+                  src={currentQrUrl}
+                  alt="FreshGo DuitNow QR"
+                  className="w-56 h-56 object-contain rounded-xl"
+                />
+              </div>
+
+              <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                <span className="rounded-full bg-green-50 text-green-700 px-3 py-1 font-semibold">
+                  Published
+                </span>
+
+                <span className="rounded-full bg-cream-100 text-gray-600 px-3 py-1 font-semibold">
+                  Version {current?.version_number}
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+              No payment QR has been published yet.
+            </div>
+          )}
+
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              {current ? 'Replace DuitNow QR' : 'Upload DuitNow QR'}
+            </label>
+
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              disabled={saving}
+              onChange={(e) => {
+                setFile(e.target.files?.[0] ?? null);
+                setError(null);
+                setSuccess(null);
+              }}
+              className="block w-full text-sm text-gray-600
+                file:mr-4 file:rounded-xl file:border-0
+                file:bg-forest-50 file:px-4 file:py-2.5
+                file:text-sm file:font-semibold file:text-forest-700
+                hover:file:bg-forest-100"
+            />
+
+            <p className="mt-1.5 text-xs text-gray-400">
+              JPG, PNG or WebP · maximum 5 MB
+            </p>
+          </div>
+
+          <div>
+            <label
+              htmlFor="payment-instructions"
+              className="block text-sm font-semibold text-gray-700 mb-2"
+            >
+              Customer payment instructions
+            </label>
+
+            <textarea
+              id="payment-instructions"
+              rows={4}
+              value={instructions}
+              onChange={(e) => setInstructions(e.target.value)}
+              disabled={saving}
+              className="input-field w-full"
+            />
+          </div>
+
+          {error && (
+            <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+
+          {success && (
+            <div className="rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-700">
+              {success}
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={saveQr}
+            disabled={!file || saving}
+            className="btn-primary inline-flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {saving && <Loader2 size={16} className="animate-spin" />}
+            {saving
+              ? 'Publishing...'
+              : current
+                ? 'Replace & Publish QR'
+                : 'Publish QR'}
+          </button>
+
+          {current && (
+            <p className="text-xs text-gray-400 leading-relaxed">
+              Replacing the QR creates a new payment configuration version.
+              Existing historical order snapshots are not rewritten.
+            </p>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
 function SettingsTab() {
   const { t } = useLanguage();
   const { config, loading, updateConfig } = useDeliveryConfig();
@@ -564,6 +815,7 @@ function SettingsTab() {
     { id: 'footer', icon: FileText, labelKey: 'adminSettings.nav.footer' },
     { id: 'contact', icon: Phone, labelKey: 'adminSettings.nav.contact' },
     { id: 'social', icon: Share2, labelKey: 'adminSettings.nav.social' },
+    { id: 'payment', icon: Settings, labelKey: 'payment.title' },
     { id: 'delivery', icon: Truck, labelKey: 'adminSettings.nav.delivery' },
     { id: 'visibility', icon: LayoutDashboard, labelKey: 'adminSettings.nav.visibility' },
     { id: 'sorting', icon: ListOrdered, labelKey: 'adminSettings.nav.sorting' },
@@ -593,6 +845,10 @@ function SettingsTab() {
           <section id="settings-footer" className="scroll-mt-28"><FooterSettingsCard /></section>
           <section id="settings-contact" className="scroll-mt-28"><ContactSettingsCard /></section>
           <section id="settings-social" className="scroll-mt-28"><SocialMediaSettingsCard /></section>
+
+          <section id="settings-payment" className="scroll-mt-28">
+            <PaymentQrSettingsCard />
+          </section>
 
           <section id="settings-delivery" className="scroll-mt-28 space-y-6">
             {/* Current Live Settings */}

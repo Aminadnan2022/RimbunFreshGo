@@ -172,7 +172,10 @@ type CanonicalOrderRow = {
   subtotal: number;
   delivery_fee: number;
   total: number;
+  final_total: number | null;
+  price_status: string;
   payment_status: string;
+  paid_at: string | null;
   created_at: string;
 };
 
@@ -221,12 +224,17 @@ const fromCanonicalRows = (order: CanonicalOrderRow, lines: CanonicalLineRow[]):
   deliveryWindow: order.delivery_snapshot?.requested_time ?? '',
   subtotal: Number(order.subtotal),
   deliveryFee: Number(order.delivery_fee),
-  total: Number(order.total),
+  total: Number(order.final_total ?? order.total),
   status: order.status as Order['status'],
   createdAt: order.created_at,
   statusTimeline: [],
-  paymentStatus: order.payment_status === 'confirmed' ? 'Paid' : 'Pending',
-  paidAt: null,
+  paymentStatus:
+    order.payment_status === 'paid'
+      ? 'Paid'
+      : order.price_status === 'final'
+        ? 'Ready To Pay'
+        : 'Pending',
+  paidAt: order.paid_at ?? null,
   deliveryStatus: 'pending',
   deliveredAt: null,
 });
@@ -265,7 +273,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
 
     const { data: canonicalByNumber, error: canonicalNumberError } = await supabase
       .from('sales_orders')
-      .select('id, order_number, status, customer_snapshot, delivery_snapshot, subtotal, delivery_fee, total, payment_status, created_at')
+      .select('id, order_number, status, customer_snapshot, delivery_snapshot, subtotal, delivery_fee, total, final_total, price_status, payment_status, paid_at, created_at')
       .eq('order_number', ref)
       .maybeSingle();
     if (canonicalNumberError) throw canonicalNumberError;
@@ -273,7 +281,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     if (!canonicalOrder && /^[0-9a-f-]{36}$/i.test(ref)) {
       const { data: canonicalById, error: canonicalIdError } = await supabase
         .from('sales_orders')
-        .select('id, order_number, status, customer_snapshot, delivery_snapshot, subtotal, delivery_fee, total, payment_status, created_at')
+        .select('id, order_number, status, customer_snapshot, delivery_snapshot, subtotal, delivery_fee, total, final_total, price_status, payment_status, paid_at, created_at')
         .eq('id', ref)
         .maybeSingle();
       if (canonicalIdError) throw canonicalIdError;

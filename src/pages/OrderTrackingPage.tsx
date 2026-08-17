@@ -9,6 +9,7 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import ProductImage from '../components/ui/ProductImage';
 import { formatCurrency } from '../lib/currency';
+import { supabase } from '../lib/supabase';
 import { formatDisplayDate } from '../data/delivery';
 import { isSliceItem } from '../lib/sellingOptions';
 import {
@@ -30,6 +31,20 @@ const STAGE_ICONS: Record<(typeof TRACKING_STAGES)[number], typeof Package> = {
   delivered: CheckCircle2,
 };
 
+type CanonicalPaymentMeta = {
+  salesOrderId: string;
+  priceStatus: 'estimated' | 'final';
+  paymentStatus: 'pending' | 'receipt_submitted' | 'rejected' | 'paid';
+  finalTotal: number | null;
+  rejectionReason: string | null;
+};
+
+type CanonicalPaymentDisplay = {
+  qrStoragePath: string;
+  instructions: string | null;
+  configurationSource: string;
+};
+
 export default function OrderTrackingPage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
@@ -46,6 +61,17 @@ export default function OrderTrackingPage() {
   const [riderName, setRiderName] = useState<string | null>(null);
   const [initialLoading, setInitialLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  const [canonicalPayment, setCanonicalPayment] =
+    useState<CanonicalPaymentMeta | null>(null);
+
+  const [canonicalPaymentDisplay, setCanonicalPaymentDisplay] =
+    useState<CanonicalPaymentDisplay | null>(null);
+
+  const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [receiptUploading, setReceiptUploading] = useState(false);
+  const [receiptError, setReceiptError] = useState<string | null>(null);
+  const [receiptSuccess, setReceiptSuccess] = useState<string | null>(null);
 
   const loadLive = useCallback(async (ref: string) => {
     let o: Order | null;
@@ -66,6 +92,85 @@ export default function OrderTrackingPage() {
     }
     setOrder(o);
     setLoadError(null);
+
+    // Canonical payment metadata is intentionally loaded separately.
+    // Legacy orders simply return no matching sales_orders row.
+    try {
+      const { data: canonicalRow, error: canonicalError } = await supabase
+        .from('sales_orders')
+        .select('id, price_status, payment_status, final_total')
+        .eq('order_number', ref)
+        .maybeSingle();
+
+      if (canonicalError) throw canonicalError;
+
+      if (canonicalRow) {
+        let rejectionReason: string | null = null;
+
+        if (canonicalRow.payment_status === 'rejected') {
+          const { data: rejectedReceipt, error: rejectedReceiptError } =
+            await supabase
+              .from('sales_order_payment_receipts')
+              .select('rejection_reason')
+              .eq('sales_order_id', canonicalRow.id)
+              .eq('verification_status', 'rejected')
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .maybeSingle();
+
+          if (rejectedReceiptError) throw rejectedReceiptError;
+          rejectionReason = rejectedReceipt?.rejection_reason ?? null;
+        }
+
+        setCanonicalPayment({
+          salesOrderId: String(canonicalRow.id),
+          priceStatus: canonicalRow.price_status as 'estimated' | 'final',
+          paymentStatus: canonicalRow.payment_status as
+            | 'pending'
+            | 'receipt_submitted'
+            | 'rejected'
+            | 'paid',
+          finalTotal:
+            canonicalRow.final_total == null
+              ? null
+              : Number(canonicalRow.final_total),
+          rejectionReason,
+        });
+
+        const { data: paymentDisplayData, error: paymentDisplayError } =
+          await supabase.rpc('get_sales_order_payment_display', {
+            p_sales_order_id: canonicalRow.id,
+          });
+
+        if (paymentDisplayError) throw paymentDisplayError;
+
+        const paymentDisplayRow = Array.isArray(paymentDisplayData)
+          ? paymentDisplayData[0] ?? null
+          : null;
+
+        if (paymentDisplayRow?.qr_storage_path) {
+          setCanonicalPaymentDisplay({
+            qrStoragePath: String(paymentDisplayRow.qr_storage_path),
+            instructions: paymentDisplayRow.instructions
+              ? String(paymentDisplayRow.instructions)
+              : null,
+            configurationSource: String(
+              paymentDisplayRow.configuration_source ?? ''
+            ),
+          });
+        } else {
+          setCanonicalPaymentDisplay(null);
+        }
+      } else {
+        setCanonicalPayment(null);
+        setCanonicalPaymentDisplay(null);
+      }
+    } catch (err) {
+      console.error('[tracking] Failed to fetch canonical payment metadata:', err);
+      setCanonicalPayment(null);
+      setCanonicalPaymentDisplay(null);
+    }
+
     try {
       // The delivery date is order-owned (order_summary.deliveryDate).
       const riderDate = o.deliveryDate || '';
@@ -86,6 +191,83 @@ export default function OrderTrackingPage() {
     const interval = setInterval(() => { if (active) loadLive(ref); }, 25000);
     return () => { active = false; clearInterval(interval); };
   }, [id, loadLive, user]);
+
+  const handleReceiptUpload = async () => {
+    if (!canonicalPayment || !receiptFile) return;
+
+    setReceiptUploading(true);
+    setReceiptError(null);
+    setReceiptSuccess(null);
+
+    try {
+      if (canonicalPayment.priceStatus !== 'final') {
+        throw new Error('Final order price is not ready yet.');
+      }
+
+      if (!['pending', 'rejected'].includes(canonicalPayment.paymentStatus)) {
+        throw new Error('Payment receipt cannot be submitted for this order right now.');
+      }
+
+      const allowedTypes: Record<string, string> = {
+        'image/jpeg': 'jpg',
+        'image/png': 'png',
+        'image/webp': 'webp',
+        'application/pdf': 'pdf',
+      };
+
+      const extension = allowedTypes[receiptFile.type];
+
+      if (!extension) {
+        throw new Error('Receipt must be JPG, PNG, WebP, or PDF.');
+      }
+
+      if (receiptFile.size <= 0 || receiptFile.size > 5 * 1024 * 1024) {
+        throw new Error('Receipt file must be 5 MB or smaller.');
+      }
+
+      const receiptObjectId = crypto.randomUUID();
+      const storagePath =
+        `${canonicalPayment.salesOrderId}/${receiptObjectId}.${extension}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('sales-order-payment-receipts')
+        .upload(storagePath, receiptFile, {
+          cacheControl: '3600',
+          upsert: false,
+          contentType: receiptFile.type,
+        });
+
+      if (uploadError) throw uploadError;
+
+      const { error: submitError } = await supabase.rpc(
+        'submit_sales_order_payment_receipt',
+        {
+          p_sales_order_id: canonicalPayment.salesOrderId,
+          p_storage_path: storagePath,
+          p_original_file_name: receiptFile.name,
+          p_mime_type: receiptFile.type,
+          p_file_size: receiptFile.size,
+        },
+      );
+
+      if (submitError) throw submitError;
+
+      setReceiptFile(null);
+      setReceiptSuccess('Receipt submitted successfully. Waiting for admin verification.');
+
+      await loadLive(id ?? '');
+    } catch (err) {
+      console.error('[tracking:receiptUpload]', err);
+
+      setReceiptError(
+        err instanceof Error
+          ? err.message
+          : 'Failed to submit payment receipt.',
+      );
+    } finally {
+      setReceiptUploading(false);
+    }
+  };
 
   const retry = () => {
     const ref = id ?? '';
@@ -166,6 +348,12 @@ export default function OrderTrackingPage() {
   const from = 'Pasar Tani Putrajaya';
   const to = 'FreshGo Hub (Residensi Rimbun)';
 
+  const paymentQrUrl = canonicalPaymentDisplay?.qrStoragePath
+    ? supabase.storage
+        .from('payment-qr')
+        .getPublicUrl(canonicalPaymentDisplay.qrStoragePath).data.publicUrl
+    : null;
+
   return (
     <main className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
       {/* Breadcrumb */}
@@ -224,6 +412,172 @@ export default function OrderTrackingPage() {
           </div>
         )}
       </div>
+
+      {/* Canonical payment receipt */}
+      {canonicalPayment && (
+        <div className="card p-6 sm:p-8 mb-6">
+          <h2 className="font-semibold text-charcoal mb-4">
+            Payment Receipt
+          </h2>
+
+          {canonicalPayment.priceStatus !== 'final' && (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+              Final order price is still pending supplier finalisation.
+              Payment receipt can be submitted once the final price is ready.
+            </div>
+          )}
+
+          {canonicalPayment.priceStatus === 'final' &&
+            canonicalPayment.paymentStatus !== 'paid' &&
+            paymentQrUrl && (
+              <div className="mb-5 rounded-2xl border border-forest-200 bg-forest-50/40 p-5 text-center">
+                <p className="text-sm font-semibold text-gray-700 mb-2">
+                  Amount to pay
+                </p>
+
+                <p className="text-3xl font-bold text-forest-800 mb-5">
+                  RM{formatCurrency(
+                    canonicalPayment.finalTotal ?? order.total
+                  )}
+                </p>
+
+                <div className="mx-auto w-fit rounded-2xl bg-white border border-cream-200 p-3 shadow-sm">
+                  <img
+                    src={paymentQrUrl}
+                    alt="FreshGo DuitNow QR"
+                    className="w-64 max-w-full aspect-square object-contain"
+                  />
+                </div>
+
+                <p className="mt-4 font-semibold text-forest-800">
+                  Scan DuitNow QR
+                </p>
+
+                <p className="mt-2 text-sm text-gray-600 leading-relaxed max-w-lg mx-auto">
+                  {canonicalPaymentDisplay?.instructions ||
+                    'Scan the DuitNow QR above and pay the exact order amount. After payment, upload your receipt for verification.'}
+                </p>
+              </div>
+            )}
+
+          {canonicalPayment.priceStatus === 'final' &&
+            canonicalPayment.paymentStatus !== 'paid' &&
+            !paymentQrUrl && (
+              <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                Payment QR is currently unavailable. Please contact FreshGo for assistance.
+              </div>
+            )}
+
+          {canonicalPayment.priceStatus === 'final' &&
+            canonicalPayment.paymentStatus === 'receipt_submitted' && (
+              <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
+                <p className="font-semibold text-blue-800">
+                  Receipt submitted
+                </p>
+                <p className="text-sm text-blue-700 mt-1">
+                  Your receipt is waiting for admin verification.
+                </p>
+              </div>
+            )}
+
+          {canonicalPayment.paymentStatus === 'paid' && (
+            <div className="rounded-2xl border border-green-200 bg-green-50 p-4">
+              <p className="font-semibold text-green-800">
+                Payment confirmed
+              </p>
+              <p className="text-sm text-green-700 mt-1">
+                Your payment has been verified successfully.
+              </p>
+            </div>
+          )}
+
+          {canonicalPayment.priceStatus === 'final' &&
+            ['pending', 'rejected'].includes(canonicalPayment.paymentStatus) && (
+              <div className="space-y-4">
+                <div className="flex justify-between items-center border-b border-cream-200 pb-3">
+                  <span className="text-sm text-gray-600">
+                    Final amount
+                  </span>
+                  <span className="font-bold text-lg text-forest-800">
+                    RM{formatCurrency(
+                      canonicalPayment.finalTotal ?? order.total
+                    )}
+                  </span>
+                </div>
+
+                {canonicalPayment.paymentStatus === 'rejected' && (
+                  <div className="rounded-2xl border border-red-200 bg-red-50 p-4">
+                    <p className="font-semibold text-red-800">
+                      Previous receipt rejected
+                    </p>
+                    <p className="text-sm text-red-700 mt-1">
+                      {canonicalPayment.rejectionReason ||
+                        'Please upload a new payment receipt.'}
+                    </p>
+                  </div>
+                )}
+
+                <div className="rounded-2xl border border-orange-200 bg-orange-50 p-4 text-sm text-orange-800">
+                  Scan the DuitNow QR above, pay the exact amount shown,
+                  then upload your payment receipt below.
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="canonical-payment-receipt"
+                    className="block text-sm font-semibold text-gray-700 mb-2"
+                  >
+                    Upload receipt
+                  </label>
+
+                  <input
+                    id="canonical-payment-receipt"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,application/pdf"
+                    disabled={receiptUploading}
+                    onChange={(e) => {
+                      setReceiptFile(e.target.files?.[0] ?? null);
+                      setReceiptError(null);
+                      setReceiptSuccess(null);
+                    }}
+                    className="block w-full text-sm text-gray-600
+                      file:mr-4 file:rounded-xl file:border-0
+                      file:bg-forest-50 file:px-4 file:py-2.5
+                      file:text-sm file:font-semibold file:text-forest-700
+                      hover:file:bg-forest-100"
+                  />
+
+                  <p className="mt-2 text-xs text-gray-400">
+                    JPG, PNG, WebP or PDF · maximum 5 MB
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleReceiptUpload}
+                  disabled={!receiptFile || receiptUploading}
+                  className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {receiptUploading
+                    ? 'Uploading receipt...'
+                    : 'Submit Payment Receipt'}
+                </button>
+              </div>
+            )}
+
+          {receiptError && (
+            <p className="mt-4 text-sm text-red-600">
+              {receiptError}
+            </p>
+          )}
+
+          {receiptSuccess && (
+            <p className="mt-4 text-sm text-green-700">
+              {receiptSuccess}
+            </p>
+          )}
+        </div>
+      )}
 
       {/* Live timeline */}
       <div className="card p-6 sm:p-8 mb-6">

@@ -316,6 +316,7 @@ export default function SupplierDashboardPage() {
         canonicalLineRes,
         canonicalUnitRes,
         canonicalAnswerRes,
+        canonicalFulfilmentRes,
       ] = await Promise.all([
         supabase
           .from('Orders')
@@ -340,6 +341,10 @@ export default function SupplierDashboardPage() {
         supabase
           .from('sales_order_preparation_answers')
           .select('sales_order_line_id, sales_order_line_component_id, option_code, question_code'),
+
+        supabase
+          .from('sales_order_supplier_fulfilments')
+          .select('sales_order_id, supplier_id, status, packing_started_at, packing_completed_at'),
       ]);
 
       if (legacyOrderRes.error) throw legacyOrderRes.error;
@@ -347,6 +352,7 @@ export default function SupplierDashboardPage() {
       if (canonicalLineRes.error) throw canonicalLineRes.error;
       if (canonicalUnitRes.error) throw canonicalUnitRes.error;
       if (canonicalAnswerRes.error) throw canonicalAnswerRes.error;
+      if (canonicalFulfilmentRes.error) throw canonicalFulfilmentRes.error;
 
       const legacyMapped: SupplierOrder[] = (legacyOrderRes.data ?? []).map((row) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -391,6 +397,16 @@ export default function SupplierDashboardPage() {
       const canonicalUnits = (canonicalUnitRes.data ?? []) as any[];
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const canonicalAnswers = (canonicalAnswerRes.data ?? []) as any[];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const canonicalFulfilments = (canonicalFulfilmentRes.data ?? []) as any[];
+
+      const fulfilmentsByOrder = new Map<string, any[]>();
+      canonicalFulfilments.forEach((fulfilment) => {
+        const key = String(fulfilment.sales_order_id);
+        const list = fulfilmentsByOrder.get(key) ?? [];
+        list.push(fulfilment);
+        fulfilmentsByOrder.set(key, list);
+      });
 
       const answersByLine = new Map<string, string>();
       canonicalAnswers.forEach((answer) => {
@@ -437,6 +453,29 @@ export default function SupplierDashboardPage() {
           const customer = row.customer_snapshot ?? {};
           const delivery = row.delivery_snapshot ?? {};
           const supplierWeights: Record<string, number> = {};
+
+          const fulfilments = fulfilmentsByOrder.get(String(row.id)) ?? [];
+
+          const startedTimes = fulfilments
+            .map((f) => f.packing_started_at)
+            .filter(Boolean)
+            .map(String);
+
+          const completedTimes = fulfilments
+            .map((f) => f.packing_completed_at)
+            .filter(Boolean)
+            .map(String);
+
+          const packingStartedAt =
+            startedTimes.length > 0
+              ? startedTimes.sort()[0]
+              : null;
+
+          const packingCompletedAt =
+            fulfilments.length > 0 &&
+            fulfilments.every((f) => f.status === 'packed' && f.packing_completed_at)
+              ? completedTimes.sort().at(-1) ?? null
+              : null;
 
           const items: OrderItem[] = ownedLines
             .sort((a, b) => Number(a.line_number) - Number(b.line_number))
@@ -509,10 +548,10 @@ export default function SupplierDashboardPage() {
             orderNotes: String(customer.notes ?? ''),
             paidAt: row.paid_at ?? null,
 
-            // Canonical packing/dispatch actions are intentionally not wired
-            // during the Phase 4C.1 read-only bridge.
-            packingStartedAt: null,
-            packingCompletedAt: null,
+            // Canonical packing state is supplier-scoped. Dispatch remains
+            // separate from the legacy per-order Lalamove workflow.
+            packingStartedAt,
+            packingCompletedAt,
             supplierDispatchStartedAt: null,
             supplierDispatchCompletedAt: null,
             readyForRiderAt: null,
@@ -600,30 +639,54 @@ export default function SupplierDashboardPage() {
   };
 
   const handlePrepareOrder = async (order: SupplierOrder) => {
-    if (order.source === 'canonical') {
-      alert('Canonical supplier packing actions are not enabled yet.');
-      return;
-    }
     try {
-      await supplierStartPacking(String(order.dbId));
-      await Promise.all([loadOrders(true)]);
+      if (order.source === 'canonical') {
+        const { error: rpcError } = await supabase.rpc(
+          'supplier_start_canonical_packing',
+          { p_sales_order_id: order.dbId }
+        );
+
+        if (rpcError) throw rpcError;
+      } else {
+        await supplierStartPacking(String(order.dbId));
+      }
+
+      await loadOrders(true);
     } catch (err) {
       console.error('[SupplierDashboard:startPacking]', err);
-      alert(t("weightEntry.messages.saveFailed"));
+
+      const message =
+        err && typeof err === 'object' && 'message' in err
+          ? String((err as { message?: unknown }).message ?? '')
+          : t("weightEntry.messages.saveFailed");
+
+      alert(message || t("weightEntry.messages.saveFailed"));
     }
   };
 
   const handleCompletePacking = async (order: SupplierOrder) => {
-    if (order.source === 'canonical') {
-      alert('Canonical supplier packing actions are not enabled yet.');
-      return;
-    }
     try {
-      await supplierCompletePacking(String(order.dbId));
-      await Promise.all([loadOrders(true)]);
+      if (order.source === 'canonical') {
+        const { error: rpcError } = await supabase.rpc(
+          'supplier_complete_canonical_packing',
+          { p_sales_order_id: order.dbId }
+        );
+
+        if (rpcError) throw rpcError;
+      } else {
+        await supplierCompletePacking(String(order.dbId));
+      }
+
+      await loadOrders(true);
     } catch (err) {
       console.error('[SupplierDashboard:completePacking]', err);
-      alert(t("weightEntry.messages.saveFailed"));
+
+      const message =
+        err && typeof err === 'object' && 'message' in err
+          ? String((err as { message?: unknown }).message ?? '')
+          : t("weightEntry.messages.saveFailed");
+
+      alert(message || t("weightEntry.messages.saveFailed"));
     }
   };
 
@@ -1200,36 +1263,58 @@ function ReadyForSupplierDispatch({ orders, onStartDispatch, onViewDetails }: {
               <p className="text-[14px] text-gray-500 mb-4">
                 {q("supplierQueues.packingCompletedAt", "Packing completed")} {order.packingCompletedAt ? formatTime(order.packingCompletedAt) : '—'}
               </p>
-              <div className="space-y-3 mb-4">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">{q("supplierQueues.trackingUrlLabel", "Lalamove Tracking URL")} *</label>
-                  <input
-                    type="url"
-                    value={trackingUrl(order)}
-                    onChange={(e) => setTrackingInputs(prev => ({ ...prev, [order.dbId]: e.target.value }))}
-                    placeholder={q("supplierQueues.trackingUrlPlaceholder", "https://track.lalamove.com/...")}
-                    className="w-full bg-cream-50 border border-cream-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-forest-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-600 mb-1">{q("supplierQueues.bookingRefLabel", "Booking Reference")}</label>
-                  <input
-                    type="text"
-                    value={refInputs[order.dbId] ?? ''}
-                    onChange={(e) => setRefInputs(prev => ({ ...prev, [order.dbId]: e.target.value }))}
-                    placeholder={q("supplierQueues.bookingRefPlaceholder", "Optional booking reference")}
-                    className="w-full bg-cream-50 border border-cream-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-forest-500"
-                  />
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <button onClick={() => handleStart(order)} className="flex-1 bg-purple-600 hover:bg-purple-700 text-white rounded-xl py-3 text-[16px] font-bold min-h-[56px] transition-all active:scale-[0.97]">
-                  {q("supplierQueues.startDispatchButton", "Start Supplier Dispatch")}
-                </button>
-                <button onClick={() => onViewDetails(order)} className="border-2 border-cream-200 rounded-xl px-5 py-3 text-[16px] font-semibold text-gray-600 min-h-[56px] hover:bg-cream-50 transition-all active:scale-[0.97]">
-                  {t("supplierQueues.viewButton")}
-                </button>
-              </div>
+              {order.source === 'canonical' ? (
+                <>
+                  <div className="mb-4 rounded-xl border border-green-200 bg-green-50 px-4 py-3">
+                    <p className="text-[15px] font-semibold text-green-800">
+                      Packing completed
+                    </p>
+                    <p className="text-[13px] text-green-700 mt-1">
+                      Waiting for FreshGo canonical delivery batch / hub dispatch.
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={() => onViewDetails(order)}
+                    className="w-full border-2 border-cream-200 rounded-xl px-5 py-3 text-[16px] font-semibold text-gray-600 min-h-[56px] hover:bg-cream-50 transition-all active:scale-[0.97]"
+                  >
+                    {t("supplierQueues.viewButton")}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className="space-y-3 mb-4">
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">{q("supplierQueues.trackingUrlLabel", "Lalamove Tracking URL")} *</label>
+                      <input
+                        type="url"
+                        value={trackingUrl(order)}
+                        onChange={(e) => setTrackingInputs(prev => ({ ...prev, [order.dbId]: e.target.value }))}
+                        placeholder={q("supplierQueues.trackingUrlPlaceholder", "https://track.lalamove.com/...")}
+                        className="w-full bg-cream-50 border border-cream-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-forest-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-600 mb-1">{q("supplierQueues.bookingRefLabel", "Booking Reference")}</label>
+                      <input
+                        type="text"
+                        value={refInputs[order.dbId] ?? ''}
+                        onChange={(e) => setRefInputs(prev => ({ ...prev, [order.dbId]: e.target.value }))}
+                        placeholder={q("supplierQueues.bookingRefPlaceholder", "Optional booking reference")}
+                        className="w-full bg-cream-50 border border-cream-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-forest-500"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-3">
+                    <button onClick={() => handleStart(order)} className="flex-1 bg-purple-600 hover:bg-purple-700 text-white rounded-xl py-3 text-[16px] font-bold min-h-[56px] transition-all active:scale-[0.97]">
+                      {q("supplierQueues.startDispatchButton", "Start Supplier Dispatch")}
+                    </button>
+                    <button onClick={() => onViewDetails(order)} className="border-2 border-cream-200 rounded-xl px-5 py-3 text-[16px] font-semibold text-gray-600 min-h-[56px] hover:bg-cream-50 transition-all active:scale-[0.97]">
+                      {t("supplierQueues.viewButton")}
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           ))}
         </div>
