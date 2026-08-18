@@ -43,3 +43,4 @@ supabase/.env.local
 
 # E2E generated results
 e2e/results/
+supabase/.temp/
