@@ -75,6 +75,8 @@ export default function OrderTrackingPage() {
 
   const loadLive = useCallback(async (ref: string) => {
     let o: Order | null;
+    let canonicalRiderResolved = false;
+
     try {
       o = await getOrder(ref);
     } catch (err) {
@@ -193,6 +195,30 @@ export default function OrderTrackingPage() {
           ? deliveryTrackingData[0] ?? null
           : null;
 
+        const {
+          data: riderTrackingData,
+          error: riderTrackingError,
+        } = await supabase.rpc(
+          'get_sales_order_canonical_rider_tracking',
+          {
+            p_sales_order_id: canonicalRow.id,
+          }
+        );
+
+        if (riderTrackingError) throw riderTrackingError;
+
+        const riderTracking = Array.isArray(riderTrackingData)
+          ? riderTrackingData[0] ?? null
+          : null;
+
+        canonicalRiderResolved = true;
+
+        setRiderName(
+          riderTracking?.rider_name
+            ? String(riderTracking.rider_name)
+            : null
+        );
+
         o = {
           ...o,
           packingStartedAt:
@@ -203,6 +229,12 @@ export default function OrderTrackingPage() {
             deliveryTracking?.supplier_dispatch_started_at ?? null,
           supplierDispatchCompletedAt:
             deliveryTracking?.supplier_dispatch_completed_at ?? null,
+          readyForRiderAt:
+            riderTracking?.ready_for_rider_at ?? null,
+          deliveryStatus:
+            (riderTracking?.delivery_status ?? 'pending') as Order['deliveryStatus'],
+          deliveredAt:
+            riderTracking?.delivered_at ?? null,
         };
       } else {
         setCanonicalPayment(null);
@@ -216,13 +248,23 @@ export default function OrderTrackingPage() {
 
     setOrder(o);
 
-    try {
-      // The delivery date is order-owned (order_summary.deliveryDate).
-      const riderDate = o.deliveryDate || '';
-      setRiderName(riderDate ? await fetchRiderNameForDate(riderDate) : null);
-    } catch (err) {
-      // Non-fatal: the order still renders; the timeline just stays at Order Received.
-      console.error('[tracking] Failed to fetch tracking details:', err);
+    if (!canonicalRiderResolved) {
+      try {
+        // Legacy fallback only.
+        // Canonical orders resolve their explicitly assigned rider above.
+        const riderDate = o.deliveryDate || '';
+        setRiderName(
+          riderDate
+            ? await fetchRiderNameForDate(riderDate)
+            : null
+        );
+      } catch (err) {
+        console.error(
+          '[tracking] Failed to fetch legacy rider details:',
+          err
+        );
+        setRiderName(null);
+      }
     }
   }, [getOrder]);
 
@@ -332,7 +374,13 @@ export default function OrderTrackingPage() {
       supplierDispatchStartedAt: order.supplierDispatchStartedAt ?? null,
       supplierDispatchCompletedAt: order.supplierDispatchCompletedAt ?? null,
       readyForRiderAt: order.readyForRiderAt ?? null,
-      deliveryStatus: (order.deliveryStatus as 'pending' | 'arrived' | 'delivered') ?? 'pending',
+      deliveryStatus:
+        (order.deliveryStatus as
+          | 'pending'
+          | 'arrived'
+          | 'ready_for_rider'
+          | 'out_for_delivery'
+          | 'delivered') ?? 'pending',
       deliveredAt: order.deliveredAt ?? null,
     });
   }, [order]);

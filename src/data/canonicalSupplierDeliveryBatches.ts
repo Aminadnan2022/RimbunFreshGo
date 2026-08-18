@@ -34,6 +34,16 @@ export interface PackedCanonicalOrder {
   delivery_date: string | null;
 }
 
+export interface CanonicalHubOrder {
+  batch_id: string;
+  sales_order_id: string;
+  order_number: string;
+  customer_name: string;
+  delivery_date: string | null;
+  assigned_rider_id: string | null;
+  delivery_status: string | null;
+}
+
 async function rpc(
   name: string,
   params?: Record<string, unknown>,
@@ -268,4 +278,110 @@ export async function confirmCanonicalSupplierBatchHubArrival(
   );
 
   if (error) throw error;
+}
+
+
+export async function fetchCanonicalHubOrders(
+  batchIds: string[],
+): Promise<CanonicalHubOrder[]> {
+  if (!batchIds.length) return [];
+
+  const { data: memberships, error: membershipError } = await supabase
+    .from('canonical_supplier_delivery_batch_orders')
+    .select('batch_id, sales_order_id')
+    .in('batch_id', batchIds);
+
+  if (membershipError) throw membershipError;
+  if (!memberships?.length) return [];
+
+  const orderIds = [
+    ...new Set(memberships.map((row) => String(row.sales_order_id))),
+  ];
+
+  const [ordersRes, deliveriesRes] = await Promise.all([
+    supabase
+      .from('sales_orders')
+      .select('id, order_number, customer_snapshot, delivery_snapshot, status')
+      .in('id', orderIds),
+    supabase
+      .from('canonical_sales_order_deliveries')
+      .select('sales_order_id, assigned_rider_id, status')
+      .in('sales_order_id', orderIds),
+  ]);
+
+  if (ordersRes.error) throw ordersRes.error;
+  if (deliveriesRes.error) throw deliveriesRes.error;
+
+  const orders = new Map(
+    (ordersRes.data ?? []).map((order) => [String(order.id), order]),
+  );
+
+  const deliveries = new Map(
+    (deliveriesRes.data ?? []).map((delivery) => [
+      String(delivery.sales_order_id),
+      delivery,
+    ]),
+  );
+
+  return memberships.flatMap((membership) => {
+    const salesOrderId = String(membership.sales_order_id);
+    const order = orders.get(salesOrderId);
+
+    if (!order || order.status === 'cancelled') return [];
+
+    const customerSnapshot =
+      order.customer_snapshot &&
+      typeof order.customer_snapshot === 'object'
+        ? (order.customer_snapshot as Record<string, unknown>)
+        : {};
+
+    const deliverySnapshot =
+      order.delivery_snapshot &&
+      typeof order.delivery_snapshot === 'object'
+        ? (order.delivery_snapshot as Record<string, unknown>)
+        : {};
+
+    const delivery = deliveries.get(salesOrderId);
+
+    const deliveryDate =
+      typeof deliverySnapshot.requested_date === 'string'
+        ? deliverySnapshot.requested_date
+        : typeof deliverySnapshot.delivery_date === 'string'
+          ? deliverySnapshot.delivery_date
+          : null;
+
+    return [{
+      batch_id: String(membership.batch_id),
+      sales_order_id: salesOrderId,
+      order_number: String(order.order_number),
+      customer_name: String(
+        customerSnapshot.name ??
+        customerSnapshot.customer_name ??
+        'Customer',
+      ),
+      delivery_date: deliveryDate,
+      assigned_rider_id: delivery?.assigned_rider_id
+        ? String(delivery.assigned_rider_id)
+        : null,
+      delivery_status: delivery?.status
+        ? String(delivery.status)
+        : null,
+    }];
+  });
+}
+
+export async function assignCanonicalSalesOrderRider(
+  salesOrderId: string,
+  riderId: string,
+): Promise<string> {
+  const { data, error } = await rpc(
+    'admin_assign_canonical_sales_order_rider',
+    {
+      p_sales_order_id: salesOrderId,
+      p_rider_id: riderId,
+    },
+  );
+
+  if (error) throw error;
+  return String(data);
 }

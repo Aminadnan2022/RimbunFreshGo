@@ -1,20 +1,17 @@
 import { supabase } from '../lib/supabase';
 
 /**
- * Order-Based Rider data layer.
+ * Canonical Rider data layer.
  *
- * The `"Orders"` table is the single source of truth. All rider mutations run
- * through SECURITY DEFINER RPCs (riders have no UPDATE policy on Orders).
+ * Canonical source of truth:
+ *   canonical_sales_order_deliveries
  *
- *   - Incoming Shipments : supplier_dispatch_started_at set, completed null.
- *   - Receive at hub     : sets supplier_dispatch_completed_at + ready_for_rider_at.
- *   - Today's Deliveries : ready_for_rider_at set, not yet delivered.
- *   - Start Delivery     : delivery_status = 'out_for_delivery'.
- *   - Delivered          : delivery_status = 'delivered' (existing RPC).
+ * Rider reads and lifecycle mutations are exposed only through
+ * SECURITY DEFINER RPCs.
  */
 
 export interface RiderOrder {
-  id: number;
+  id: string;
   ref: string;
   customer: string;
   phone: string;
@@ -26,131 +23,162 @@ export interface RiderOrder {
   productCount: number;
   notes: string;
   paymentStatus: string;
-  /** supplier_dispatch_started_at */
-  dispatchStartedAt: string | null;
-  /** supplier_dispatch_completed_at */
-  dispatchCompletedAt: string | null;
-  /** ready_for_rider_at */
   readyForRiderAt: string | null;
-  /** delivery_status */
+  deliveryStartedAt: string | null;
   deliveryStatus: string;
   deliveredAt: string | null;
-  lalamoveTrackingUrl: string | null;
-  bookingReference: string | null;
+  deliveryDate: string;
 }
 
-interface RiderOrderRow {
-  id: number;
-  full_name: string;
-  phone_number: string | null;
+interface CanonicalRiderOrderRow {
+  sales_order_id: string;
+  order_number: string;
+  delivery_date: string;
+  delivery_status: string;
+  ready_for_rider_at: string | null;
+  delivery_started_at: string | null;
+  delivered_at: string | null;
+  customer_name: string | null;
+  customer_phone: string | null;
   apartment: string | null;
   house_unit: string | null;
   pickup_location: string | null;
   delivery_point_name: string | null;
-  order_notes: string | null;
-  order_items: unknown;
-  order_summary: unknown;
+  customer_notes: string | null;
   payment_status: string;
-  supplier_dispatch_started_at: string | null;
-  supplier_dispatch_completed_at: string | null;
-  ready_for_rider_at: string | null;
-  delivery_status: string | null;
-  delivered_at: string | null;
-  lalamove_tracking_url: string | null;
-  booking_reference: string | null;
+  items: unknown;
 }
 
-const toRiderOrder = (row: RiderOrderRow): RiderOrder => {
-  const summary = (row.order_summary ?? {}) as { orderRef?: string };
-  const items = (row.order_items ?? []) as { name?: string; preparation?: string; quantity?: number; comboItems?: { name?: string }[] }[];
-  const expanded: { name: string; detail: string }[] = [];
-  items.forEach((it) => {
-    const qty = it.quantity ?? 1;
-    if (it.comboItems && it.comboItems.length > 0) {
-      it.comboItems.forEach((ci) => expanded.push({ name: ci.name ?? 'Item', detail: `x${qty}` }));
-    } else {
-      expanded.push({ name: it.name ?? 'Item', detail: it.preparation ? `${it.preparation} · x${qty}` : `x${qty}` });
-    }
+async function rpc(
+  name: string,
+  params?: Record<string, unknown>,
+): Promise<{
+  data: unknown;
+  error: {
+    message?: string;
+    details?: string;
+    hint?: string;
+  } | null;
+}> {
+  return (supabase.rpc as unknown as (
+    fn: string,
+    args?: Record<string, unknown>,
+  ) => Promise<{
+    data: unknown;
+    error: {
+      message?: string;
+      details?: string;
+      hint?: string;
+    } | null;
+  }>)(name, params);
+}
+
+function toRiderOrder(row: CanonicalRiderOrderRow): RiderOrder {
+  const rawItems = Array.isArray(row.items)
+    ? row.items
+    : [];
+
+  const items = rawItems.map((raw) => {
+    const item =
+      raw && typeof raw === 'object'
+        ? raw as Record<string, unknown>
+        : {};
+
+    const name =
+      typeof item.name === 'string'
+        ? item.name
+        : 'Order item';
+
+    const quantity =
+      typeof item.quantity === 'number' ||
+      typeof item.quantity === 'string'
+        ? String(item.quantity)
+        : '1';
+
+    const sellingUnit =
+      typeof item.selling_unit === 'string'
+        ? item.selling_unit
+        : '';
+
+    return {
+      name,
+      detail: sellingUnit
+        ? `${quantity} ${sellingUnit}`
+        : `x${quantity}`,
+    };
   });
+
   return {
-    id: row.id,
-    ref: summary.orderRef ?? String(row.id),
-    customer: row.full_name,
-    phone: row.phone_number ?? '',
+    id: row.sales_order_id,
+    ref: row.order_number,
+    customer: row.customer_name ?? '',
+    phone: row.customer_phone ?? '',
     apartment: row.apartment ?? '',
     houseUnit: row.house_unit ?? '',
     pickupLocation: row.pickup_location ?? '',
-    pointName: row.delivery_point_name ?? row.pickup_location ?? '',
-    items: expanded,
-    productCount: expanded.length,
-    notes: row.order_notes ?? '',
-    paymentStatus: row.payment_status ?? 'Pending',
-    dispatchStartedAt: row.supplier_dispatch_started_at ?? null,
-    dispatchCompletedAt: row.supplier_dispatch_completed_at ?? null,
+    pointName:
+      row.delivery_point_name ??
+      row.pickup_location ??
+      row.apartment ??
+      '',
+    items,
+    productCount: items.length,
+    notes: row.customer_notes ?? '',
+    paymentStatus: row.payment_status ?? 'pending',
     readyForRiderAt: row.ready_for_rider_at ?? null,
-    deliveryStatus: row.delivery_status ?? 'pending',
+    deliveryStartedAt: row.delivery_started_at ?? null,
+    deliveryStatus: row.delivery_status ?? 'ready_for_rider',
     deliveredAt: row.delivered_at ?? null,
-    lalamoveTrackingUrl: row.lalamove_tracking_url ?? null,
-    bookingReference: row.booking_reference ?? null,
+    deliveryDate: row.delivery_date,
   };
-};
-
-const RIDER_ORDER_SELECT =
-  'id, full_name, phone_number, apartment, house_unit, pickup_location, delivery_point_name, order_notes, order_items, order_summary, payment_status, supplier_dispatch_started_at, supplier_dispatch_completed_at, ready_for_rider_at, delivery_status, delivered_at, lalamove_tracking_url, booking_reference';
-
-/**
- * Incoming Shipments — orders the supplier dispatched to Lalamove that have not
- * yet been received at the FreshGo hub.
- */
-export async function fetchIncomingShipments(): Promise<RiderOrder[]> {
-  const { data, error } = await supabase
-    .from("Orders")
-    .select(RIDER_ORDER_SELECT)
-    .not("supplier_dispatch_started_at", "is", null)
-    .is("supplier_dispatch_completed_at", null)
-    .order("supplier_dispatch_started_at", { ascending: false });
-
-  if (error) throw error;
-
-  return (data ?? []).map((row) => toRiderOrder(row as RiderOrderRow));
 }
 
 /**
- * Today's Deliveries — orders received at the hub and ready for the rider, not
- * yet delivered. Includes out-for-delivery orders in progress.
+ * Canonical deliveries assigned to the currently logged-in rider.
+ * Delivered orders are excluded by the RPC.
  */
 export async function fetchTodaysDeliveries(): Promise<RiderOrder[]> {
-  const { data, error } = await supabase
-    .from('Orders')
-    .select(RIDER_ORDER_SELECT)
-    .not('ready_for_rider_at', 'is', null)
-    .neq('delivery_status', 'delivered')
-    .order('ready_for_rider_at', { ascending: true });
+  const { data, error } = await rpc('get_my_canonical_rider_orders');
 
   if (error) throw error;
-  return (data ?? []).map((r) => toRiderOrder(r as RiderOrderRow));
+
+  if (!Array.isArray(data)) {
+    return [];
+  }
+
+  return data.map((row) =>
+    toRiderOrder(row as CanonicalRiderOrderRow),
+  );
 }
 
-/** Typed escape hatch for RPCs not present in the generated client union. */
-async function callRpc(fn: string, args: Record<string, unknown>): Promise<void> {
-  const res = await (supabase.rpc as unknown as (
-    name: string,
-    params?: Record<string, unknown>
-  ) => Promise<{ error: { message?: string; details?: string; hint?: string } | null }>)(fn, args);
-  if (res.error) throw res.error;
+/**
+ * Start canonical hub → customer delivery.
+ */
+export async function startOrderDelivery(
+  salesOrderId: string,
+): Promise<void> {
+  const { error } = await rpc(
+    'rider_start_canonical_sales_order_delivery',
+    {
+      p_sales_order_id: salesOrderId,
+    },
+  );
+
+  if (error) throw error;
 }
 
-/** Rider confirms an incoming shipment arrived at the FreshGo hub. */
-export async function receiveOrderAtHub(orderId: number): Promise<void> {
-  await callRpc('rider_receive_order_at_hub', { p_order_id: orderId });
-}
+/**
+ * Complete canonical hub → customer delivery.
+ */
+export async function markOrderDelivered(
+  salesOrderId: string,
+): Promise<void> {
+  const { error } = await rpc(
+    'rider_complete_canonical_sales_order_delivery',
+    {
+      p_sales_order_id: salesOrderId,
+    },
+  );
 
-/** Rider starts delivering an order (sets delivery_status = 'out_for_delivery'). */
-export async function startOrderDelivery(orderId: number): Promise<void> {
-  await callRpc('rider_start_order_delivery', { p_order_id: orderId });
-}
-
-/** Rider marks an order delivered. */
-export async function markOrderDelivered(orderId: number): Promise<void> {
-  await callRpc('rider_update_delivery_status', { p_order_id: orderId, p_status: 'delivered' });
+  if (error) throw error;
 }

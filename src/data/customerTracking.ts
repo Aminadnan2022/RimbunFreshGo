@@ -25,8 +25,13 @@ export interface CustomerStageInput {
   supplierDispatchStartedAt?: string | null;
   supplierDispatchCompletedAt?: string | null;
   readyForRiderAt?: string | null;
-  /** Per-order rider progress ('pending' | 'arrived' | 'out_for_delivery' | 'delivered'). */
-  deliveryStatus?: 'pending' | 'arrived' | 'out_for_delivery' | 'delivered';
+  /** Per-order rider progress. Legacy 'arrived' remains supported during cutover. */
+  deliveryStatus?:
+    | 'pending'
+    | 'arrived'
+    | 'ready_for_rider'
+    | 'out_for_delivery'
+    | 'delivered';
   deliveredAt?: string | null;
 }
 

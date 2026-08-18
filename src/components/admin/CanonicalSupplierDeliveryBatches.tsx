@@ -14,9 +14,18 @@ import {
   dispatchCanonicalSupplierBatch,
   fetchCanonicalSupplierBatches,
   fetchPackedCanonicalOrders,
+  fetchCanonicalHubOrders,
+  assignCanonicalSalesOrderRider,
   type CanonicalSupplierBatch,
   type PackedCanonicalOrder,
+  type CanonicalHubOrder,
 } from '../../data/canonicalSupplierDeliveryBatches';
+import {
+  fetchAssignments,
+  fetchRiders,
+  type RiderInfo,
+  type DeliveryAssignment,
+} from '../../data/delivery';
 
 function describeError(err: unknown): string {
   if (err && typeof err === 'object' && 'message' in err) {
@@ -29,6 +38,10 @@ function describeError(err: unknown): string {
 export default function CanonicalSupplierDeliveryBatches() {
   const [batches, setBatches] = useState<CanonicalSupplierBatch[]>([]);
   const [readyOrders, setReadyOrders] = useState<PackedCanonicalOrder[]>([]);
+  const [hubOrders, setHubOrders] = useState<CanonicalHubOrder[]>([]);
+  const [riders, setRiders] = useState<RiderInfo[]>([]);
+  const [assignmentsByDate, setAssignmentsByDate] = useState<Record<string, DeliveryAssignment[]>>({});
+  const [selectedRiders, setSelectedRiders] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
@@ -36,12 +49,59 @@ export default function CanonicalSupplierDeliveryBatches() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [batchRows, orderRows] = await Promise.all([
+      const [batchRows, orderRows, riderRows] = await Promise.all([
         fetchCanonicalSupplierBatches(),
         fetchPackedCanonicalOrders(),
+        fetchRiders(),
       ]);
+
+      const arrivedBatchIds = batchRows
+        .filter((batch) => batch.status === 'arrived_hub')
+        .map((batch) => batch.id);
+
+      const hubOrderRows = await fetchCanonicalHubOrders(arrivedBatchIds);
+
+      const deliveryDates = [
+        ...new Set(
+          hubOrderRows
+            .map((order) => order.delivery_date)
+            .filter((date): date is string => Boolean(date)),
+        ),
+      ];
+
+      const assignmentEntries = await Promise.all(
+        deliveryDates.map(async (date) => [
+          date,
+          await fetchAssignments(date),
+        ] as const),
+      );
+
       setBatches(batchRows);
       setReadyOrders(orderRows);
+      setHubOrders(hubOrderRows);
+      setRiders(riderRows);
+      setAssignmentsByDate(Object.fromEntries(assignmentEntries));
+
+      setSelectedRiders((current) => {
+        const next = { ...current };
+
+        for (const order of hubOrderRows) {
+          if (order.assigned_rider_id) {
+            next[order.sales_order_id] = order.assigned_rider_id;
+            continue;
+          }
+
+          const dateAssignments = order.delivery_date
+            ? Object.fromEntries(assignmentEntries)[order.delivery_date] ?? []
+            : [];
+
+          if (dateAssignments.length === 1) {
+            next[order.sales_order_id] = dateAssignments[0].rider_id;
+          }
+        }
+
+        return next;
+      });
     } catch (err) {
       setMessage({ ok: false, text: describeError(err) });
     } finally {
@@ -104,6 +164,37 @@ export default function CanonicalSupplierDeliveryBatches() {
         ok: true,
         text: `${batch.batch_code} marked as dispatched to FreshGo Hub.`,
       });
+      await load();
+    } catch (err) {
+      setMessage({ ok: false, text: describeError(err) });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const assignRider = async (order: CanonicalHubOrder) => {
+    const riderId = selectedRiders[order.sales_order_id];
+
+    if (!riderId) {
+      setMessage({
+        ok: false,
+        text: 'Please select a rider first.',
+      });
+      return;
+    }
+
+    const key = `rider:${order.sales_order_id}`;
+    setBusy(key);
+    setMessage(null);
+
+    try {
+      await assignCanonicalSalesOrderRider(order.sales_order_id, riderId);
+
+      setMessage({
+        ok: true,
+        text: `${order.order_number} is now Ready For Rider.`,
+      });
+
       await load();
     } catch (err) {
       setMessage({ ok: false, text: describeError(err) });
@@ -241,6 +332,9 @@ export default function CanonicalSupplierDeliveryBatches() {
             {batches.map((batch) => {
               const dispatchKey = `dispatch:${batch.id}`;
               const arrivalKey = `arrival:${batch.id}`;
+              const ordersAtHub = hubOrders.filter(
+                (order) => order.batch_id === batch.id,
+              );
 
               return (
                 <div key={batch.id} className="p-5">
@@ -309,6 +403,118 @@ export default function CanonicalSupplierDeliveryBatches() {
                       )}
                     </div>
                   </div>
+
+                  {batch.status === 'arrived_hub' && ordersAtHub.length > 0 && (
+                    <div className="mt-5 border-t border-cream-100 pt-4 space-y-3">
+                      <div>
+                        <p className="text-sm font-semibold text-forest-900">
+                          Hub → Customer Delivery
+                        </p>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          Assign each canonical order to a rider rostered for its delivery date.
+                        </p>
+                      </div>
+
+                      {ordersAtHub.map((order) => {
+                        const riderKey = `rider:${order.sales_order_id}`;
+                        const dateAssignments = order.delivery_date
+                          ? assignmentsByDate[order.delivery_date] ?? []
+                          : [];
+
+                        const eligibleRiderIds = new Set(
+                          dateAssignments.map((assignment) => assignment.rider_id),
+                        );
+
+                        const eligibleRiders = riders.filter((rider) =>
+                          eligibleRiderIds.has(rider.id),
+                        );
+
+                        const assignedRider = order.assigned_rider_id
+                          ? riders.find((rider) => rider.id === order.assigned_rider_id)
+                          : null;
+
+                        return (
+                          <div
+                            key={order.sales_order_id}
+                            className="rounded-xl border border-cream-200 bg-cream-50/40 p-4"
+                          >
+                            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                              <div>
+                                <p className="font-mono text-sm font-semibold text-forest-800">
+                                  {order.order_number}
+                                </p>
+                                <p className="text-sm text-gray-700 mt-1">
+                                  {order.customer_name}
+                                </p>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  Delivery date: {order.delivery_date ?? 'Not available'}
+                                </p>
+
+                                {order.delivery_status && (
+                                  <p className="text-xs font-semibold text-green-700 mt-1">
+                                    Status: {order.delivery_status}
+                                    {assignedRider ? ` • ${assignedRider.email}` : ''}
+                                  </p>
+                                )}
+                              </div>
+
+                              <div className="flex flex-col sm:flex-row gap-2 lg:min-w-[420px]">
+                                <select
+                                  value={selectedRiders[order.sales_order_id] ?? ''}
+                                  onChange={(event) =>
+                                    setSelectedRiders((current) => ({
+                                      ...current,
+                                      [order.sales_order_id]: event.target.value,
+                                    }))
+                                  }
+                                  disabled={
+                                    busy !== null ||
+                                    order.delivery_status === 'out_for_delivery' ||
+                                    order.delivery_status === 'delivered'
+                                  }
+                                  className="input-field flex-1"
+                                >
+                                  <option value="">
+                                    {eligibleRiders.length > 0
+                                      ? 'Select rider'
+                                      : 'No rider rostered for this date'}
+                                  </option>
+
+                                  {eligibleRiders.map((rider) => (
+                                    <option key={rider.id} value={rider.id}>
+                                      {rider.email}
+                                    </option>
+                                  ))}
+                                </select>
+
+                                <button
+                                  onClick={() => assignRider(order)}
+                                  disabled={
+                                    busy !== null ||
+                                    !selectedRiders[order.sales_order_id] ||
+                                    eligibleRiders.length === 0 ||
+                                    order.delivery_status === 'out_for_delivery' ||
+                                    order.delivery_status === 'delivered'
+                                  }
+                                  className="px-4 py-2 rounded-xl text-sm font-semibold bg-forest-700 text-white hover:bg-forest-800 disabled:opacity-50 inline-flex items-center justify-center gap-2"
+                                >
+                                  {busy === riderKey ? (
+                                    <Loader2 size={16} className="animate-spin" />
+                                  ) : (
+                                    <Truck size={16} />
+                                  )}
+
+                                  {order.delivery_status === 'ready_for_rider'
+                                    ? 'Reassign Rider'
+                                    : 'Assign & Ready For Rider'}
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               );
             })}

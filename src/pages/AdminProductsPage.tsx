@@ -27,7 +27,7 @@ import ContactSettingsCard from '../components/admin/settings/ContactSettingsCar
 import SocialMediaSettingsCard from '../components/admin/settings/SocialMediaSettingsCard';
 import DisplaySortingSettingsCard from '../components/admin/settings/DisplaySortingSettingsCard';
 import DeliveryCapacitySettingsCard from '../components/admin/settings/DeliveryCapacitySettingsCard';
-import DeliveryPointsManager from '../components/admin/DeliveryPointsManager';
+import DeliveryManagementTab from '../components/admin/DeliveryManagementTab';
 import DeliveryBatchesManager from '../components/admin/DeliveryBatchesManager';
 import BrandLogo from '../components/branding/BrandLogo';
 import type { PaymentStatus, ComboExpandedItem, Product } from '../types';
@@ -169,7 +169,7 @@ export default function AdminProductsPage() {
         </button>
       </div>
 
-      {activeTab === 'products' ? <ProductsTab /> : activeTab === 'combos' ? <AdminComboListPage /> : activeTab === 'settings' ? <SettingsTab /> : activeTab === 'users' ? <UsersTab /> : activeTab === 'delivery' ? <DeliveryPointsManager /> : activeTab === 'batches' ? <DeliveryBatchesManager /> : <OrdersTab />}
+      {activeTab === 'products' ? <ProductsTab /> : activeTab === 'combos' ? <AdminComboListPage /> : activeTab === 'settings' ? <SettingsTab /> : activeTab === 'users' ? <UsersTab /> : activeTab === 'delivery' ? <DeliveryManagementTab /> : activeTab === 'batches' ? <DeliveryBatchesManager /> : <OrdersTab />}
     </main>
   );
 }
