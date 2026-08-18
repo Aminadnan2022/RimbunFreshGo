@@ -177,12 +177,32 @@ export default function OrderTrackingPage() {
           ? fulfilmentTrackingData[0] ?? null
           : null;
 
+        const {
+          data: deliveryTrackingData,
+          error: deliveryTrackingError,
+        } = await supabase.rpc(
+          'get_sales_order_canonical_delivery_tracking',
+          {
+            p_sales_order_id: canonicalRow.id,
+          }
+        );
+
+        if (deliveryTrackingError) throw deliveryTrackingError;
+
+        const deliveryTracking = Array.isArray(deliveryTrackingData)
+          ? deliveryTrackingData[0] ?? null
+          : null;
+
         o = {
           ...o,
           packingStartedAt:
             fulfilmentTracking?.packing_started_at ?? null,
           packingCompletedAt:
             fulfilmentTracking?.packing_completed_at ?? null,
+          supplierDispatchStartedAt:
+            deliveryTracking?.supplier_dispatch_started_at ?? null,
+          supplierDispatchCompletedAt:
+            deliveryTracking?.supplier_dispatch_completed_at ?? null,
         };
       } else {
         setCanonicalPayment(null);
