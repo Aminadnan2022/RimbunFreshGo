@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, Link, Navigate } from 'react-router-dom';
 import {
   CheckCircle2, PackageCheck, Package, Truck, Home, Bike, Check,
-  ExternalLink, MapPin, User, ChevronRight, CalendarDays, Wallet, BadgeCheck, PackageX,
+  ExternalLink, MapPin, User, ChevronRight, CalendarDays, Wallet, BadgeCheck, PackageX, ZoomIn, X,
 } from 'lucide-react';
 import { useOrders } from '../context/OrderContext';
 import { useAuth } from '../context/AuthContext';
@@ -65,7 +65,10 @@ export default function OrderTrackingPage() {
     useState<CustomerDeliveryProof[]>([]);
   const [deliveryProofError, setDeliveryProofError] =
     useState<string | null>(null);
-  const [initialLoading, setInitialLoading] = useState(true);
+  
+  const [selectedDeliveryProof, setSelectedDeliveryProof] =
+    useState<DeliveryProof | null>(null);
+const [initialLoading, setInitialLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [canonicalPayment, setCanonicalPayment] =
@@ -855,7 +858,7 @@ export default function OrderTrackingPage() {
         <div className="card p-6 sm:p-8 mb-6">
           <div className="flex items-start justify-between gap-4 mb-5">
             <div>
-              <h2 className="font-semibold text-charcoal">
+              <h2 className="font-semibold text-charcoal text-lg">
                 Proof of Delivery
               </h2>
 
@@ -864,7 +867,7 @@ export default function OrderTrackingPage() {
               </p>
             </div>
 
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-50 text-green-700 text-xs font-semibold">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-50 text-green-700 text-xs font-semibold whitespace-nowrap">
               <CheckCircle2 size={14} />
               Delivered
             </span>
@@ -887,41 +890,54 @@ export default function OrderTrackingPage() {
               </p>
 
               <p className="text-xs text-amber-700 mt-1">
-                Please refresh this page. If this remains empty, the delivery-proof record will need to be checked.
+                Refresh the page. If the photos still do not appear, please contact FreshGo.
               </p>
             </div>
           ) : (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {deliveryProofs.map((proof) => {
-                  const title =
-                    proof.proofType === 'closeup'
-                      ? 'Package Close-up'
-                      : 'Delivery Placement';
+                  const isCloseup =
+                    proof.proofType === 'closeup';
 
-                  const description =
-                    proof.proofType === 'closeup'
-                      ? 'Close-up photo showing the delivered FreshGo package.'
-                      : 'Photo showing where the rider placed your order.';
+                  const title = isCloseup
+                    ? 'Package Close-up'
+                    : 'Delivery Placement';
+
+                  const description = isCloseup
+                    ? 'Close-up photo showing your FreshGo package and its identifying label.'
+                    : 'Wide photo showing exactly where your rider placed the order.';
+
+                  const number =
+                    isCloseup ? 'Photo 1' : 'Photo 2';
 
                   return (
-                    <div
+                    <article
                       key={proof.proofType}
-                      className="rounded-2xl border border-cream-200 overflow-hidden bg-cream-50"
+                      className="overflow-hidden rounded-2xl border border-cream-200 bg-white shadow-sm"
                     >
                       {proof.signedUrl ? (
-                        <a
-                          href={proof.signedUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="block"
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setSelectedDeliveryProof(proof)
+                          }
+                          className="group relative block w-full bg-black text-left"
+                          aria-label={`View ${title}`}
                         >
                           <img
                             src={proof.signedUrl}
                             alt={title}
-                            className="w-full aspect-[4/3] object-cover hover:opacity-95 transition-opacity"
+                            className="w-full aspect-[4/3] object-cover transition-transform duration-300 group-hover:scale-[1.02]"
                           />
-                        </a>
+
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+
+                          <span className="absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-black/65 px-2.5 py-1.5 text-xs font-semibold text-white backdrop-blur-sm">
+                            <ZoomIn size={13} />
+                            View
+                          </span>
+                        </button>
                       ) : (
                         <div className="w-full aspect-[4/3] bg-cream-100 flex items-center justify-center text-gray-400">
                           <PackageX size={32} />
@@ -929,33 +945,146 @@ export default function OrderTrackingPage() {
                       )}
 
                       <div className="p-4">
-                        <p className="font-semibold text-gray-900">
-                          {title}
-                        </p>
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className="text-[11px] font-bold uppercase tracking-wide text-gray-400">
+                              {number}
+                            </p>
 
-                        <p className="text-xs text-gray-500 mt-1">
+                            <p className="font-semibold text-gray-900 mt-0.5">
+                              {title}
+                            </p>
+                          </div>
+
+                          <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-1 text-[11px] font-semibold text-green-700">
+                            <CheckCircle2 size={12} />
+                            Verified
+                          </span>
+                        </div>
+
+                        <p className="text-xs leading-relaxed text-gray-500 mt-2">
                           {description}
                         </p>
 
-                        <p className="text-xs text-gray-400 mt-2">
+                        <p className="text-xs text-gray-400 mt-3">
                           Uploaded{' '}
                           {new Date(
                             proof.uploadedAt,
-                          ).toLocaleString('en-MY')}
+                          ).toLocaleString('en-MY', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
                         </p>
                       </div>
-                    </div>
+                    </article>
                   );
                 })}
               </div>
 
-              <div className="mt-4 rounded-xl bg-green-50 border border-green-100 px-4 py-3">
-                <p className="text-xs text-green-800">
-                  These photos are recorded as proof that your FreshGo order was delivered.
-                </p>
+              <div className="mt-4 rounded-xl border border-green-100 bg-green-50 px-4 py-3">
+                <div className="flex items-start gap-2">
+                  <CheckCircle2
+                    size={16}
+                    className="mt-0.5 flex-shrink-0 text-green-700"
+                  />
+
+                  <div>
+                    <p className="text-sm font-semibold text-green-900">
+                      Delivery successfully recorded
+                    </p>
+
+                    <p className="text-xs leading-relaxed text-green-800 mt-0.5">
+                      These photos were submitted by your assigned FreshGo rider as proof that the order was delivered.
+                    </p>
+                  </div>
+                </div>
               </div>
             </>
           )}
+        </div>
+      )}
+
+      {/* Delivery proof lightbox */}
+      {selectedDeliveryProof?.signedUrl && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 p-4 sm:p-8"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Delivery proof photo"
+          onClick={() =>
+            setSelectedDeliveryProof(null)
+          }
+        >
+          <button
+            type="button"
+            onClick={() =>
+              setSelectedDeliveryProof(null)
+            }
+            className="absolute right-4 top-4 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-white/15 text-white backdrop-blur-sm hover:bg-white/25"
+            aria-label="Close image"
+          >
+            <X size={22} />
+          </button>
+
+          <div
+            className="w-full max-w-5xl overflow-hidden rounded-2xl bg-white shadow-2xl"
+            onClick={(event) =>
+              event.stopPropagation()
+            }
+          >
+            <div className="flex items-center justify-between gap-4 border-b border-gray-100 px-4 py-3 sm:px-5">
+              <div>
+                <p className="font-semibold text-gray-900">
+                  {selectedDeliveryProof.proofType ===
+                  'closeup'
+                    ? 'Package Close-up'
+                    : 'Delivery Placement'}
+                </p>
+
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Proof of Delivery
+                </p>
+              </div>
+
+              <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2.5 py-1 text-xs font-semibold text-green-700">
+                <CheckCircle2 size={13} />
+                Delivered
+              </span>
+            </div>
+
+            <div className="bg-black flex items-center justify-center">
+              <img
+                src={
+                  selectedDeliveryProof.signedUrl
+                }
+                alt={
+                  selectedDeliveryProof.proofType ===
+                  'closeup'
+                    ? 'Package Close-up'
+                    : 'Delivery Placement'
+                }
+                className="max-h-[75vh] w-auto max-w-full object-contain"
+              />
+            </div>
+
+            <div className="px-4 py-3 sm:px-5">
+              <p className="text-xs text-gray-500">
+                Uploaded{' '}
+                {new Date(
+                  selectedDeliveryProof.uploadedAt,
+                ).toLocaleString('en-MY', {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+              </p>
+            </div>
+          </div>
         </div>
       )}
 

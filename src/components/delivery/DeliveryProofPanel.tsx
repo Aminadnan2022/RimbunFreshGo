@@ -79,7 +79,11 @@ export default function DeliveryProofPanel({
     [proofs],
   );
 
-  const readyToComplete = Boolean(closeup && placement);
+  const completedCount =
+    (closeup ? 1 : 0) +
+    (placement ? 1 : 0);
+
+  const readyToComplete = completedCount === 2;
 
   const upload = async (
     proofType: DeliveryProofType,
@@ -131,9 +135,9 @@ export default function DeliveryProofPanel({
 
   if (loading) {
     return (
-      <div className="mt-4 rounded-2xl border border-cream-200 bg-cream-50 p-5">
+      <div className="mt-4 rounded-2xl border border-cream-200 bg-white p-5 shadow-soft">
         <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
-          <Loader2 size={17} className="animate-spin" />
+          <Loader2 size={18} className="animate-spin text-forest-600" />
           Loading delivery proof...
         </div>
       </div>
@@ -141,118 +145,145 @@ export default function DeliveryProofPanel({
   }
 
   return (
-    <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50/50 p-4">
-      <div className="flex items-start justify-between gap-3 mb-4">
-        <div>
-          <div className="flex items-center gap-2">
-            <Camera size={18} className="text-amber-700" />
+    <div className="mt-4 overflow-hidden rounded-2xl border border-amber-200 bg-amber-50/50 shadow-soft">
+      <div className="border-b border-amber-100 bg-white/80 px-4 py-4 sm:px-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+                <Camera size={18} />
+              </div>
 
-            <h3 className="font-semibold text-gray-900">
-              Proof of Delivery
-            </h3>
+              <div>
+                <h3 className="font-semibold text-gray-900">
+                  Proof of Delivery
+                </h3>
+
+                <p className="mt-0.5 text-xs text-gray-500">
+                  2 photos are required before delivery can be completed.
+                </p>
+              </div>
+            </div>
           </div>
 
-          <p className="text-xs text-gray-600 mt-1">
-            Take both photos before marking this order as delivered.
-          </p>
+          <button
+            type="button"
+            onClick={() => void loadProofs()}
+            disabled={uploading !== null || completing}
+            className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl border border-cream-200 bg-white text-forest-700 transition-all hover:bg-cream-50 disabled:opacity-40"
+            aria-label="Refresh delivery proof"
+          >
+            <RefreshCcw size={16} />
+          </button>
+        </div>
+      </div>
+
+      <div className="p-4 sm:p-5">
+        {error && (
+          <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            <p className="font-semibold">
+              Unable to continue
+            </p>
+
+            <p className="mt-1 text-xs leading-relaxed">
+              {error}
+            </p>
+          </div>
+        )}
+
+        <div className="space-y-4">
+          <ProofPhotoCard
+            proofType="closeup"
+            step="1"
+            title="Package Close-up"
+            description="Take a close photo of the delivered bags. Make sure the writing or label on the plastic is clearly visible."
+            proof={closeup}
+            uploading={uploading === 'closeup'}
+            disabled={uploading !== null || completing}
+            onFile={(file) => void upload('closeup', file)}
+          />
+
+          <ProofPhotoCard
+            proofType="placement"
+            step="2"
+            title="Delivery Placement"
+            description="Take a wider photo showing clearly where the order has been left for the customer."
+            proof={placement}
+            uploading={uploading === 'placement'}
+            disabled={uploading !== null || completing}
+            onFile={(file) => void upload('placement', file)}
+          />
+        </div>
+
+        <div
+          className={`mt-4 rounded-xl border p-4 ${
+            readyToComplete
+              ? 'border-green-200 bg-green-50'
+              : 'border-amber-200 bg-white'
+          }`}
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-gray-900">
+                Delivery proof progress
+              </p>
+
+              <p className="mt-0.5 text-xs text-gray-500">
+                {completedCount} of 2 required photos completed
+              </p>
+            </div>
+
+            <span
+              className={`inline-flex flex-shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${
+                readyToComplete
+                  ? 'bg-green-100 text-green-700'
+                  : 'bg-amber-100 text-amber-700'
+              }`}
+            >
+              {readyToComplete && <CheckCircle2 size={13} />}
+              {readyToComplete ? 'Ready' : 'Required'}
+            </span>
+          </div>
         </div>
 
         <button
           type="button"
-          onClick={() => void loadProofs()}
-          disabled={uploading !== null || completing}
-          className="p-2 rounded-lg border border-amber-200 bg-white text-amber-700 hover:bg-amber-50 disabled:opacity-50"
-          aria-label="Refresh delivery proof"
+          onClick={() => void completeDelivery()}
+          disabled={
+            !readyToComplete ||
+            uploading !== null ||
+            completing
+          }
+          className={`mt-4 w-full inline-flex min-h-[52px] items-center justify-center gap-2 rounded-xl px-4 py-3 text-base font-bold transition-all ${
+            readyToComplete
+              ? 'bg-green-600 text-white shadow-sm hover:bg-green-700'
+              : 'cursor-not-allowed bg-gray-200 text-gray-400'
+          } disabled:opacity-70`}
         >
-          <RefreshCcw size={15} />
+          {completing ? (
+            <Loader2 size={19} className="animate-spin" />
+          ) : (
+            <PackageCheck size={19} />
+          )}
+
+          {completing
+            ? 'Completing Delivery...'
+            : 'Mark Delivered'}
         </button>
-      </div>
 
-      {error && (
-        <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-          {error}
-        </div>
-      )}
-
-      <div className="space-y-3">
-        <ProofPhotoCard
-          proofType="closeup"
-          title="1. Close-up Photo"
-          description="Take a close photo of the delivered bags. The writing or label on the plastic must be clearly visible."
-          proof={closeup}
-          uploading={uploading === 'closeup'}
-          disabled={uploading !== null || completing}
-          onFile={(file) => void upload('closeup', file)}
-        />
-
-        <ProofPhotoCard
-          proofType="placement"
-          title="2. Placement Photo"
-          description="Take a wider photo showing clearly where the order was left for the customer."
-          proof={placement}
-          uploading={uploading === 'placement'}
-          disabled={uploading !== null || completing}
-          onFile={(file) => void upload('placement', file)}
-        />
-      </div>
-
-      <div className="mt-4 rounded-xl bg-white border border-cream-200 p-3">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <p className="text-sm font-semibold text-gray-800">
-              Delivery proof
-            </p>
-
-            <p className="text-xs text-gray-500 mt-0.5">
-              {(closeup ? 1 : 0) + (placement ? 1 : 0)} of 2 required photos completed
-            </p>
-          </div>
-
-          <span
-            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${
-              readyToComplete
-                ? 'bg-green-100 text-green-700'
-                : 'bg-amber-100 text-amber-700'
-            }`}
-          >
-            {readyToComplete && <CheckCircle2 size={13} />}
-            {readyToComplete ? 'Complete' : 'Required'}
-          </span>
-        </div>
-      </div>
-
-      <button
-        type="button"
-        onClick={() => void completeDelivery()}
-        disabled={
-          !readyToComplete ||
-          uploading !== null ||
-          completing
-        }
-        className="mt-3 w-full inline-flex items-center justify-center gap-2 py-3 rounded-xl bg-green-600 text-white font-bold hover:bg-green-700 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-      >
-        {completing ? (
-          <Loader2 size={18} className="animate-spin" />
-        ) : (
-          <PackageCheck size={18} />
+        {!readyToComplete && (
+          <p className="mt-2 text-center text-xs font-medium text-amber-700">
+            Complete both photo steps to enable Mark Delivered.
+          </p>
         )}
-
-        {completing
-          ? 'Completing Delivery...'
-          : 'Mark Delivered'}
-      </button>
-
-      {!readyToComplete && (
-        <p className="text-center text-xs text-amber-700 mt-2">
-          Both photos are mandatory.
-        </p>
-      )}
+      </div>
     </div>
   );
 }
 
 interface ProofPhotoCardProps {
   proofType: DeliveryProofType;
+  step: string;
   title: string;
   description: string;
   proof: DeliveryProof | null;
@@ -263,6 +294,7 @@ interface ProofPhotoCardProps {
 
 function ProofPhotoCard({
   proofType,
+  step,
   title,
   description,
   proof,
@@ -274,92 +306,99 @@ function ProofPhotoCard({
 
   return (
     <div
-      className={`rounded-xl border p-3 ${
+      className={`overflow-hidden rounded-2xl border ${
         proof
-          ? 'border-green-200 bg-green-50/60'
-          : 'border-amber-200 bg-white'
+          ? 'border-green-200 bg-green-50/40'
+          : 'border-cream-200 bg-white'
       }`}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
+      <div className="p-4">
+        <div className="flex items-start gap-3">
+          <div
+            className={`flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full text-sm font-bold ${
+              proof
+                ? 'bg-green-600 text-white'
+                : 'bg-amber-100 text-amber-800'
+            }`}
+          >
             {proof ? (
-              <CheckCircle2
-                size={17}
-                className="text-green-600 flex-shrink-0"
-              />
+              <CheckCircle2 size={18} />
             ) : (
-              <Image
-                size={17}
-                className="text-amber-600 flex-shrink-0"
-              />
+              step
             )}
-
-            <p className="text-sm font-semibold text-gray-900">
-              {title}
-            </p>
           </div>
 
-          <p className="text-xs text-gray-500 mt-1">
-            {description}
-          </p>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-sm font-semibold text-gray-900">
+                {step}. {title}
+              </p>
+
+              {proof && (
+                <span className="rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-semibold text-green-700">
+                  Uploaded
+                </span>
+              )}
+            </div>
+
+            <p className="mt-1 text-xs leading-relaxed text-gray-500">
+              {description}
+            </p>
+          </div>
         </div>
 
-        {proof && (
-          <span className="rounded-full bg-green-100 text-green-700 text-[11px] font-semibold px-2 py-1">
-            Uploaded
-          </span>
+        {proof?.signedUrl && (
+          <div className="mt-3 overflow-hidden rounded-xl border border-green-200 bg-black">
+            <img
+              src={proof.signedUrl}
+              alt={title}
+              className="h-44 w-full object-contain sm:h-52"
+            />
+          </div>
         )}
-      </div>
 
-      {proof?.signedUrl && (
-        <div className="mt-3 overflow-hidden rounded-xl border border-green-200 bg-white">
-          <img
-            src={proof.signedUrl}
-            alt={title}
-            className="w-full max-h-64 object-cover"
-          />
-        </div>
-      )}
+        <input
+          id={inputId}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          capture="environment"
+          disabled={disabled}
+          className="sr-only"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
 
-      <input
-        id={inputId}
-        type="file"
-        accept="image/jpeg,image/png,image/webp"
-        capture="environment"
-        disabled={disabled}
-        className="sr-only"
-        onChange={(event) => {
-          const file = event.target.files?.[0];
-          onFile(file);
+            onFile(file);
 
-          // Allow selecting the same image again after a failed attempt.
-          event.target.value = '';
-        }}
-      />
+            // Allow choosing the same image again after failed upload.
+            event.target.value = '';
+          }}
+        />
 
-      <label
-        htmlFor={inputId}
-        className={`mt-3 w-full inline-flex items-center justify-center gap-2 rounded-xl border px-3 py-2.5 text-sm font-semibold transition-all ${
-          disabled
-            ? 'cursor-not-allowed opacity-50 border-gray-200 bg-gray-100 text-gray-400'
+        <label
+          htmlFor={inputId}
+          className={`mt-3 inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition-all ${
+            disabled
+              ? 'cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400 opacity-60'
+              : proof
+                ? 'cursor-pointer border-green-200 bg-white text-green-700 hover:bg-green-50 active:bg-green-100'
+                : 'cursor-pointer border-amber-300 bg-amber-100 text-amber-900 hover:bg-amber-200 active:bg-amber-300'
+          }`}
+        >
+          {uploading ? (
+            <Loader2 size={18} className="animate-spin" />
+          ) : proof ? (
+            <RefreshCcw size={17} />
+          ) : (
+            <Camera size={18} />
+          )}
+
+          {uploading
+            ? 'Uploading Photo...'
             : proof
-              ? 'cursor-pointer border-green-200 bg-white text-green-700 hover:bg-green-50'
-              : 'cursor-pointer border-amber-300 bg-amber-100 text-amber-800 hover:bg-amber-200'
-        }`}
-      >
-        {uploading ? (
-          <Loader2 size={17} className="animate-spin" />
-        ) : (
-          <Camera size={17} />
-        )}
-
-        {uploading
-          ? 'Uploading...'
-          : proof
-            ? 'Retake / Replace Photo'
-            : 'Take Photo'}
-      </label>
+              ? 'Retake / Replace Photo'
+              : 'Take Photo'}
+        </label>
+      </div>
     </div>
   );
 }
