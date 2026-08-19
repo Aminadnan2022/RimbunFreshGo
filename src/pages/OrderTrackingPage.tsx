@@ -16,6 +16,8 @@ import {
   TRACKING_STAGES,
   customerStageIndex,
   fetchRiderNameForDate,
+  fetchCustomerCanonicalDeliveryProofs,
+  type CustomerDeliveryProof,
 } from '../data/customerTracking';
 import type { Order, CartItem } from '../types';
 
@@ -59,6 +61,10 @@ export default function OrderTrackingPage() {
 
   const [order, setOrder] = useState<Order | null | undefined>(undefined);
   const [riderName, setRiderName] = useState<string | null>(null);
+  const [deliveryProofs, setDeliveryProofs] =
+    useState<CustomerDeliveryProof[]>([]);
+  const [deliveryProofError, setDeliveryProofError] =
+    useState<string | null>(null);
   const [initialLoading, setInitialLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -89,6 +95,8 @@ export default function OrderTrackingPage() {
       // Only here does the order truly not exist.
       setOrder(null);
       setRiderName(null);
+      setDeliveryProofs([]);
+      setDeliveryProofError(null);
       setLoadError(null);
       return;
     }
@@ -219,6 +227,57 @@ export default function OrderTrackingPage() {
             : null
         );
 
+        const canonicalDeliveryStatus =
+          riderTracking?.delivery_status
+            ? String(riderTracking.delivery_status)
+            : null;
+
+        const canonicalDeliveredAt =
+          riderTracking?.delivered_at
+            ? String(riderTracking.delivered_at)
+            : null;
+
+        const canonicalIsDelivered =
+          canonicalDeliveryStatus === 'delivered' ||
+          canonicalDeliveredAt !== null;
+
+        setDeliveryProofError(null);
+
+        if (canonicalIsDelivered) {
+          try {
+            const proofs =
+              await fetchCustomerCanonicalDeliveryProofs(
+                String(canonicalRow.id),
+              );
+
+            console.log(
+              '[tracking] Canonical delivery proofs:',
+              proofs,
+            );
+
+            setDeliveryProofs(proofs);
+          } catch (proofError) {
+            console.error(
+              '[tracking] Failed to fetch delivery proofs:',
+              proofError,
+            );
+
+            const message =
+              proofError &&
+              typeof proofError === 'object' &&
+              'message' in proofError &&
+              typeof proofError.message === 'string'
+                ? proofError.message
+                : 'Unable to load delivery proof photos.';
+
+            setDeliveryProofs([]);
+            setDeliveryProofError(message);
+          }
+        } else {
+          setDeliveryProofs([]);
+          setDeliveryProofError(null);
+        }
+
         o = {
           ...o,
           packingStartedAt:
@@ -239,11 +298,15 @@ export default function OrderTrackingPage() {
       } else {
         setCanonicalPayment(null);
         setCanonicalPaymentDisplay(null);
+        setDeliveryProofs([]);
+        setDeliveryProofError(null);
       }
     } catch (err) {
       console.error('[tracking] Failed to fetch canonical payment metadata:', err);
       setCanonicalPayment(null);
       setCanonicalPaymentDisplay(null);
+      setDeliveryProofs([]);
+      setDeliveryProofError(null);
     }
 
     setOrder(o);
@@ -785,6 +848,116 @@ export default function OrderTrackingPage() {
           </div>
         </div>
       </div>
+
+      {/* Proof of delivery */}
+      {(currentIndex === TRACKING_STAGES.length - 1 ||
+        order.deliveredAt != null) && (
+        <div className="card p-6 sm:p-8 mb-6">
+          <div className="flex items-start justify-between gap-4 mb-5">
+            <div>
+              <h2 className="font-semibold text-charcoal">
+                Proof of Delivery
+              </h2>
+
+              <p className="text-sm text-gray-500 mt-1">
+                Photos taken by your FreshGo rider when your order was delivered.
+              </p>
+            </div>
+
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-50 text-green-700 text-xs font-semibold">
+              <CheckCircle2 size={14} />
+              Delivered
+            </span>
+          </div>
+
+          {deliveryProofError ? (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+              <p className="text-sm font-semibold text-red-700">
+                Delivery photos could not be loaded.
+              </p>
+
+              <p className="text-xs text-red-600 mt-1 break-words">
+                {deliveryProofError}
+              </p>
+            </div>
+          ) : deliveryProofs.length === 0 ? (
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+              <p className="text-sm font-semibold text-amber-800">
+                Delivery completed, but no proof photos were returned.
+              </p>
+
+              <p className="text-xs text-amber-700 mt-1">
+                Please refresh this page. If this remains empty, the delivery-proof record will need to be checked.
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {deliveryProofs.map((proof) => {
+                  const title =
+                    proof.proofType === 'closeup'
+                      ? 'Package Close-up'
+                      : 'Delivery Placement';
+
+                  const description =
+                    proof.proofType === 'closeup'
+                      ? 'Close-up photo showing the delivered FreshGo package.'
+                      : 'Photo showing where the rider placed your order.';
+
+                  return (
+                    <div
+                      key={proof.proofType}
+                      className="rounded-2xl border border-cream-200 overflow-hidden bg-cream-50"
+                    >
+                      {proof.signedUrl ? (
+                        <a
+                          href={proof.signedUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="block"
+                        >
+                          <img
+                            src={proof.signedUrl}
+                            alt={title}
+                            className="w-full aspect-[4/3] object-cover hover:opacity-95 transition-opacity"
+                          />
+                        </a>
+                      ) : (
+                        <div className="w-full aspect-[4/3] bg-cream-100 flex items-center justify-center text-gray-400">
+                          <PackageX size={32} />
+                        </div>
+                      )}
+
+                      <div className="p-4">
+                        <p className="font-semibold text-gray-900">
+                          {title}
+                        </p>
+
+                        <p className="text-xs text-gray-500 mt-1">
+                          {description}
+                        </p>
+
+                        <p className="text-xs text-gray-400 mt-2">
+                          Uploaded{' '}
+                          {new Date(
+                            proof.uploadedAt,
+                          ).toLocaleString('en-MY')}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="mt-4 rounded-xl bg-green-50 border border-green-100 px-4 py-3">
+                <p className="text-xs text-green-800">
+                  These photos are recorded as proof that your FreshGo order was delivered.
+                </p>
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Rider info */}
       {riderName && (

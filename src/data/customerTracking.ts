@@ -102,3 +102,81 @@ export async function fetchRiderNameForDate(deliveryDate: string): Promise<strin
   if (res.error) throw res.error;
   return res.data || null;
 }
+
+// ---------------------------------------------------------------------------
+// Canonical customer proof of delivery
+// ---------------------------------------------------------------------------
+
+export type CustomerDeliveryProofType = 'closeup' | 'placement';
+
+export interface CustomerDeliveryProof {
+  proofType: CustomerDeliveryProofType;
+  storagePath: string;
+  uploadedAt: string;
+  signedUrl: string | null;
+}
+
+interface CustomerDeliveryProofRpcRow {
+  proof_type: string;
+  storage_path: string;
+  uploaded_at: string;
+}
+
+/**
+ * Fetch proof-of-delivery photos for a canonical sales order.
+ *
+ * Backend authorization permits:
+ *   - admin
+ *   - assigned rider
+ *   - owning customer only after Delivered
+ *
+ * delivery-proof is a private bucket, therefore short-lived
+ * signed URLs are generated after the metadata RPC succeeds.
+ */
+export async function fetchCustomerCanonicalDeliveryProofs(
+  salesOrderId: string,
+): Promise<CustomerDeliveryProof[]> {
+  const res = await (supabase.rpc as unknown as (
+    name: string,
+    params?: Record<string, unknown>,
+  ) => Promise<{
+    data: unknown;
+    error: {
+      message?: string;
+      details?: string;
+      hint?: string;
+    } | null;
+  }>)(
+    'get_sales_order_canonical_delivery_proofs',
+    {
+      p_sales_order_id: salesOrderId,
+    },
+  );
+
+  if (res.error) throw res.error;
+
+  if (!Array.isArray(res.data)) {
+    return [];
+  }
+
+  const rows = res.data as CustomerDeliveryProofRpcRow[];
+
+  return Promise.all(
+    rows.map(async (row) => {
+      const { data: signed, error: signedError } =
+        await supabase.storage
+          .from('delivery-proof')
+          .createSignedUrl(row.storage_path, 3600);
+
+      if (signedError) throw signedError;
+
+      return {
+        proofType: row.proof_type as CustomerDeliveryProofType,
+        storagePath: row.storage_path,
+        uploadedAt: row.uploaded_at,
+        signedUrl: signed?.signedUrl ?? null,
+      };
+    }),
+  );
+}
+

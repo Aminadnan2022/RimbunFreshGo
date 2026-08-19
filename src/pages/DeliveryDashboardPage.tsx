@@ -18,10 +18,11 @@ import { waLink } from '../data/delivery';
 
 import {
   fetchTodaysDeliveries,
-  markOrderDelivered,
   startOrderDelivery,
   type RiderOrder,
 } from '../data/deliveryRider';
+
+import DeliveryProofPanel from '../components/delivery/DeliveryProofPanel';
 
 export default function DeliveryDashboardPage() {
   const { t } = useLanguage();
@@ -335,27 +336,10 @@ export default function DeliveryDashboardPage() {
                     {t('riderDelivery.startDelivery')}
                   </button>
                 ) : (
-                  <button
-                    onClick={() =>
-                      run(
-                        () => markOrderDelivered(order.id),
-                        order.id,
-                      )
-                    }
-                    disabled={busy === order.id}
-                    className="mt-3 w-full inline-flex items-center justify-center gap-2 py-3 rounded-xl bg-green-600 text-white font-bold hover:bg-green-700 transition-all disabled:opacity-50"
-                  >
-                    {busy === order.id ? (
-                      <Loader2
-                        size={18}
-                        className="animate-spin"
-                      />
-                    ) : (
-                      <CheckCircle2 size={18} />
-                    )}
-
-                    {t('riderDelivery.markDelivered')}
-                  </button>
+                  <DeliveryProofPanel
+                    salesOrderId={order.id}
+                    onCompleted={load}
+                  />
                 )}
               </section>
             );

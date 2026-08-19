@@ -182,3 +182,141 @@ export async function markOrderDelivered(
 
   if (error) throw error;
 }
+
+
+// ---------------------------------------------------------------------------
+// Canonical proof of delivery
+// ---------------------------------------------------------------------------
+
+export type DeliveryProofType = 'closeup' | 'placement';
+
+export interface DeliveryProof {
+  proofType: DeliveryProofType;
+  storagePath: string;
+  uploadedAt: string;
+  signedUrl: string | null;
+}
+
+interface DeliveryProofRpcRow {
+  proof_type: string;
+  storage_path: string;
+  uploaded_at: string;
+}
+
+function getDeliveryProofExtension(file: File): string {
+  switch (file.type) {
+    case 'image/jpeg':
+      return 'jpg';
+    case 'image/png':
+      return 'png';
+    case 'image/webp':
+      return 'webp';
+    default:
+      throw new Error(
+        'Unsupported image format. Please use JPG, PNG or WEBP.',
+      );
+  }
+}
+
+/**
+ * Read registered proof-of-delivery images for one canonical sales order.
+ *
+ * The storage bucket is private, so short-lived signed URLs are generated
+ * only after the metadata RPC confirms that the current user may access it.
+ */
+export async function fetchCanonicalDeliveryProofs(
+  salesOrderId: string,
+): Promise<DeliveryProof[]> {
+  const { data, error } = await rpc(
+    'get_sales_order_canonical_delivery_proofs',
+    {
+      p_sales_order_id: salesOrderId,
+    },
+  );
+
+  if (error) throw error;
+
+  if (!Array.isArray(data)) {
+    return [];
+  }
+
+  const rows = data as DeliveryProofRpcRow[];
+
+  return Promise.all(
+    rows.map(async (row) => {
+      const { data: signed, error: signedError } =
+        await supabase.storage
+          .from('delivery-proof')
+          .createSignedUrl(row.storage_path, 3600);
+
+      if (signedError) throw signedError;
+
+      return {
+        proofType: row.proof_type as DeliveryProofType,
+        storagePath: row.storage_path,
+        uploadedAt: row.uploaded_at,
+        signedUrl: signed?.signedUrl ?? null,
+      };
+    }),
+  );
+}
+
+/**
+ * Upload and register one proof-of-delivery image.
+ *
+ * Required object format:
+ *   <sales_order_uuid>/<proof_type>/<file_uuid>.<ext>
+ */
+export async function uploadCanonicalDeliveryProof(
+  salesOrderId: string,
+  proofType: DeliveryProofType,
+  file: File,
+): Promise<DeliveryProof> {
+  if (!file.type.startsWith('image/')) {
+    throw new Error('Please select an image file.');
+  }
+
+  if (file.size > 10 * 1024 * 1024) {
+    throw new Error('Delivery proof photo must be 10 MB or smaller.');
+  }
+
+  const extension = getDeliveryProofExtension(file);
+  const fileId = crypto.randomUUID();
+
+  const storagePath =
+    `${salesOrderId}/${proofType}/${fileId}.${extension}`;
+
+  const { error: uploadError } = await supabase.storage
+    .from('delivery-proof')
+    .upload(storagePath, file, {
+      contentType: file.type,
+      upsert: false,
+    });
+
+  if (uploadError) throw uploadError;
+
+  const { error: registerError } = await rpc(
+    'rider_register_canonical_delivery_proof',
+    {
+      p_sales_order_id: salesOrderId,
+      p_proof_type: proofType,
+      p_storage_path: storagePath,
+    },
+  );
+
+  if (registerError) throw registerError;
+
+  const { data: signed, error: signedError } =
+    await supabase.storage
+      .from('delivery-proof')
+      .createSignedUrl(storagePath, 3600);
+
+  if (signedError) throw signedError;
+
+  return {
+    proofType,
+    storagePath,
+    uploadedAt: new Date().toISOString(),
+    signedUrl: signed?.signedUrl ?? null,
+  };
+}
