@@ -113,31 +113,57 @@ export default function CanonicalSupplierDeliveryBatches() {
     load();
   }, [load]);
 
-  const createAndAdd = async (order: PackedCanonicalOrder) => {
-    const key = `add:${order.sales_order_id}:${order.supplier_id}`;
-    setBusy(key);
-    setMessage(null);
+ const createAndAdd = async (order: PackedCanonicalOrder) => {
+  const key = `add:${order.sales_order_id}:${order.supplier_id}`;
+  setBusy(key);
+  setMessage(null);
 
-    try {
-      const batchId = await createCanonicalSupplierBatch(
+  try {
+    const deliveryDate =
+      order.delivery_date ??
+      new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Kuala_Lumpur',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).format(new Date());
+
+    const existingDraftBatch = batches.find(
+      (batch) =>
+        batch.status === 'draft' &&
+        batch.supplier_id === order.supplier_id &&
+        batch.delivery_date === deliveryDate,
+    );
+
+    let batchId: string;
+    let batchCode: string | null = null;
+
+    if (existingDraftBatch) {
+      batchId = existingDraftBatch.id;
+      batchCode = existingDraftBatch.batch_code;
+    } else {
+      batchId = await createCanonicalSupplierBatch(
         order.supplier_id,
-        order.delivery_date ?? new Date().toISOString().slice(0, 10),
+        deliveryDate,
       );
-
-      await addCanonicalOrderToBatch(batchId, order.sales_order_id);
-
-      setMessage({
-        ok: true,
-        text: `${order.order_number} added to a new supplier → hub batch.`,
-      });
-
-      await load();
-    } catch (err) {
-      setMessage({ ok: false, text: describeError(err) });
-    } finally {
-      setBusy(null);
     }
-  };
+
+    await addCanonicalOrderToBatch(batchId, order.sales_order_id);
+
+    setMessage({
+      ok: true,
+      text: existingDraftBatch
+        ? `${order.order_number} added to existing batch ${batchCode}.`
+        : `${order.order_number} added to a new supplier → hub batch.`,
+    });
+
+    await load();
+  } catch (err) {
+    setMessage({ ok: false, text: describeError(err) });
+  } finally {
+    setBusy(null);
+  }
+};
 
   const dispatchBatch = async (batch: CanonicalSupplierBatch) => {
     const tracking = window.prompt(
@@ -270,7 +296,23 @@ export default function CanonicalSupplierDeliveryBatches() {
         ) : (
           <div className="divide-y divide-cream-100">
             {readyOrders.map((order) => {
-              const key = `add:${order.sales_order_id}:${order.supplier_id}`;
+  const key = `add:${order.sales_order_id}:${order.supplier_id}`;
+
+  const deliveryDate =
+    order.delivery_date ??
+    new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Kuala_Lumpur',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date());
+
+  const existingDraftBatch = batches.find(
+    (batch) =>
+      batch.status === 'draft' &&
+      batch.supplier_id === order.supplier_id &&
+      batch.delivery_date === deliveryDate,
+  );
               return (
                 <div
                   key={key}
@@ -299,7 +341,9 @@ export default function CanonicalSupplierDeliveryBatches() {
                     ) : (
                       <Plus size={16} />
                     )}
-                    Create Batch & Add
+                    {existingDraftBatch
+                      ? `Add to ${existingDraftBatch.batch_code}`
+                      : 'Create Batch & Add'}
                   </button>
                 </div>
               );
