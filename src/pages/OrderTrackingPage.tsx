@@ -20,6 +20,7 @@ import {
   type CustomerDeliveryProof,
 } from '../data/customerTracking';
 import type { Order, CartItem } from '../types';
+import { createBrowserUuid } from '../lib/browserUuid';
 
 const STAGE_ICONS: Record<(typeof TRACKING_STAGES)[number], typeof Package> = {
   orderReceived: PackageCheck,
@@ -78,10 +79,52 @@ const [initialLoading, setInitialLoading] = useState(true);
     useState<CanonicalPaymentDisplay | null>(null);
 
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
-  const [receiptUploading, setReceiptUploading] = useState(false);
+  const [receiptInputKey, setReceiptInputKey] = useState(0);
+const [receiptUploading, setReceiptUploading] = useState(false);
   const [receiptError, setReceiptError] = useState<string | null>(null);
   const [receiptSuccess, setReceiptSuccess] = useState<string | null>(null);
+useEffect(() => {
+  const writeEvent = (eventName: string) => {
+    const existing = JSON.parse(
+      sessionStorage.getItem('freshgo-upload-debug') || '[]'
+    );
 
+    existing.push({
+      event: eventName,
+      time: new Date().toISOString(),
+      visibility: document.visibilityState,
+    });
+
+    sessionStorage.setItem(
+      'freshgo-upload-debug',
+      JSON.stringify(existing.slice(-30))
+    );
+
+    console.log('[upload-debug]', eventName, document.visibilityState);
+  };
+
+  writeEvent('component-mounted');
+
+  const onVisibility = () => writeEvent('visibilitychange');
+  const onPageHide = () => writeEvent('pagehide');
+  const onPageShow = () => writeEvent('pageshow');
+  const onFocus = () => writeEvent('focus');
+  const onBlur = () => writeEvent('blur');
+
+  document.addEventListener('visibilitychange', onVisibility);
+  window.addEventListener('pagehide', onPageHide);
+  window.addEventListener('pageshow', onPageShow);
+  window.addEventListener('focus', onFocus);
+  window.addEventListener('blur', onBlur);
+
+  return () => {
+    document.removeEventListener('visibilitychange', onVisibility);
+    window.removeEventListener('pagehide', onPageHide);
+    window.removeEventListener('pageshow', onPageShow);
+    window.removeEventListener('focus', onFocus);
+    window.removeEventListener('blur', onBlur);
+  };
+}, []);
   const loadLive = useCallback(async (ref: string) => {
     let o: Order | null;
     let canonicalRiderResolved = false;
@@ -334,16 +377,32 @@ const [initialLoading, setInitialLoading] = useState(true);
     }
   }, [getOrder]);
 
-  useEffect(() => {
-    if (!user) return;
-    let active = true;
-    const ref = id ?? '';
-    setInitialLoading(true);
-    loadLive(ref).finally(() => { if (active) setInitialLoading(false); });
-    // Auto-refresh so the timeline updates as the delivery progresses.
-    const interval = setInterval(() => { if (active) loadLive(ref); }, 25000);
-    return () => { active = false; clearInterval(interval); };
-  }, [id, loadLive, user]);
+useEffect(() => {
+  if (!user) return;
+
+  let active = true;
+  const ref = id ?? '';
+
+  setInitialLoading(true);
+
+  loadLive(ref).finally(() => {
+    if (active) setInitialLoading(false);
+  });
+
+  // Do not refresh while Camera / Gallery / Files picker has hidden the page.
+  // This avoids interrupting the native file-selection handoff on mobile.
+  const interval = window.setInterval(() => {
+    if (!active) return;
+    if (document.visibilityState !== 'visible') return;
+
+    loadLive(ref);
+  }, 25000);
+
+  return () => {
+    active = false;
+    window.clearInterval(interval);
+  };
+}, [id, loadLive, user]);
 
   const handleReceiptUpload = async () => {
     if (!canonicalPayment || !receiptFile) return;
@@ -378,7 +437,7 @@ const [initialLoading, setInitialLoading] = useState(true);
         throw new Error('Receipt file must be 5 MB or smaller.');
       }
 
-      const receiptObjectId = crypto.randomUUID();
+      const receiptObjectId = createBrowserUuid();
       const storagePath =
         `${canonicalPayment.salesOrderId}/${receiptObjectId}.${extension}`;
 
@@ -406,7 +465,8 @@ const [initialLoading, setInitialLoading] = useState(true);
       if (submitError) throw submitError;
 
       setReceiptFile(null);
-      setReceiptSuccess('Receipt submitted successfully. Waiting for admin verification.');
+  setReceiptInputKey((key) => key + 1);
+  setReceiptSuccess('Receipt submitted successfully. Waiting for admin verification.');
 
       await loadLive(id ?? '');
     } catch (err) {
@@ -690,21 +750,61 @@ const [initialLoading, setInitialLoading] = useState(true);
                   </label>
 
                   <input
-                    id="canonical-payment-receipt"
-                    type="file"
-                    accept="image/jpeg,image/png,image/webp,application/pdf"
-                    disabled={receiptUploading}
-                    onChange={(e) => {
-                      setReceiptFile(e.target.files?.[0] ?? null);
-                      setReceiptError(null);
-                      setReceiptSuccess(null);
-                    }}
-                    className="block w-full text-sm text-gray-600
-                      file:mr-4 file:rounded-xl file:border-0
-                      file:bg-forest-50 file:px-4 file:py-2.5
-                      file:text-sm file:font-semibold file:text-forest-700
-                      hover:file:bg-forest-100"
-                  />
+                key={receiptInputKey}
+                id="canonical-payment-receipt"
+                type="file"
+                accept="image/*"
+                disabled={receiptUploading}
+                onChange={(e) => {
+                  const existing = JSON.parse(
+  sessionStorage.getItem('freshgo-upload-debug') || '[]'
+);
+
+existing.push({
+  event: 'file-input-change',
+  time: new Date().toISOString(),
+  fileCount: e.currentTarget.files?.length ?? 0,
+});
+
+sessionStorage.setItem(
+  'freshgo-upload-debug',
+  JSON.stringify(existing.slice(-30))
+);
+                  const file = e.currentTarget.files?.[0] ?? null;
+
+                  console.log('[tracking:receiptFileSelected]', {
+                    selected: Boolean(file),
+                    name: file?.name ?? null,
+                    type: file?.type ?? null,
+                    size: file?.size ?? null,
+                  });
+
+                  if (!file) return;
+
+                  setReceiptFile(file);
+                  setReceiptError(null);
+                  setReceiptSuccess(null);
+                }}
+                className="block w-full text-sm text-gray-600
+                  file:mr-4 file:rounded-xl file:border-0
+                  file:bg-forest-50 file:px-4 file:py-2.5
+                  file:text-sm file:font-semibold file:text-forest-700
+                  hover:file:bg-forest-100"
+              />
+
+              {receiptFile && (
+                <div className="mt-3 rounded-xl border border-green-200 bg-green-50 p-3">
+                  <p className="text-sm font-semibold text-green-800">
+                    File selected
+                  </p>
+                  <p className="mt-1 break-all text-xs text-green-700">
+                    {receiptFile.name}
+                  </p>
+                  <p className="mt-1 text-xs text-green-600">
+                    {(receiptFile.size / 1024 / 1024).toFixed(2)} MB
+                  </p>
+                </div>
+              )}
 
                   <p className="mt-2 text-xs text-gray-400">
                     JPG, PNG, WebP or PDF · maximum 5 MB

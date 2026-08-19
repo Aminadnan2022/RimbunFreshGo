@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase';
-
+import { createBrowserUuid } from '../lib/browserUuid';
 /**
  * Canonical Rider data layer.
  *
@@ -281,7 +281,7 @@ export async function uploadCanonicalDeliveryProof(
   }
 
   const extension = getDeliveryProofExtension(file);
-  const fileId = crypto.randomUUID();
+  const fileId = createBrowserUuid();
 
   const storagePath =
     `${salesOrderId}/${proofType}/${fileId}.${extension}`;

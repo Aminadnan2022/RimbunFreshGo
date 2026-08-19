@@ -30,7 +30,9 @@ import DeliveryCapacitySettingsCard from '../components/admin/settings/DeliveryC
 import DeliveryManagementTab from '../components/admin/DeliveryManagementTab';
 import DeliveryBatchesManager from '../components/admin/DeliveryBatchesManager';
 import BrandLogo from '../components/branding/BrandLogo';
+import { createBrowserUuid } from '../lib/browserUuid';
 import type { PaymentStatus, ComboExpandedItem, Product } from '../types';
+
 
 type Tab = 'products' | 'combos' | 'settings' | 'users' | 'orders' | 'delivery' | 'batches';
 
@@ -555,7 +557,7 @@ function PaymentQrSettingsCard() {
 
     try {
       const nextVersion = Number(current?.version_number ?? 0) + 1;
-      const objectId = crypto.randomUUID();
+      const objectId = createBrowserUuid();
 
       const storagePath =
         `freshgo_manual_qr/v${nextVersion}/${objectId}.${ext}`;
