@@ -1,10 +1,10 @@
-import { supabase } from '../lib/supabase';
+import { supabase } from "../lib/supabase";
 
 export type CanonicalSupplierBatchStatus =
-  | 'draft'
-  | 'dispatched'
-  | 'arrived_hub'
-  | 'cancelled';
+  | "draft"
+  | "dispatched"
+  | "arrived_hub"
+  | "cancelled";
 
 export interface CanonicalSupplierBatch {
   id: string;
@@ -48,24 +48,28 @@ async function rpc(
   name: string,
   params?: Record<string, unknown>,
 ): Promise<{ data: unknown; error: { message?: string } | null }> {
-  return (supabase.rpc as unknown as (
-    fn: string,
-    args?: Record<string, unknown>,
-  ) => Promise<{ data: unknown; error: { message?: string } | null }>)(name, params);
+  return (
+    supabase.rpc as unknown as (
+      fn: string,
+      args?: Record<string, unknown>,
+    ) => Promise<{ data: unknown; error: { message?: string } | null }>
+  )(name, params);
 }
 
-export async function fetchCanonicalSupplierBatches(): Promise<CanonicalSupplierBatch[]> {
+export async function fetchCanonicalSupplierBatches(): Promise<
+  CanonicalSupplierBatch[]
+> {
   const { data: batches, error } = await supabase
-    .from('canonical_supplier_delivery_batches')
-    .select('*')
-    .order('delivery_date', { ascending: false })
-    .order('created_at', { ascending: false });
+    .from("canonical_supplier_delivery_batches")
+    .select("*")
+    .order("delivery_date", { ascending: false })
+    .order("created_at", { ascending: false });
 
   if (error) throw error;
 
   const { data: members, error: memberError } = await supabase
-    .from('canonical_supplier_delivery_batch_orders')
-    .select('batch_id');
+    .from("canonical_supplier_delivery_batch_orders")
+    .select("batch_id");
 
   if (memberError) throw memberError;
 
@@ -76,7 +80,7 @@ export async function fetchCanonicalSupplierBatches(): Promise<CanonicalSupplier
   });
 
   const { data: supplierDirectoryData, error: supplierDirectoryError } =
-    await rpc('get_canonical_supplier_directory');
+    await rpc("get_canonical_supplier_directory");
 
   if (supplierDirectoryError) throw supplierDirectoryError;
 
@@ -87,10 +91,7 @@ export async function fetchCanonicalSupplierBatches(): Promise<CanonicalSupplier
   const supplierNames = new Map<number, string>(
     supplierDirectory.map((row) => {
       const item = row as Record<string, unknown>;
-      return [
-        Number(item.supplier_id),
-        String(item.supplier_name),
-      ];
+      return [Number(item.supplier_id), String(item.supplier_name)];
     }),
   );
 
@@ -98,7 +99,8 @@ export async function fetchCanonicalSupplierBatches(): Promise<CanonicalSupplier
     id: String(b.id),
     batch_code: String(b.batch_code),
     supplier_id: Number(b.supplier_id),
-    supplier_name: supplierNames.get(Number(b.supplier_id)) ?? `Supplier #${b.supplier_id}`,
+    supplier_name:
+      supplierNames.get(Number(b.supplier_id)) ?? `Supplier #${b.supplier_id}`,
     delivery_date: String(b.delivery_date),
     status: b.status as CanonicalSupplierBatchStatus,
     hub_name: String(b.hub_name),
@@ -113,26 +115,26 @@ export async function fetchCanonicalSupplierBatches(): Promise<CanonicalSupplier
   }));
 }
 
-export async function fetchPackedCanonicalOrders(): Promise<PackedCanonicalOrder[]> {
+export async function fetchPackedCanonicalOrders(): Promise<
+  PackedCanonicalOrder[]
+> {
   const { data: fulfilments, error } = await supabase
-    .from('sales_order_supplier_fulfilments')
-    .select('sales_order_id, supplier_id, packing_completed_at')
-    .eq('status', 'packed')
-    .not('packing_completed_at', 'is', null);
+    .from("sales_order_supplier_fulfilments")
+    .select("sales_order_id, supplier_id, packing_completed_at")
+    .eq("status", "packed")
+    .not("packing_completed_at", "is", null);
 
   if (error) throw error;
   if (!fulfilments?.length) return [];
 
   const { data: assigned, error: assignedError } = await supabase
-    .from('canonical_supplier_delivery_batch_orders')
-    .select('sales_order_id, supplier_id');
+    .from("canonical_supplier_delivery_batch_orders")
+    .select("sales_order_id, supplier_id");
 
   if (assignedError) throw assignedError;
 
   const assignedKeys = new Set(
-    (assigned ?? []).map(
-      (row) => `${row.sales_order_id}:${row.supplier_id}`,
-    ),
+    (assigned ?? []).map((row) => `${row.sales_order_id}:${row.supplier_id}`),
   );
 
   const eligible = fulfilments.filter(
@@ -144,18 +146,18 @@ export async function fetchPackedCanonicalOrders(): Promise<PackedCanonicalOrder
   const orderIds = [...new Set(eligible.map((f) => String(f.sales_order_id)))];
   const [ordersRes, supplierDirectoryRes] = await Promise.all([
     supabase
-      .from('sales_orders')
-      .select('id, order_number, customer_snapshot, delivery_snapshot, payment_status, status')
-      .in('id', orderIds),
-    rpc('get_canonical_supplier_directory'),
+      .from("sales_orders")
+      .select(
+        "id, order_number, customer_snapshot, delivery_snapshot, payment_status, status",
+      )
+      .in("id", orderIds),
+    rpc("get_canonical_supplier_directory"),
   ]);
 
   if (ordersRes.error) throw ordersRes.error;
   if (supplierDirectoryRes.error) throw supplierDirectoryRes.error;
 
-  const orders = new Map(
-    (ordersRes.data ?? []).map((o) => [String(o.id), o]),
-  );
+  const orders = new Map((ordersRes.data ?? []).map((o) => [String(o.id), o]));
 
   const supplierDirectory = Array.isArray(supplierDirectoryRes.data)
     ? supplierDirectoryRes.data
@@ -164,10 +166,7 @@ export async function fetchPackedCanonicalOrders(): Promise<PackedCanonicalOrder
   const suppliers = new Map<number, string>(
     supplierDirectory.map((row) => {
       const item = row as Record<string, unknown>;
-      return [
-        Number(item.supplier_id),
-        String(item.supplier_name),
-      ];
+      return [Number(item.supplier_id), String(item.supplier_name)];
     }),
   );
 
@@ -176,43 +175,41 @@ export async function fetchPackedCanonicalOrders(): Promise<PackedCanonicalOrder
 
     if (
       !order ||
-      order.payment_status !== 'paid' ||
-      order.status === 'cancelled'
+      order.payment_status !== "paid" ||
+      order.status === "cancelled"
     ) {
       return [];
     }
 
     const customerSnapshot =
-      order.customer_snapshot &&
-      typeof order.customer_snapshot === 'object'
+      order.customer_snapshot && typeof order.customer_snapshot === "object"
         ? (order.customer_snapshot as Record<string, unknown>)
         : {};
 
     const deliverySnapshot =
-      order.delivery_snapshot &&
-      typeof order.delivery_snapshot === 'object'
+      order.delivery_snapshot && typeof order.delivery_snapshot === "object"
         ? (order.delivery_snapshot as Record<string, unknown>)
         : {};
 
-    return [{
-      sales_order_id: String(f.sales_order_id),
-      order_number: String(order.order_number),
-      supplier_id: Number(f.supplier_id),
-      supplier_name:
-        suppliers.get(Number(f.supplier_id)) ?? `Supplier #${f.supplier_id}`,
-      packing_completed_at: String(f.packing_completed_at),
-      customer_name: String(
-        customerSnapshot.name ??
-        customerSnapshot.customer_name ??
-        'Customer',
-      ),
-      delivery_date:
-        typeof deliverySnapshot.delivery_date === 'string'
-          ? deliverySnapshot.delivery_date
-          : typeof deliverySnapshot.requested_date === 'string'
-          ? deliverySnapshot.requested_date
-          : null,
-    }];
+    return [
+      {
+        sales_order_id: String(f.sales_order_id),
+        order_number: String(order.order_number),
+        supplier_id: Number(f.supplier_id),
+        supplier_name:
+          suppliers.get(Number(f.supplier_id)) ?? `Supplier #${f.supplier_id}`,
+        packing_completed_at: String(f.packing_completed_at),
+        customer_name: String(
+          customerSnapshot.name ?? customerSnapshot.customer_name ?? "Customer",
+        ),
+        delivery_date:
+          typeof deliverySnapshot.delivery_date === "string"
+            ? deliverySnapshot.delivery_date
+            : typeof deliverySnapshot.requested_date === "string"
+              ? deliverySnapshot.requested_date
+              : null,
+      },
+    ];
   });
 }
 
@@ -221,11 +218,11 @@ export async function createCanonicalSupplierBatch(
   deliveryDate: string,
 ): Promise<string> {
   const { data, error } = await rpc(
-    'admin_create_canonical_supplier_delivery_batch',
+    "admin_create_canonical_supplier_delivery_batch",
     {
       p_supplier_id: supplierId,
       p_delivery_date: deliveryDate,
-      p_transport_provider: 'Lalamove',
+      p_transport_provider: "Lalamove",
       p_notes: null,
     },
   );
@@ -239,7 +236,7 @@ export async function addCanonicalOrderToBatch(
   salesOrderId: string,
 ): Promise<void> {
   const { error } = await rpc(
-    'admin_add_sales_order_to_supplier_delivery_batch',
+    "admin_add_sales_order_to_supplier_delivery_batch",
     {
       p_batch_id: batchId,
       p_sales_order_id: salesOrderId,
@@ -254,10 +251,23 @@ export async function removeCanonicalOrderFromBatch(
   salesOrderId: string,
 ): Promise<void> {
   const { error } = await rpc(
-    'admin_remove_sales_order_from_supplier_delivery_batch',
+    "admin_remove_sales_order_from_supplier_delivery_batch",
     {
       p_batch_id: batchId,
       p_sales_order_id: salesOrderId,
+    },
+  );
+
+  if (error) throw error;
+}
+
+export async function cancelEmptyCanonicalSupplierBatch(
+  batchId: string,
+): Promise<void> {
+  const { error } = await rpc(
+    "admin_cancel_empty_canonical_supplier_delivery_batch",
+    {
+      p_batch_id: batchId,
     },
   );
 
@@ -270,10 +280,10 @@ export async function dispatchCanonicalSupplierBatch(
   bookingReference?: string,
 ): Promise<void> {
   const { error } = await rpc(
-    'admin_dispatch_canonical_supplier_delivery_batch',
+    "admin_dispatch_canonical_supplier_delivery_batch",
     {
       p_batch_id: batchId,
-      p_transport_provider: 'Lalamove',
+      p_transport_provider: "Lalamove",
       p_tracking_url: trackingUrl?.trim() || null,
       p_booking_reference: bookingReference?.trim() || null,
     },
@@ -286,7 +296,7 @@ export async function confirmCanonicalSupplierBatchHubArrival(
   batchId: string,
 ): Promise<void> {
   const { error } = await rpc(
-    'admin_confirm_canonical_supplier_batch_hub_arrival',
+    "admin_confirm_canonical_supplier_batch_hub_arrival",
     {
       p_batch_id: batchId,
     },
@@ -295,16 +305,15 @@ export async function confirmCanonicalSupplierBatchHubArrival(
   if (error) throw error;
 }
 
-
 export async function fetchCanonicalHubOrders(
   batchIds: string[],
 ): Promise<CanonicalHubOrder[]> {
   if (!batchIds.length) return [];
 
   const { data: memberships, error: membershipError } = await supabase
-    .from('canonical_supplier_delivery_batch_orders')
-    .select('batch_id, sales_order_id')
-    .in('batch_id', batchIds);
+    .from("canonical_supplier_delivery_batch_orders")
+    .select("batch_id, sales_order_id")
+    .in("batch_id", batchIds);
 
   if (membershipError) throw membershipError;
   if (!memberships?.length) return [];
@@ -315,13 +324,13 @@ export async function fetchCanonicalHubOrders(
 
   const [ordersRes, deliveriesRes] = await Promise.all([
     supabase
-      .from('sales_orders')
-      .select('id, order_number, customer_snapshot, delivery_snapshot, status')
-      .in('id', orderIds),
+      .from("sales_orders")
+      .select("id, order_number, customer_snapshot, delivery_snapshot, status")
+      .in("id", orderIds),
     supabase
-      .from('canonical_sales_order_deliveries')
-      .select('sales_order_id, assigned_rider_id, status')
-      .in('sales_order_id', orderIds),
+      .from("canonical_sales_order_deliveries")
+      .select("sales_order_id, assigned_rider_id, status")
+      .in("sales_order_id", orderIds),
   ]);
 
   if (ordersRes.error) throw ordersRes.error;
@@ -342,46 +351,42 @@ export async function fetchCanonicalHubOrders(
     const salesOrderId = String(membership.sales_order_id);
     const order = orders.get(salesOrderId);
 
-    if (!order || order.status === 'cancelled') return [];
+    if (!order || order.status === "cancelled") return [];
 
     const customerSnapshot =
-      order.customer_snapshot &&
-      typeof order.customer_snapshot === 'object'
+      order.customer_snapshot && typeof order.customer_snapshot === "object"
         ? (order.customer_snapshot as Record<string, unknown>)
         : {};
 
     const deliverySnapshot =
-      order.delivery_snapshot &&
-      typeof order.delivery_snapshot === 'object'
+      order.delivery_snapshot && typeof order.delivery_snapshot === "object"
         ? (order.delivery_snapshot as Record<string, unknown>)
         : {};
 
     const delivery = deliveries.get(salesOrderId);
 
     const deliveryDate =
-      typeof deliverySnapshot.requested_date === 'string'
+      typeof deliverySnapshot.requested_date === "string"
         ? deliverySnapshot.requested_date
-        : typeof deliverySnapshot.delivery_date === 'string'
+        : typeof deliverySnapshot.delivery_date === "string"
           ? deliverySnapshot.delivery_date
           : null;
 
-    return [{
-      batch_id: String(membership.batch_id),
-      sales_order_id: salesOrderId,
-      order_number: String(order.order_number),
-      customer_name: String(
-        customerSnapshot.name ??
-        customerSnapshot.customer_name ??
-        'Customer',
-      ),
-      delivery_date: deliveryDate,
-      assigned_rider_id: delivery?.assigned_rider_id
-        ? String(delivery.assigned_rider_id)
-        : null,
-      delivery_status: delivery?.status
-        ? String(delivery.status)
-        : null,
-    }];
+    return [
+      {
+        batch_id: String(membership.batch_id),
+        sales_order_id: salesOrderId,
+        order_number: String(order.order_number),
+        customer_name: String(
+          customerSnapshot.name ?? customerSnapshot.customer_name ?? "Customer",
+        ),
+        delivery_date: deliveryDate,
+        assigned_rider_id: delivery?.assigned_rider_id
+          ? String(delivery.assigned_rider_id)
+          : null,
+        delivery_status: delivery?.status ? String(delivery.status) : null,
+      },
+    ];
   });
 }
 
@@ -390,7 +395,7 @@ export async function assignCanonicalSalesOrderRider(
   riderId: string,
 ): Promise<string> {
   const { data, error } = await rpc(
-    'admin_assign_canonical_sales_order_rider',
+    "admin_assign_canonical_sales_order_rider",
     {
       p_sales_order_id: salesOrderId,
       p_rider_id: riderId,

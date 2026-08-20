@@ -10,6 +10,7 @@ import {
   Truck,
 } from "lucide-react";
 import {
+  cancelEmptyCanonicalSupplierBatch,
   addCanonicalOrderToBatch,
   confirmCanonicalSupplierBatchHubArrival,
   createCanonicalSupplierBatch,
@@ -222,6 +223,31 @@ export default function CanonicalSupplierDeliveryBatches() {
       setMessage({
         ok: true,
         text: `${order.order_number} removed from ${batch.batch_code}.`,
+      });
+
+      await load();
+    } catch (err) {
+      setMessage({ ok: false, text: describeError(err) });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const cancelEmptyBatch = async (batch: CanonicalSupplierBatch) => {
+    if (!window.confirm(`Cancel empty supplier batch ${batch.batch_code}?`)) {
+      return;
+    }
+
+    const key = `cancel:${batch.id}`;
+    setBusy(key);
+    setMessage(null);
+
+    try {
+      await cancelEmptyCanonicalSupplierBatch(batch.id);
+
+      setMessage({
+        ok: true,
+        text: `${batch.batch_code} cancelled.`,
       });
 
       await load();
@@ -449,6 +475,7 @@ export default function CanonicalSupplierDeliveryBatches() {
             {batches.map((batch) => {
               const dispatchKey = `dispatch:${batch.id}`;
               const arrivalKey = `arrival:${batch.id}`;
+              const cancelKey = `cancel:${batch.id}`;
               const ordersInBatch = hubOrders.filter(
                 (order) => order.batch_id === batch.id,
               );
@@ -519,6 +546,21 @@ export default function CanonicalSupplierDeliveryBatches() {
                     </div>
 
                     <div className="flex flex-wrap gap-2">
+                      {batch.status === "draft" && batch.order_count === 0 && (
+                        <button
+                          onClick={() => cancelEmptyBatch(batch)}
+                          disabled={busy !== null}
+                          className="px-4 py-2 rounded-xl text-sm font-semibold border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-50 inline-flex items-center gap-2"
+                        >
+                          {busy === cancelKey ? (
+                            <Loader2 size={16} className="animate-spin" />
+                          ) : (
+                            <Trash2 size={16} />
+                          )}
+                          Cancel Empty Batch
+                        </button>
+                      )}
+
                       {batch.status === "draft" && (
                         <button
                           onClick={() => dispatchBatch(batch)}
@@ -558,9 +600,9 @@ export default function CanonicalSupplierDeliveryBatches() {
                             Batch Orders
                           </p>
                           <p className="text-xs text-gray-500 mt-0.5">
-                            {batch.status === 'draft'
-                              ? 'Review the packed orders before dispatching this supplier batch.'
-                              : 'This manifest is locked because the batch has already been dispatched.'}
+                            {batch.status === "draft"
+                              ? "Review the packed orders before dispatching this supplier batch."
+                              : "This manifest is locked because the batch has already been dispatched."}
                           </p>
                         </div>
 
