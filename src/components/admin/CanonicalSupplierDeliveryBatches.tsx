@@ -55,6 +55,7 @@ function formatBatchStatus(status: CanonicalSupplierBatch["status"]): string {
 }
 
 export default function CanonicalSupplierDeliveryBatches() {
+  const [showCancelledBatches, setShowCancelledBatches] = useState(false);
   const [batches, setBatches] = useState<CanonicalSupplierBatch[]>([]);
   const [readyOrders, setReadyOrders] = useState<PackedCanonicalOrder[]>([]);
   const [hubOrders, setHubOrders] = useState<CanonicalHubOrder[]>([]);
@@ -137,6 +138,7 @@ export default function CanonicalSupplierDeliveryBatches() {
             next[order.sales_order_id] = dateAssignments[0].rider_id;
           }
         }
+
 
         return next;
       });
@@ -354,7 +356,13 @@ export default function CanonicalSupplierDeliveryBatches() {
       </div>
     );
   }
+        const visibleBatches = showCancelledBatches
+          ? batches
+          : batches.filter((batch) => batch.status !== "cancelled");
 
+        const cancelledBatchCount = batches.filter(
+          (batch) => batch.status === "cancelled",
+        ).length;
   return (
     <div className="space-y-6">
       {message && (
@@ -449,20 +457,32 @@ export default function CanonicalSupplierDeliveryBatches() {
           </div>
         )}
       </section>
-
       <section className="rounded-2xl border border-cream-200 bg-white shadow-soft overflow-hidden">
         <div className="p-5 border-b border-cream-200">
-          <div className="flex items-center gap-2">
-            <Boxes size={20} className="text-forest-700" />
-            <div>
-              <h3 className="font-semibold text-forest-900">
-                Canonical Supplier → Hub Batches
-              </h3>
-              <p className="text-xs text-gray-500 mt-0.5">
-                One supplier transport may carry multiple customer orders to
-                FreshGo Hub.
-              </p>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Boxes size={20} className="text-forest-700" />
+              <div>
+                <h3 className="font-semibold text-forest-900">
+                  Canonical Supplier → Hub Batches
+                </h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  One supplier transport may carry multiple customer orders to
+                  FreshGo Hub.
+                </p>
+              </div>
             </div>
+
+            {cancelledBatchCount > 0 && (
+              <button
+                onClick={() => setShowCancelledBatches((current) => !current)}
+                className="text-sm font-semibold text-gray-600 hover:text-forest-700 self-start sm:self-auto"
+              >
+                {showCancelledBatches
+                  ? "Hide Cancelled"
+                  : `Show Cancelled (${cancelledBatchCount})`}
+              </button>
+            )}
           </div>
         </div>
 
@@ -472,7 +492,7 @@ export default function CanonicalSupplierDeliveryBatches() {
           </div>
         ) : (
           <div className="divide-y divide-cream-100">
-            {batches.map((batch) => {
+            {visibleBatches.map((batch) => {
               const dispatchKey = `dispatch:${batch.id}`;
               const arrivalKey = `arrival:${batch.id}`;
               const cancelKey = `cancel:${batch.id}`;
