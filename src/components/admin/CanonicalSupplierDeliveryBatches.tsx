@@ -5,6 +5,7 @@ import {
   Loader2,
   PackageCheck,
   Plus,
+  Trash2,
   Truck,
 } from 'lucide-react';
 import {
@@ -15,6 +16,7 @@ import {
   fetchCanonicalSupplierBatches,
   fetchPackedCanonicalOrders,
   fetchCanonicalHubOrders,
+  removeCanonicalOrderFromBatch,
   assignCanonicalSalesOrderRider,
   type CanonicalSupplierBatch,
   type PackedCanonicalOrder,
@@ -56,18 +58,32 @@ export default function CanonicalSupplierDeliveryBatches() {
       ]);
 
       const arrivedBatchIds = batchRows
-        .filter((batch) => batch.status === 'arrived_hub')
-        .map((batch) => batch.id);
+  .filter((batch) => batch.status === 'arrived_hub')
+  .map((batch) => batch.id);
 
-      const hubOrderRows = await fetchCanonicalHubOrders(arrivedBatchIds);
+const visibleBatchIds = batchRows
+  .filter(
+    (batch) =>
+      batch.status === 'draft' ||
+      batch.status === 'dispatched' ||
+      batch.status === 'arrived_hub',
+  )
+  .map((batch) => batch.id);
 
-      const deliveryDates = [
-        ...new Set(
-          hubOrderRows
-            .map((order) => order.delivery_date)
-            .filter((date): date is string => Boolean(date)),
-        ),
-      ];
+const hubOrderRows = await fetchCanonicalHubOrders(visibleBatchIds);
+      const arrivedBatchIdSet = new Set(arrivedBatchIds);
+
+const arrivedHubOrderRows = hubOrderRows.filter((order) =>
+  arrivedBatchIdSet.has(order.batch_id),
+);
+
+const deliveryDates = [
+  ...new Set(
+    arrivedHubOrderRows
+      .map((order) => order.delivery_date)
+      .filter((date): date is string => Boolean(date)),
+  ),
+];
 
       const assignmentEntries = await Promise.all(
         deliveryDates.map(async (date) => [
@@ -155,6 +171,41 @@ export default function CanonicalSupplierDeliveryBatches() {
       text: existingDraftBatch
         ? `${order.order_number} added to existing batch ${batchCode}.`
         : `${order.order_number} added to a new supplier → hub batch.`,
+    });
+
+    await load();
+  } catch (err) {
+    setMessage({ ok: false, text: describeError(err) });
+  } finally {
+    setBusy(null);
+  }
+};
+
+const removeFromBatch = async (
+  batch: CanonicalSupplierBatch,
+  order: CanonicalHubOrder,
+) => {
+  if (
+    !window.confirm(
+      `Remove ${order.order_number} from ${batch.batch_code}?`,
+    )
+  ) {
+    return;
+  }
+
+  const key = `remove:${batch.id}:${order.sales_order_id}`;
+  setBusy(key);
+  setMessage(null);
+
+  try {
+    await removeCanonicalOrderFromBatch(
+      batch.id,
+      order.sales_order_id,
+    );
+
+    setMessage({
+      ok: true,
+      text: `${order.order_number} removed from ${batch.batch_code}.`,
     });
 
     await load();
@@ -376,8 +427,8 @@ export default function CanonicalSupplierDeliveryBatches() {
             {batches.map((batch) => {
               const dispatchKey = `dispatch:${batch.id}`;
               const arrivalKey = `arrival:${batch.id}`;
-              const ordersAtHub = hubOrders.filter(
-                (order) => order.batch_id === batch.id,
+            const ordersInBatch = hubOrders.filter(
+            (order) => order.batch_id === batch.id,
               );
 
               return (
@@ -447,8 +498,63 @@ export default function CanonicalSupplierDeliveryBatches() {
                       )}
                     </div>
                   </div>
+                      {ordersInBatch.length > 0 && batch.status !== 'arrived_hub' && (
+  <div className="mt-5 border-t border-cream-100 pt-4 space-y-3">
+    <div>
+      <p className="text-sm font-semibold text-forest-900">
+        Batch Orders
+      </p>
+      <p className="text-xs text-gray-500 mt-0.5">
+        {batch.status === 'draft'
+          ? 'Review the packed orders before dispatching this supplier batch.'
+          : 'Orders included in this dispatched supplier batch.'}
+      </p>
+    </div>
 
-                  {batch.status === 'arrived_hub' && ordersAtHub.length > 0 && (
+    {ordersInBatch.map((order) => {
+      const removeKey = `remove:${batch.id}:${order.sales_order_id}`;
+
+      return (
+        <div
+          key={order.sales_order_id}
+          className="rounded-xl border border-cream-200 bg-cream-50/40 p-4"
+        >
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <p className="font-mono text-sm font-semibold text-forest-800">
+                {order.order_number}
+              </p>
+
+              <p className="text-sm text-gray-700 mt-1">
+                {order.customer_name}
+              </p>
+
+              <p className="text-xs text-gray-500 mt-1">
+                Delivery date: {order.delivery_date ?? 'Not available'}
+              </p>
+            </div>
+
+            {batch.status === 'draft' && (
+              <button
+                onClick={() => removeFromBatch(batch, order)}
+                disabled={busy !== null}
+                className="px-3 py-2 rounded-xl text-sm font-semibold border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-50 inline-flex items-center justify-center gap-2 self-start sm:self-auto"
+              >
+                {busy === removeKey ? (
+                  <Loader2 size={15} className="animate-spin" />
+                ) : (
+                  <Trash2 size={15} />
+                )}
+                Remove
+              </button>
+            )}
+          </div>
+        </div>
+      );
+    })}
+  </div>
+)}
+                  {batch.status === 'arrived_hub' && ordersInBatch.length > 0 && (
                     <div className="mt-5 border-t border-cream-100 pt-4 space-y-3">
                       <div>
                         <p className="text-sm font-semibold text-forest-900">
@@ -459,7 +565,7 @@ export default function CanonicalSupplierDeliveryBatches() {
                         </p>
                       </div>
 
-                      {ordersAtHub.map((order) => {
+                      {ordersInBatch.map((order) => {
                         const riderKey = `rider:${order.sales_order_id}`;
                         const dateAssignments = order.delivery_date
                           ? assignmentsByDate[order.delivery_date] ?? []

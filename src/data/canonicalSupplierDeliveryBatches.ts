@@ -249,6 +249,21 @@ export async function addCanonicalOrderToBatch(
   if (error) throw error;
 }
 
+export async function removeCanonicalOrderFromBatch(
+  batchId: string,
+  salesOrderId: string,
+): Promise<void> {
+  const { error } = await rpc(
+    'admin_remove_sales_order_from_supplier_delivery_batch',
+    {
+      p_batch_id: batchId,
+      p_sales_order_id: salesOrderId,
+    },
+  );
+
+  if (error) throw error;
+}
+
 export async function dispatchCanonicalSupplierBatch(
   batchId: string,
   trackingUrl?: string,
