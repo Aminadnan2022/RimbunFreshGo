@@ -203,10 +203,10 @@ export async function fetchPackedCanonicalOrders(): Promise<
           customerSnapshot.name ?? customerSnapshot.customer_name ?? "Customer",
         ),
         delivery_date:
-          typeof deliverySnapshot.delivery_date === "string"
-            ? deliverySnapshot.delivery_date
-            : typeof deliverySnapshot.requested_date === "string"
-              ? deliverySnapshot.requested_date
+          typeof deliverySnapshot.requested_date === "string"
+            ? deliverySnapshot.requested_date
+            : typeof deliverySnapshot.delivery_date === "string"
+              ? deliverySnapshot.delivery_date
               : null,
       },
     ];
