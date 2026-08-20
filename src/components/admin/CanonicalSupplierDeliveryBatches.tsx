@@ -159,14 +159,15 @@ export default function CanonicalSupplierDeliveryBatches() {
     setMessage(null);
 
     try {
-      const deliveryDate =
-        order.delivery_date ??
-        new Intl.DateTimeFormat("en-CA", {
-          timeZone: "Asia/Kuala_Lumpur",
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
-        }).format(new Date());
+      const deliveryDate = order.delivery_date;
+
+      if (!deliveryDate) {
+        setMessage({
+          ok: false,
+          text: `${order.order_number} is missing its requested delivery date.`,
+        });
+        return;
+      }
 
       const existingDraftBatch = batches.find(
         (batch) =>
@@ -402,14 +403,7 @@ export default function CanonicalSupplierDeliveryBatches() {
             {readyOrders.map((order) => {
               const key = `add:${order.sales_order_id}:${order.supplier_id}`;
 
-              const deliveryDate =
-                order.delivery_date ??
-                new Intl.DateTimeFormat("en-CA", {
-                  timeZone: "Asia/Kuala_Lumpur",
-                  year: "numeric",
-                  month: "2-digit",
-                  day: "2-digit",
-                }).format(new Date());
+              const deliveryDate = order.delivery_date;
 
               const existingDraftBatch = batches.find(
                 (batch) =>
@@ -439,7 +433,7 @@ export default function CanonicalSupplierDeliveryBatches() {
 
                   <button
                     onClick={() => createAndAdd(order)}
-                    disabled={busy !== null}
+                    disabled={busy !== null || !deliveryDate}
                     className="btn-primary inline-flex items-center gap-2 self-start sm:self-auto disabled:opacity-50"
                   >
                     {busy === key ? (
@@ -447,9 +441,11 @@ export default function CanonicalSupplierDeliveryBatches() {
                     ) : (
                       <Plus size={16} />
                     )}
-                    {existingDraftBatch
-                      ? `Add to ${existingDraftBatch.batch_code}`
-                      : "Create Batch & Add"}
+                    {!deliveryDate
+                      ? "Missing Delivery Date"
+                      : existingDraftBatch
+                        ? `Add to ${existingDraftBatch.batch_code}`
+                        : "Create Batch & Add"}
                   </button>
                 </div>
               );
