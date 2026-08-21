@@ -127,6 +127,7 @@ function buildPackingSummary(orders: SupplierOrder[]) {
 
 interface OrderItem {
   productId: string;
+  canonicalLineId?: string;
   name: string;
   price: number;
   unit: string;
@@ -299,9 +300,19 @@ export default function SupplierDashboardPage() {
   const handleWeightsSaved = (dbId: string, weights: Record<string, number>) => {
     setOrders(prev => prev.map(o => {
       if (o.dbId !== dbId) return o;
+
+      if (o.source === 'canonical') {
+        return { ...o, supplierWeights: weights };
+      }
+
       const perKgIndices = o.items.map((item, i) => ({ item, i })).filter(({ item }) => needsWeighing(item));
       const allSaved = perKgIndices.length > 0 && perKgIndices.every(({ i }) => weights[String(i)] != null);
-      return { ...o, supplierWeights: weights, paymentStatus: allSaved ? 'Ready To Pay' : o.paymentStatus };
+
+      return {
+        ...o,
+        supplierWeights: weights,
+        paymentStatus: allSaved ? 'Ready To Pay' : o.paymentStatus,
+      };
     }));
   };
 
@@ -504,6 +515,7 @@ export default function SupplierDashboardPage() {
 
               return {
                 productId: String(line.product_id ?? ''),
+                canonicalLineId: String(line.id),
                 name: String(snapshot.name ?? line.product_id ?? 'Product'),
                 price: Number(line.unit_selling_price ?? 0),
                 unit:
@@ -582,8 +594,17 @@ export default function SupplierDashboardPage() {
   }, [loadOrders]);
 
   const handleStartOrder = async (order: SupplierOrder) => {
-    if (order.source === 'canonical') {
+    if (
+      order.source === 'canonical' &&
+      order.items.some((item) => item.orderingMode === 'whole_fish_by_weight')
+    ) {
       setViewDetailsOrder(order);
+      return;
+    }
+
+    if (order.source === 'canonical') {
+      setEditMode(false);
+      setSelected(order);
       return;
     }
     if (order.paymentStatus === 'Paid') return;
@@ -624,8 +645,17 @@ export default function SupplierDashboardPage() {
   };
 
   const handleEditWeight = (order: SupplierOrder) => {
-    if (order.source === 'canonical') {
+    if (
+      order.source === 'canonical' &&
+      order.items.some((item) => item.orderingMode === 'whole_fish_by_weight')
+    ) {
       setViewDetailsOrder(order);
+      return;
+    }
+
+    if (order.source === 'canonical') {
+      setSelected(order);
+      setEditMode(true);
       return;
     }
     if (order.paymentStatus === 'Paid') return;
@@ -1015,7 +1045,7 @@ function WaitingForWeighing({ orders, onStart, onEditWeight, onViewDetails }: {
                   <button onClick={() => onViewDetails(order)} className="flex-1 border-2 border-cream-200 rounded-xl py-3 text-[16px] font-semibold text-gray-600 min-h-[52px] hover:bg-cream-50 transition-all active:scale-[0.97]">
                     {t("supplierQueues.viewButton")}
                   </button>
-                  {order.source === 'legacy' && orderRequiresWeighing(order) && (
+                  {orderRequiresWeighing(order) && !order.items.some((item) => item.orderingMode === 'whole_fish_by_weight') && (
                     <button onClick={() => onEditWeight(order)} className="flex-1 border-2 border-amber-300 rounded-xl py-3 text-[16px] font-semibold text-amber-700 min-h-[52px] hover:bg-amber-50 transition-all active:scale-[0.97]">
                       {t("supplierQueues.editWeightButton")}
                     </button>
@@ -1979,10 +2009,6 @@ function WeightEntryView({
   };
 
   const saveCurrentProduct = async (index: number) => {
-    if (order.source === 'canonical') {
-      setError('Canonical supplier weight entry is not enabled yet.');
-      return;
-    }
     if (isLocked) {
       setError(t("weightEntry.messages.orderLocked"));
       return;
@@ -2008,6 +2034,70 @@ function WeightEntryView({
     setError(null);
 
     try {
+      if (order.source === 'canonical') {
+        if (!item.canonicalLineId) {
+          throw new Error('Canonical sales order line ID is missing.');
+        }
+
+        if (!['weight_only', 'slice'].includes(item.orderingMode ?? '')) {
+          throw new Error('This canonical item requires per-unit weight entry.');
+        }
+
+        const { error: weightError } = await supabase.rpc(
+          'record_sales_order_line_actual_weight',
+          {
+            p_sales_order_line_id: item.canonicalLineId,
+            p_actual_weight_kg: n,
+          },
+        );
+
+        if (weightError) throw weightError;
+
+        const allWeights = {
+          ...order.supplierWeights,
+          [String(index)]: n,
+        };
+
+        const newSaved = new Set(savedProducts);
+        newSaved.add(index);
+
+        setSavedProducts(newSaved);
+        setLastSavedIndex(index);
+        onWeightsSaved?.(order.dbId, allWeights);
+
+        setTimeout(() => setLastSavedIndex(null), 1500);
+
+        const allSaved = order.items.every(
+          (candidate, candidateIndex) =>
+            !needsWeighing(candidate) ||
+            newSaved.has(candidateIndex) ||
+            allWeights[String(candidateIndex)] != null,
+        );
+
+        if (allSaved) {
+          setCompleted(true);
+        } else {
+          const next = order.items.findIndex(
+            (candidate, candidateIndex) =>
+              needsWeighing(candidate) &&
+              !newSaved.has(candidateIndex) &&
+              allWeights[String(candidateIndex)] == null,
+          );
+
+          if (next >= 0) {
+            setCurrentIndex(next);
+            setTimeout(() => {
+              inputRefs.current[next]?.focus();
+              inputRefs.current[next]?.scrollIntoView({
+                behavior: 'smooth',
+                block: 'center',
+              });
+            }, 100);
+          }
+        }
+
+        return;
+      }
       const allWeights: Record<string, number> = {};
       order.items.forEach((item, i) => {
         if (!needsWeighing(item)) return;
