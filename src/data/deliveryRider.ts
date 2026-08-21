@@ -304,7 +304,10 @@ export async function uploadCanonicalDeliveryProof(
     },
   );
 
-  if (registerError) throw registerError;
+  if (registerError) {
+    await supabase.storage.from('delivery-proof').remove([storagePath]);
+    throw registerError;
+  }
 
   const { data: signed, error: signedError } =
     await supabase.storage
