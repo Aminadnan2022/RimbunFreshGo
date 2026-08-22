@@ -236,6 +236,8 @@ export interface Order {
   supplierDispatchStartedAt?: string | null;
   supplierDispatchCompletedAt?: string | null;
   readyForRiderAt?: string | null;
+  /** Rider departure timestamp exposed by the customer-safe tracking RPC. */
+  deliveryStartedAt?: string | null;
   lalamoveTrackingUrl?: string | null;
   /** Phase 3 immutable, bilingual checkout preparation snapshot. */
   preparationSnapshot?: Record<string, unknown>;

@@ -36,6 +36,7 @@ export default function DeliveryDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
@@ -77,6 +78,7 @@ export default function DeliveryDashboardPage() {
   ) => {
     setBusy(id);
     setError(null);
+    setSuccessMessage(null);
 
     try {
       await fn();
@@ -160,6 +162,16 @@ export default function DeliveryDashboardPage() {
             className="flex-shrink-0"
           />
           {error}
+        </div>
+      )}
+
+      {successMessage && (
+        <div className="mb-4 flex items-start gap-2 rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-800">
+          <CheckCircle2 size={18} className="mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="font-semibold">Delivery completed</p>
+            <p className="mt-0.5 text-xs text-green-700">{successMessage}</p>
+          </div>
         </div>
       )}
 
@@ -338,7 +350,12 @@ export default function DeliveryDashboardPage() {
                 ) : (
                   <DeliveryProofPanel
                     salesOrderId={order.id}
-                    onCompleted={load}
+                    onCompleted={async () => {
+                      setSuccessMessage(
+                        `Order ${order.ref} has been marked delivered. Your remaining deliveries are shown below.`,
+                      );
+                      await load();
+                    }}
                   />
                 )}
               </section>

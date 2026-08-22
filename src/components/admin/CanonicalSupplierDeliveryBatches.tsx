@@ -55,6 +55,28 @@ function formatBatchStatus(status: CanonicalSupplierBatch["status"]): string {
   }
 }
 
+function riderLabel(rider: RiderInfo | null): string | null {
+  return rider?.email ?? null;
+}
+
+function deliveryStatusLabel(
+  status: string | null,
+  rider: RiderInfo | null,
+): string {
+  const riderName = riderLabel(rider);
+
+  switch (status) {
+    case "delivered":
+      return riderName ? `Delivered by ${riderName}` : "Delivered";
+    case "out_for_delivery":
+      return riderName ? `Out for delivery with ${riderName}` : "Out for delivery";
+    case "ready_for_rider":
+      return riderName ? `Ready for rider · ${riderName}` : "Ready for rider";
+    default:
+      return "Awaiting rider assignment";
+  }
+}
+
 export default function CanonicalSupplierDeliveryBatches() {
   const [showCancelledBatches, setShowCancelledBatches] = useState(false);
   const [batches, setBatches] = useState<CanonicalSupplierBatch[]>([]);
@@ -758,6 +780,10 @@ export default function CanonicalSupplierDeliveryBatches() {
                                 (rider) => rider.id === order.assigned_rider_id,
                               )
                             : null;
+                          const isDelivered = order.delivery_status === "delivered";
+                          const isOutForDelivery =
+                            order.delivery_status === "out_for_delivery";
+                          const canAssignRider = !isDelivered && !isOutForDelivery;
 
                           return (
                             <div
@@ -777,17 +803,26 @@ export default function CanonicalSupplierDeliveryBatches() {
                                     {order.delivery_date ?? "Not available"}
                                   </p>
 
-                                  {order.delivery_status && (
-                                    <p className="text-xs font-semibold text-green-700 mt-1">
-                                      Status: {order.delivery_status}
-                                      {assignedRider
-                                        ? ` • ${assignedRider.email}`
-                                        : ""}
-                                    </p>
-                                  )}
+                                  <p
+                                    className={`mt-2 inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+                                      isDelivered
+                                        ? "bg-green-100 text-green-800"
+                                        : isOutForDelivery
+                                          ? "bg-blue-100 text-blue-800"
+                                          : order.delivery_status === "ready_for_rider"
+                                            ? "bg-forest-50 text-forest-800"
+                                            : "bg-amber-100 text-amber-800"
+                                    }`}
+                                  >
+                                    {deliveryStatusLabel(
+                                      order.delivery_status,
+                                      assignedRider ?? null,
+                                    )}
+                                  </p>
                                 </div>
 
-                                <div className="flex flex-col sm:flex-row gap-2 lg:min-w-[420px]">
+                                {canAssignRider ? (
+                                  <div className="flex flex-col sm:flex-row gap-2 lg:min-w-[420px]">
                                   <select
                                     value={
                                       selectedRiders[order.sales_order_id] ?? ""
@@ -799,12 +834,7 @@ export default function CanonicalSupplierDeliveryBatches() {
                                           event.target.value,
                                       }))
                                     }
-                                    disabled={
-                                      busy !== null ||
-                                      order.delivery_status ===
-                                        "out_for_delivery" ||
-                                      order.delivery_status === "delivered"
-                                    }
+                                    disabled={busy !== null}
                                     className="input-field flex-1"
                                   >
                                     <option value="">
@@ -825,10 +855,7 @@ export default function CanonicalSupplierDeliveryBatches() {
                                     disabled={
                                       busy !== null ||
                                       !selectedRiders[order.sales_order_id] ||
-                                      eligibleRiders.length === 0 ||
-                                      order.delivery_status ===
-                                        "out_for_delivery" ||
-                                      order.delivery_status === "delivered"
+                                      eligibleRiders.length === 0
                                     }
                                     className="px-4 py-2 rounded-xl text-sm font-semibold bg-forest-700 text-white hover:bg-forest-800 disabled:opacity-50 inline-flex items-center justify-center gap-2"
                                   >
@@ -845,7 +872,14 @@ export default function CanonicalSupplierDeliveryBatches() {
                                       ? "Reassign Rider"
                                       : "Assign & Ready For Rider"}
                                   </button>
-                                </div>
+                                  </div>
+                                ) : (
+                                  <p className="text-xs font-medium text-gray-500 lg:min-w-[220px]">
+                                    {isDelivered
+                                      ? "Delivery is complete and can no longer be reassigned."
+                                      : "Rider is currently delivering this order. Assignment is locked."}
+                                  </p>
+                                )}
                               </div>
                             </div>
                           );

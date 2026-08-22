@@ -68,7 +68,7 @@ export default function OrderTrackingPage() {
     useState<string | null>(null);
   
   const [selectedDeliveryProof, setSelectedDeliveryProof] =
-    useState<DeliveryProof | null>(null);
+    useState<CustomerDeliveryProof | null>(null);
 const [initialLoading, setInitialLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -340,6 +340,8 @@ useEffect(() => {
           lalamoveTrackingUrl: deliveryTracking?.tracking_url ?? null,
           readyForRiderAt:
             riderTracking?.ready_for_rider_at ?? null,
+          deliveryStartedAt:
+            riderTracking?.delivery_started_at ?? null,
           deliveryStatus:
             (riderTracking?.delivery_status ?? 'pending') as Order['deliveryStatus'],
           deliveredAt:
@@ -495,6 +497,26 @@ useEffect(() => {
 
   const pointName = order?.customer.deliveryPointName || order?.customer.pickupLocation || '—';
 
+  const formatMilestoneTime = (timestamp: string) =>
+    new Date(timestamp).toLocaleString('en-MY', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+  const deliveryMethodLabel = (method: string | undefined) => {
+    switch (method) {
+      case 'normal_bulk':
+        return 'Normal Delivery';
+      case 'instant_customer_lalamove':
+        return 'Instant Delivery';
+      default:
+        return method || '—';
+    }
+  };
+
   const currentIndex = useMemo(() => {
     if (!order) return 0;
     return customerStageIndex({
@@ -516,6 +538,28 @@ useEffect(() => {
   }, [order]);
 
   const isTerminalDelivered = currentIndex === TRACKING_STAGES.length - 1;
+  const stageTimestamp = (key: (typeof TRACKING_STAGES)[number]) => {
+    switch (key) {
+      case 'orderReceived': return order?.createdAt ?? null;
+      case 'paymentConfirmed': return order?.paidAt ?? null;
+      case 'preparing': return order?.packingStartedAt ?? null;
+      case 'supplierDispatch': return order?.supplierDispatchStartedAt ?? null;
+      case 'arrivedHub': return order?.supplierDispatchCompletedAt ?? null;
+      case 'readyForRider': return order?.readyForRiderAt ?? null;
+      case 'outForDelivery': return order?.deliveryStartedAt ?? null;
+      case 'delivered': return order?.deliveredAt ?? null;
+      default: return null;
+    }
+  };
+  const currentStageNext: Partial<Record<(typeof TRACKING_STAGES)[number], string>> = {
+    awaitingPayment: 'Complete payment once the final amount is ready. We will begin preparation after payment is confirmed.',
+    paymentConfirmed: 'Your supplier will begin preparing your order next.',
+    preparing: 'Your supplier will send the packed order to FreshGo Hub next.',
+    supplierDispatch: 'The order is on its way to FreshGo Hub. We will prepare it for your rider after it arrives.',
+    arrivedHub: 'FreshGo Hub will assign the order to a rider next.',
+    readyForRider: 'Your assigned rider will collect the order from FreshGo Hub.',
+    outForDelivery: 'Your rider is bringing the order to your selected delivery point.',
+  };
   const isHttp = (u: string) => /^https?:\/\//i.test(u);
   const supplierDispatchTrackingUrl =
     currentIndex === TRACKING_STAGES.indexOf('supplierDispatch') &&
@@ -596,8 +640,14 @@ useEffect(() => {
         <div className="w-14 h-14 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-4">
           <CheckCircle2 size={30} className="text-jade-300" />
         </div>
-        <h1 className="font-display text-2xl sm:text-3xl font-bold mb-1">{t("orderSuccess.orderConfirmed")}</h1>
-        <p className="text-forest-200 text-sm">{t("orderSuccess.thankYou", { name: order.customer.name.split(' ')[0] })}</p>
+        <h1 className="font-display text-2xl sm:text-3xl font-bold mb-1">
+          {isTerminalDelivered ? 'Delivery completed' : t("orderSuccess.orderConfirmed")}
+        </h1>
+        <p className="text-forest-200 text-sm">
+          {isTerminalDelivered
+            ? 'Your FreshGo order has been delivered.'
+            : t("orderSuccess.thankYou", { name: order.customer.name.split(' ')[0] })}
+        </p>
         <div className="mt-3 bg-forest-300 rounded-2xl px-4 py-2 inline-block">
           <p className="text-xs text-forest-100">{t("orderSuccess.orderNumber")}</p>
           <p className="font-mono font-bold text-white">{order.id}</p>
@@ -855,6 +905,11 @@ sessionStorage.setItem(
             const st = stageState(i);
             const Icon = STAGE_ICONS[key];
             const title = t(`tracking.live.stage.${key}.title`);
+            const timestamp = stageTimestamp(key);
+            const isHistoricalPaymentStep =
+              key === 'awaitingPayment' &&
+              order.paymentStatus === 'Paid' &&
+              st === 'done';
             return (
               <div key={key} className="relative pl-14 pb-7 last:pb-0">
                 {i < TRACKING_STAGES.length - 1 && (
@@ -873,10 +928,31 @@ sessionStorage.setItem(
                     {title}
                   </p>
                   <p className={`text-sm mt-0.5 ${st === 'future' ? 'text-gray-400' : 'text-gray-600'}`}>
-                    {key === 'supplierDispatch'
+                    {isHistoricalPaymentStep
+                      ? 'Final amount was confirmed before preparation began.'
+                      : key === 'supplierDispatch'
                       ? t('tracking.live.stage.supplierDispatch.body', { from, to })
                       : t(`tracking.live.stage.${key}.body`)}
                   </p>
+
+                  {timestamp && st !== 'future' && (
+                    <p className="mt-1.5 text-xs font-medium text-gray-500">
+                      {st === 'current' ? 'Updated' : 'Completed'} · {formatMilestoneTime(timestamp)}
+                    </p>
+                  )}
+
+                  {st === 'current' && currentStageNext[key] && (
+                    <p className="mt-3 rounded-xl border border-blue-100 bg-white/80 px-3 py-2 text-xs leading-relaxed text-blue-800">
+                      <span className="font-semibold">What happens next:</span>{' '}
+                      {currentStageNext[key]}
+                    </p>
+                  )}
+
+                  {key === 'delivered' && st === 'done' && (
+                    <p className="mt-2 text-sm font-medium text-emerald-700">
+                      Your order has been delivered successfully.
+                    </p>
+                  )}
 
                   {key === 'supplierDispatch' && supplierDispatchTrackingUrl && (
                     <a
@@ -929,7 +1005,7 @@ sessionStorage.setItem(
             <Package size={18} className="text-forest-600 mt-0.5 flex-shrink-0" />
             <div>
               <p className="text-xs text-gray-400">{t("tracking.live.deliveryMethod")}</p>
-              <p className="text-sm font-medium text-gray-800">{order.customer.deliveryMethod || '—'}</p>
+              <p className="text-sm font-medium text-gray-800">{deliveryMethodLabel(order.customer.deliveryMethod)}</p>
             </div>
           </div>
           <div className="flex items-start gap-3">
@@ -1052,7 +1128,7 @@ sessionStorage.setItem(
 
                           <span className="inline-flex items-center gap-1 rounded-full bg-green-50 px-2 py-1 text-[11px] font-semibold text-green-700">
                             <CheckCircle2 size={12} />
-                            Verified
+                            Photo submitted
                           </span>
                         </div>
 

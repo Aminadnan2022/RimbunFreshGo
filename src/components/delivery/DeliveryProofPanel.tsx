@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Camera,
   CheckCircle2,
-  Image,
   Loader2,
   PackageCheck,
   RefreshCcw,
@@ -84,6 +83,7 @@ export default function DeliveryProofPanel({
     (placement ? 1 : 0);
 
   const readyToComplete = completedCount === 2;
+  const needsPlacementPhoto = Boolean(closeup) && !placement;
 
   const upload = async (
     proofType: DeliveryProofType,
@@ -200,6 +200,7 @@ export default function DeliveryProofPanel({
             proof={closeup}
             uploading={uploading === 'closeup'}
             disabled={uploading !== null || completing}
+            recommended={false}
             onFile={(file) => void upload('closeup', file)}
           />
 
@@ -211,9 +212,17 @@ export default function DeliveryProofPanel({
             proof={placement}
             uploading={uploading === 'placement'}
             disabled={uploading !== null || completing}
+            recommended={needsPlacementPhoto}
             onFile={(file) => void upload('placement', file)}
           />
         </div>
+
+        {needsPlacementPhoto && (
+          <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+            <p className="font-semibold">Photo 1 saved.</p>
+            <p className="mt-0.5 text-xs">Continue with Photo 2: show clearly where the order was left.</p>
+          </div>
+        )}
 
         <div
           className={`mt-4 rounded-xl border p-4 ${
@@ -222,7 +231,7 @@ export default function DeliveryProofPanel({
               : 'border-amber-200 bg-white'
           }`}
         >
-          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-sm font-semibold text-gray-900">
                 Delivery proof progress
@@ -244,6 +253,12 @@ export default function DeliveryProofPanel({
               {readyToComplete ? 'Ready' : 'Required'}
             </span>
           </div>
+
+          {readyToComplete && (
+            <p className="mt-3 text-xs font-semibold text-green-800">
+              Both photos are saved. Mark this order delivered when you are ready.
+            </p>
+          )}
         </div>
 
         <button
@@ -256,7 +271,7 @@ export default function DeliveryProofPanel({
           }
           className={`mt-4 w-full inline-flex min-h-[52px] items-center justify-center gap-2 rounded-xl px-4 py-3 text-base font-bold transition-all ${
             readyToComplete
-              ? 'bg-green-600 text-white shadow-sm hover:bg-green-700'
+              ? 'bg-green-600 text-white shadow-md ring-4 ring-green-100 hover:bg-green-700'
               : 'cursor-not-allowed bg-gray-200 text-gray-400'
           } disabled:opacity-70`}
         >
@@ -289,6 +304,7 @@ interface ProofPhotoCardProps {
   proof: DeliveryProof | null;
   uploading: boolean;
   disabled: boolean;
+  recommended: boolean;
   onFile: (file: File | undefined) => void;
 }
 
@@ -300,6 +316,7 @@ function ProofPhotoCard({
   proof,
   uploading,
   disabled,
+  recommended,
   onFile,
 }: ProofPhotoCardProps) {
   const inputId = `delivery-proof-${proofType}`;
@@ -309,7 +326,9 @@ function ProofPhotoCard({
       className={`overflow-hidden rounded-2xl border ${
         proof
           ? 'border-green-200 bg-green-50/40'
-          : 'border-cream-200 bg-white'
+          : recommended
+            ? 'border-blue-300 bg-blue-50/60 ring-2 ring-blue-100'
+            : 'border-cream-200 bg-white'
       }`}
     >
       <div className="p-4">
@@ -337,6 +356,11 @@ function ProofPhotoCard({
               {proof && (
                 <span className="rounded-full bg-green-100 px-2 py-0.5 text-[11px] font-semibold text-green-700">
                   Uploaded
+                </span>
+              )}
+              {recommended && (
+                <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-semibold text-blue-700">
+                  Next step
                 </span>
               )}
             </div>
@@ -396,7 +420,9 @@ function ProofPhotoCard({
             ? 'Uploading Photo...'
             : proof
               ? 'Retake / Replace Photo'
-              : 'Take Photo'}
+              : recommended
+                ? 'Take Photo 2'
+                : 'Take Photo'}
         </label>
       </div>
     </div>
