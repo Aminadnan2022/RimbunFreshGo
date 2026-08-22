@@ -2219,10 +2219,6 @@ disabled={saving}
 
 
 function EditOrderModal({ order, onClose, onSaved }: { order: AdminOrder; onClose: () => void; onSaved: () => Promise<void> }) {
-  if (!order) {
-    return null;
-  }
-
   const { t } = useLanguage();
   const { user } = useAuth();
   const { config: deliveryConfig, loading: deliveryLoading } = useDeliveryConfig();

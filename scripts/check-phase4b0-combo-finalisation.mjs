@@ -5,6 +5,7 @@ const root = resolve(import.meta.dirname, '..');
 const read = (file) => readFileSync(resolve(root, file), 'utf8');
 const migration = read('supabase/migrations/20260917900000_phase4b0_combo_component_finalisation.sql');
 const placeOrder = read('supabase/migrations/20260918000000_phase4b1_place_sales_order.sql');
+const automaticFinalisation = read('supabase/migrations/20261012000000_auto_finalize_supplier_weighed_orders.sql');
 const failures = [];
 
 // A/B/C/D. Component ordering-mode cost formulas must exist and use frozen rates.
@@ -68,18 +69,22 @@ if (!migration.includes('JOIN public.supplier_users su ON su.supplier_id = c.sup
   failures.push('missing supplier_users-based component ownership resolution');
 }
 
-// The old order-wide weight-accepting signature must be gone; calculation is
-// admin-only and takes no client-supplied weight input.
+// The old order-wide weight-accepting signature must be gone. The later
+// automatic-finalisation migration deliberately allows an owning supplier to
+// finish an order after the final measurement, while retaining the admin path.
 if (!migration.includes('DROP FUNCTION IF EXISTS public.finalize_sales_order_pricing(uuid, jsonb, jsonb);')) {
   failures.push('old finalize_sales_order_pricing(uuid, jsonb, jsonb) must be dropped');
 }
-if (!migration.includes('IF NOT public.is_admin() THEN\n    RAISE EXCEPTION \'Admin access required.\';')) {
-  failures.push('finalize_sales_order_pricing(uuid) must be admin-only');
+if (!automaticFinalisation.includes('IF NOT public.is_admin() AND NOT EXISTS (')) {
+  failures.push('automatic finalisation must retain admin access and require supplier ownership');
+}
+if (!automaticFinalisation.includes("JOIN public.supplier_users su ON su.supplier_id = l.supplier_id")) {
+  failures.push('automatic finalisation must resolve supplier ownership through supplier_users');
 }
 
 // place_sales_order must gate order-level price_status on combo component
 // finalisation too, not only normal product lines.
-if (!placeOrder.includes('v_order_requires_finalisation := true;\n      ELSE')) {
+if (!/IF v_combo_requires_finalisation THEN\s+v_order_requires_finalisation := true;/.test(placeOrder)) {
   failures.push('place_sales_order must propagate combo component finalisation requirement to order level');
 }
 

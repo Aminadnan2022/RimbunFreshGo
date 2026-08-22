@@ -83,48 +83,6 @@ const [initialLoading, setInitialLoading] = useState(true);
 const [receiptUploading, setReceiptUploading] = useState(false);
   const [receiptError, setReceiptError] = useState<string | null>(null);
   const [receiptSuccess, setReceiptSuccess] = useState<string | null>(null);
-useEffect(() => {
-  const writeEvent = (eventName: string) => {
-    const existing = JSON.parse(
-      sessionStorage.getItem('freshgo-upload-debug') || '[]'
-    );
-
-    existing.push({
-      event: eventName,
-      time: new Date().toISOString(),
-      visibility: document.visibilityState,
-    });
-
-    sessionStorage.setItem(
-      'freshgo-upload-debug',
-      JSON.stringify(existing.slice(-30))
-    );
-
-    console.log('[upload-debug]', eventName, document.visibilityState);
-  };
-
-  writeEvent('component-mounted');
-
-  const onVisibility = () => writeEvent('visibilitychange');
-  const onPageHide = () => writeEvent('pagehide');
-  const onPageShow = () => writeEvent('pageshow');
-  const onFocus = () => writeEvent('focus');
-  const onBlur = () => writeEvent('blur');
-
-  document.addEventListener('visibilitychange', onVisibility);
-  window.addEventListener('pagehide', onPageHide);
-  window.addEventListener('pageshow', onPageShow);
-  window.addEventListener('focus', onFocus);
-  window.addEventListener('blur', onBlur);
-
-  return () => {
-    document.removeEventListener('visibilitychange', onVisibility);
-    window.removeEventListener('pagehide', onPageHide);
-    window.removeEventListener('pageshow', onPageShow);
-    window.removeEventListener('focus', onFocus);
-    window.removeEventListener('blur', onBlur);
-  };
-}, []);
   const loadLive = useCallback(async (ref: string) => {
     let o: Order | null;
     let canonicalRiderResolved = false;
@@ -295,11 +253,6 @@ useEffect(() => {
               await fetchCustomerCanonicalDeliveryProofs(
                 String(canonicalRow.id),
               );
-
-            console.log(
-              '[tracking] Canonical delivery proofs:',
-              proofs,
-            );
 
             setDeliveryProofs(proofs);
           } catch (proofError) {
@@ -815,28 +768,7 @@ useEffect(() => {
                 accept="image/*"
                 disabled={receiptUploading}
                 onChange={(e) => {
-                  const existing = JSON.parse(
-  sessionStorage.getItem('freshgo-upload-debug') || '[]'
-);
-
-existing.push({
-  event: 'file-input-change',
-  time: new Date().toISOString(),
-  fileCount: e.currentTarget.files?.length ?? 0,
-});
-
-sessionStorage.setItem(
-  'freshgo-upload-debug',
-  JSON.stringify(existing.slice(-30))
-);
                   const file = e.currentTarget.files?.[0] ?? null;
-
-                  console.log('[tracking:receiptFileSelected]', {
-                    selected: Boolean(file),
-                    name: file?.name ?? null,
-                    type: file?.type ?? null,
-                    size: file?.size ?? null,
-                  });
 
                   if (!file) return;
 

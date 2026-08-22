@@ -768,36 +768,11 @@ export default function SupplierDashboardPage() {
   }
 
   if (!isSupplier) return <Navigate to="/" replace />;
-console.log("========== DEBUG ==========");
-console.log("selectedDate =", JSON.stringify(selectedDate));
-console.log("availableDates =", availableDates);
-
-orders.forEach((o) => {
-  console.log({
-    ref: o.orderRef,
-    deliveryDate: JSON.stringify(o.deliveryDate),
-    paymentStatus: o.paymentStatus,
-    packingStartedAt: o.packingStartedAt,
-    packingCompletedAt: o.packingCompletedAt,
-    match: o.deliveryDate === selectedDate
-  });
-});
   const dayOrders = orders.filter((o) => getOrderDeliveryDate(o) === selectedDate);
   const filteredDayOrders = dayOrders.filter((o) => {
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
     return o.customerName.toLowerCase().includes(q) || o.orderRef.toLowerCase().includes(q) || o.customerPhone.toLowerCase().includes(q);
-  });
-
-  // eslint-disable-next-line no-console
-  console.log("selectedDate", selectedDate);
-  // eslint-disable-next-line no-console
-  console.log("dayOrders", dayOrders.map(o => ({ ref: o.orderRef, deliveryDate: getOrderDeliveryDate(o) })));
-  dayOrders.forEach((o) => {
-    if (!(getOrderDeliveryDate(o) === selectedDate)) {
-      // eslint-disable-next-line no-console
-      console.log(`Order ${o.orderRef} excluded from dayOrders because: selectedDate=${selectedDate} orderDeliveryDate=${getOrderDeliveryDate(o)}`);
-    }
   });
 
   const toggleBtn = (active: boolean) =>
@@ -961,25 +936,6 @@ function WaitingForWeighing({ orders, onStart, onEditWeight, onViewDetails }: {
     (o.source !== 'canonical' || o.canonicalPriceStatus === 'final')
   );
 
-  // eslint-disable-next-line no-console
-  console.log("waitingForWeighing", needsWeighing.map(o => ({ ref: o.orderRef })));
-  // eslint-disable-next-line no-console
-  console.log("awaitingPayment", awaitingPayment.map(o => ({ ref: o.orderRef })));
-  orders.forEach((o) => {
-    const requiresWeighing = orderRequiresWeighing(o);
-    const allSubmitted = hasAllWeightsSubmitted(o);
-    const inNeeds = requiresWeighing && !allSubmitted;
-    const inAwaiting = (!requiresWeighing || allSubmitted) && o.paymentStatus !== 'Paid';
-    if (!inNeeds) {
-      // eslint-disable-next-line no-console
-      console.log(`Order ${o.orderRef} excluded from waitingForWeighing because: orderRequiresWeighing=${requiresWeighing} hasAllWeightsSubmitted=${allSubmitted}`);
-    }
-    if (!inAwaiting) {
-      // eslint-disable-next-line no-console
-      console.log(`Order ${o.orderRef} excluded from awaitingPayment because: orderRequiresWeighing=${requiresWeighing} hasAllWeightsSubmitted=${allSubmitted} payment_status=${o.paymentStatus}`);
-    }
-  });
-
   const productCount = (o: SupplierOrder) => o.items.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
@@ -1083,16 +1039,6 @@ function ReadyToPrepare({ orders, onPrepare, onViewDetails }: {
     return o.packingStartedAt == null;
   });
 
-  // eslint-disable-next-line no-console
-  console.log("readyToPrepare", readyOrders.map(o => ({ ref: o.orderRef })));
-  orders.forEach((o) => {
-    const inReady = o.paymentStatus === 'Paid' && o.packingStartedAt == null;
-    if (!inReady) {
-      // eslint-disable-next-line no-console
-      console.log(`Order ${o.orderRef} excluded from readyToPrepare because: payment_status=${o.paymentStatus} packingStartedAt=${o.packingStartedAt}`);
-    }
-  });
-
   const productCount = (o: SupplierOrder) => o.items.reduce((sum, item) => sum + item.quantity, 0);
   const orderTotal = (o: SupplierOrder): number => {
     const itemsTotal = o.items.reduce((sum, item, i) => {
@@ -1162,16 +1108,6 @@ function Preparing({ orders, onComplete, onViewDetails }: {
   // Queue: packing_started_at IS NOT NULL AND packing_completed_at IS NULL.
   const preparingOrders = orders.filter((o) => {
     return o.packingStartedAt != null && o.packingCompletedAt == null;
-  });
-
-  // eslint-disable-next-line no-console
-  console.log("preparing", preparingOrders.map(o => ({ ref: o.orderRef })));
-  orders.forEach((o) => {
-    const inPreparing = o.packingStartedAt != null && o.packingCompletedAt == null;
-    if (!inPreparing) {
-      // eslint-disable-next-line no-console
-      console.log(`Order ${o.orderRef} excluded from preparing because: packingStartedAt=${o.packingStartedAt} packingCompletedAt=${o.packingCompletedAt}`);
-    }
   });
 
   // Localized fallbacks for keys that are not yet in the locale files.

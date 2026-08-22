@@ -91,7 +91,7 @@ if (!migration.includes('GRANT EXECUTE ON FUNCTION public.place_sales_order(json
 
 // J. Frontend RPC signature (name + parameter list + shape) is unchanged, so
 // canonicalCheckout.ts does not need to change because of this fix.
-if (!migration.includes('CREATE OR REPLACE FUNCTION public.place_sales_order(\n  p_customer_snapshot jsonb,\n  p_delivery_request jsonb,\n  p_items jsonb,\n  p_preparation_answers jsonb DEFAULT \'[]\'::jsonb\n)')) {
+if (!/CREATE OR REPLACE FUNCTION public\.place_sales_order\(\s*p_customer_snapshot jsonb,\s*p_delivery_request jsonb,\s*p_items jsonb,\s*p_preparation_answers jsonb DEFAULT '\[\]'::jsonb\s*\)/.test(migration)) {
   failures.push('place_sales_order signature must remain unchanged for the existing frontend contract');
 }
 
