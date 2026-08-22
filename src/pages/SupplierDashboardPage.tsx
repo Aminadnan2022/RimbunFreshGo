@@ -124,10 +124,16 @@ function buildPackingSummary(orders: SupplierOrder[]) {
 }
 
 // ----------- Local types (scoped to supplier workflow) -----------
+interface CanonicalLineUnit {
+  id: string;
+  unitNumber: number;
+  actualWeightKg?: number;
+}
 
 interface OrderItem {
   productId: string;
   canonicalLineId?: string;
+  canonicalUnits?: CanonicalLineUnit[];
   name: string;
   price: number;
   unit: string;
@@ -512,10 +518,21 @@ export default function SupplierDashboardPage() {
               }
 
               const snapshot = line.product_snapshot ?? {};
+              const canonicalUnits: CanonicalLineUnit[] = (
+                unitsByLine.get(String(line.id)) ?? []
+              ).map((unit) => ({
+                id: String(unit.id),
+                unitNumber: Number(unit.unit_number),
+                actualWeightKg:
+                  unit.actual_weight_kg != null
+                    ? Number(unit.actual_weight_kg)
+                    : undefined,
+              }));
 
               return {
                 productId: String(line.product_id ?? ''),
                 canonicalLineId: String(line.id),
+                canonicalUnits,
                 name: String(snapshot.name ?? line.product_id ?? 'Product'),
                 price: Number(line.unit_selling_price ?? 0),
                 unit:
@@ -594,14 +611,6 @@ export default function SupplierDashboardPage() {
   }, [loadOrders]);
 
   const handleStartOrder = async (order: SupplierOrder) => {
-    if (
-      order.source === 'canonical' &&
-      order.items.some((item) => item.orderingMode === 'whole_fish_by_weight')
-    ) {
-      setViewDetailsOrder(order);
-      return;
-    }
-
     if (order.source === 'canonical') {
       setEditMode(false);
       setSelected(order);
@@ -645,14 +654,6 @@ export default function SupplierDashboardPage() {
   };
 
   const handleEditWeight = (order: SupplierOrder) => {
-    if (
-      order.source === 'canonical' &&
-      order.items.some((item) => item.orderingMode === 'whole_fish_by_weight')
-    ) {
-      setViewDetailsOrder(order);
-      return;
-    }
-
     if (order.source === 'canonical') {
       setSelected(order);
       setEditMode(true);
@@ -1045,7 +1046,7 @@ function WaitingForWeighing({ orders, onStart, onEditWeight, onViewDetails }: {
                   <button onClick={() => onViewDetails(order)} className="flex-1 border-2 border-cream-200 rounded-xl py-3 text-[16px] font-semibold text-gray-600 min-h-[52px] hover:bg-cream-50 transition-all active:scale-[0.97]">
                     {t("supplierQueues.viewButton")}
                   </button>
-                  {orderRequiresWeighing(order) && !order.items.some((item) => item.orderingMode === 'whole_fish_by_weight') && (
+                  {orderRequiresWeighing(order) && (
                     <button onClick={() => onEditWeight(order)} className="flex-1 border-2 border-amber-300 rounded-xl py-3 text-[16px] font-semibold text-amber-700 min-h-[52px] hover:bg-amber-50 transition-all active:scale-[0.97]">
                       {t("supplierQueues.editWeightButton")}
                     </button>
@@ -1958,6 +1959,34 @@ function WeightEntryView({
     return init;
   });
 
+  const [unitWeights, setUnitWeights] = useState<Record<string, string>>(() => {
+    const init: Record<string, string> = {};
+
+    order.items.forEach((item) => {
+      item.canonicalUnits?.forEach((unit) => {
+        init[unit.id] =
+          unit.actualWeightKg != null
+            ? String(unit.actualWeightKg)
+            : '';
+      });
+    });
+
+    return init;
+  });
+
+  // A typed value is not a saved value. Keep this separate so that saving one
+  // unit cannot accidentally mark another, merely typed, unit as weighed.
+  const initiallySavedUnitIds = new Set(
+    order.items.flatMap((item) =>
+      (item.canonicalUnits ?? [])
+        .filter((unit) => unit.actualWeightKg != null && unit.actualWeightKg > 0)
+        .map((unit) => unit.id),
+    ),
+  );
+  const [savedUnitIds, setSavedUnitIds] = useState<Set<string>>(
+    initiallySavedUnitIds,
+  );
+
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const initiallySaved = new Set(order.items.map((_, i) => i).filter((i) => !needsWeighing(order.items[i]) || order.supplierWeights[String(i)] != null));
@@ -1983,6 +2012,19 @@ function WeightEntryView({
 
   const lineTotal = (item: OrderItem, index: number): number => {
     if (!needsWeighing(item)) return item.price * item.quantity;
+
+    if (
+      order.source === 'canonical' &&
+      item.orderingMode === 'whole_fish_by_weight'
+    ) {
+      const totalKg = (item.canonicalUnits ?? []).reduce((sum, unit) => {
+        const value = parseFloat(unitWeights[unit.id] ?? '');
+        return sum + (Number.isFinite(value) && value > 0 ? value : 0);
+      }, 0);
+
+      return totalKg * item.price;
+    }
+
     const kg = parseFloat(weights[String(index)]);
     if (!kg || kg <= 0) return 0;
     return kg * item.price;
@@ -1994,6 +2036,20 @@ function WeightEntryView({
   // Live weights -> money for the accounting rows below (auto recompute).
   const liveWeights = order.items.reduce((acc, item, i) => {
     if (!needsWeighing(item)) return acc;
+
+    if (
+      order.source === 'canonical' &&
+      item.orderingMode === 'whole_fish_by_weight'
+    ) {
+      const totalKg = (item.canonicalUnits ?? []).reduce((sum, unit) => {
+        const value = parseFloat(unitWeights[unit.id] ?? '');
+        return sum + (Number.isFinite(value) && value > 0 ? value : 0);
+      }, 0);
+
+      acc[String(i)] = totalKg;
+      return acc;
+    }
+
     const v = weights[String(i)];
     const n = v != null && v.trim() !== '' ? parseFloat(v) : (order.supplierWeights[String(i)] ?? 0);
     acc[String(i)] = Number.isFinite(n) && n > 0 ? n : 0;
@@ -2006,6 +2062,137 @@ function WeightEntryView({
     if (raw.startsWith('-')) return;
     setWeights((prev) => ({ ...prev, [String(index)]: raw }));
     setError(null);
+  };
+
+  const handleUnitWeightChange = (unitId: string, raw: string) => {
+    if (raw.startsWith('-')) return;
+
+    setUnitWeights((prev) => ({
+      ...prev,
+      [unitId]: raw,
+    }));
+
+    setError(null);
+  };
+
+  const saveCanonicalUnitWeight = async (
+    itemIndex: number,
+    unit: CanonicalLineUnit,
+  ) => {
+    if (isLocked) {
+      setError(t("weightEntry.messages.orderLocked"));
+      return;
+    }
+
+    const item = order.items[itemIndex];
+
+    if (
+      order.source !== 'canonical' ||
+      item.orderingMode !== 'whole_fish_by_weight'
+    ) {
+      setError('Per-unit weight entry is only available for canonical whole fish.');
+      return;
+    }
+
+    const raw = unitWeights[unit.id];
+
+    if (!raw || raw.trim() === '') {
+      setError('Weight is required for ' + item.name + ' #' + unit.unitNumber + '.');
+      return;
+    }
+
+    const n = parseFloat(raw);
+
+    if (!Number.isFinite(n) || n <= 0) {
+      setError('Weight must be greater than 0 for ' + item.name + ' #' + unit.unitNumber + '.');
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+
+    try {
+      const { error: weightError } = await supabase.rpc(
+        'record_sales_order_line_unit_actual_weight',
+        {
+          p_sales_order_line_unit_id: unit.id,
+          p_actual_weight_kg: n,
+        },
+      );
+
+      if (weightError) throw weightError;
+
+      const canonicalUnits = item.canonicalUnits ?? [];
+
+      const nextSavedUnitIds = new Set(savedUnitIds);
+      nextSavedUnitIds.add(unit.id);
+      setSavedUnitIds(nextSavedUnitIds);
+
+      const allUnitsSaved =
+        canonicalUnits.length > 0 &&
+        canonicalUnits.every((candidate) => nextSavedUnitIds.has(candidate.id));
+
+      if (!allUnitsSaved) {
+        return;
+      }
+
+      const totalWeight = canonicalUnits.reduce((sum, candidate) => {
+        const value = parseFloat(unitWeights[candidate.id] ?? '');
+        return sum + (Number.isFinite(value) ? value : 0);
+      }, 0);
+
+      const allWeights = {
+        ...order.supplierWeights,
+        [String(itemIndex)]: totalWeight,
+      };
+
+      const newSaved = new Set(savedProducts);
+      newSaved.add(itemIndex);
+
+      setSavedProducts(newSaved);
+      setLastSavedIndex(itemIndex);
+      onWeightsSaved?.(order.dbId, allWeights);
+
+      setTimeout(() => setLastSavedIndex(null), 1500);
+
+      const allItemsSaved = order.items.every(
+        (candidate, candidateIndex) =>
+          !needsWeighing(candidate) ||
+          newSaved.has(candidateIndex) ||
+          allWeights[String(candidateIndex)] != null,
+      );
+
+      if (allItemsSaved) {
+        setCompleted(true);
+      } else {
+        const next = order.items.findIndex(
+          (candidate, candidateIndex) =>
+            needsWeighing(candidate) &&
+            !newSaved.has(candidateIndex) &&
+            allWeights[String(candidateIndex)] == null,
+        );
+
+        if (next >= 0) {
+          setCurrentIndex(next);
+
+          setTimeout(() => {
+            inputRefs.current[next]?.focus();
+            inputRefs.current[next]?.scrollIntoView({
+              behavior: 'smooth',
+              block: 'center',
+            });
+          }, 100);
+        }
+      }
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : t("weightEntry.messages.saveFailed"),
+      );
+    } finally {
+      setSaving(false);
+    }
   };
 
   const saveCurrentProduct = async (index: number) => {
@@ -2286,6 +2473,15 @@ function WeightEntryView({
           const hasComboItems = item.comboItems && item.comboItems.length > 0;
           const total = lineTotal(item, i);
           const weight = weights[String(i)];
+        const isWholeFishByWeight =
+          order.source === 'canonical' &&
+          item.orderingMode === 'whole_fish_by_weight';
+        const canonicalUnits = item.canonicalUnits ?? [];
+        const hasCanonicalUnits = canonicalUnits.length > 0;
+        const wholeFishTotalWeight = canonicalUnits.reduce((sum, unit) => {
+          const value = parseFloat(unitWeights[unit.id] ?? '');
+          return sum + (Number.isFinite(value) && value > 0 ? value : 0);
+        }, 0);
 
           return (
             <div
@@ -2325,7 +2521,46 @@ function WeightEntryView({
                   RM{formatCurrency(item.price)}{perKgFlag ? '/kg' : ''}
                 </span>
 
-                {perKgFlag && !hasComboItems ? (
+                {isWholeFishByWeight ? (
+                  <div className="w-full mt-4 space-y-3">
+                  {!hasCanonicalUnits && (
+                    <p className="text-[14px] text-red-600">
+                      This whole-fish order has no physical units to weigh. Please contact an administrator.
+                    </p>
+                  )}
+                  {canonicalUnits.map((unit) => (
+                    <div key={unit.id} className="flex items-center gap-3 rounded-xl border border-cream-200 bg-cream-50 p-3">
+                      <span className="min-w-[80px] text-[15px] font-semibold text-gray-700">
+                        Ikan #{unit.unitNumber}
+                      </span>
+                      <input
+                        type="number"
+                        min="0.01"
+                        step="0.01"
+                        value={unitWeights[unit.id] ?? ''}
+                        onChange={(e) => handleUnitWeightChange(unit.id, e.target.value)}
+                        placeholder="kg"
+                        readOnly={isLocked || (savedUnitIds.has(unit.id) && !editMode)}
+                        className="ml-auto w-24 rounded-xl border-2 p-3 text-[18px] text-center focus:outline-none focus:border-forest-400"
+                      />
+                      <span className="text-[15px] text-gray-500">kg</span>
+                      {!isLocked && (editMode || !savedUnitIds.has(unit.id)) && (
+                        <button
+                          onClick={() => saveCanonicalUnitWeight(i, unit)}
+                          disabled={saving}
+                          className="bg-forest-700 hover:bg-forest-800 text-white rounded-xl px-4 py-3 text-[15px] font-bold disabled:opacity-50"
+                        >
+                          {saving ? <Loader2 size={18} className="animate-spin" /> : t("weightEntry.buttons.save")}
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  <div className="flex justify-between pt-2 text-[16px] font-semibold">
+                    <span>Jumlah berat: {wholeFishTotalWeight.toFixed(2)} kg</span>
+                    <span className="text-green-700">RM{formatCurrency(total)}</span>
+                  </div>
+                </div>
+              ) : perKgFlag && !hasComboItems ? (
                   <div className="flex items-center gap-3 ml-auto">
                     <input
                       ref={(el) => { inputRefs.current[i] = el; }}
@@ -2370,7 +2605,7 @@ function WeightEntryView({
                 )}
               </div>
 
-              {perKgFlag && !hasComboItems && !weight && !isDone && !isLocked && (
+              {perKgFlag && !isWholeFishByWeight && !hasComboItems && !weight && !isDone && !isLocked && (
                 <p className="text-[14px] text-amber-600 mt-2">{t("weightEntry.helper.autoCalculation")}</p>
               )}
             </div>
