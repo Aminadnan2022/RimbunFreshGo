@@ -334,6 +334,10 @@ useEffect(() => {
             deliveryTracking?.supplier_dispatch_started_at ?? null,
           supplierDispatchCompletedAt:
             deliveryTracking?.supplier_dispatch_completed_at ?? null,
+          // Canonical supplier-to-hub batches own this URL. Keep it on the
+          // customer tracking projection so the existing timeline can render
+          // the same customer-safe link as legacy order dispatches.
+          lalamoveTrackingUrl: deliveryTracking?.tracking_url ?? null,
           readyForRiderAt:
             riderTracking?.ready_for_rider_at ?? null,
           deliveryStatus:
@@ -512,6 +516,13 @@ useEffect(() => {
   }, [order]);
 
   const isTerminalDelivered = currentIndex === TRACKING_STAGES.length - 1;
+  const isHttp = (u: string) => /^https?:\/\//i.test(u);
+  const supplierDispatchTrackingUrl =
+    currentIndex === TRACKING_STAGES.indexOf('supplierDispatch') &&
+    order?.lalamoveTrackingUrl &&
+    isHttp(order.lalamoveTrackingUrl)
+      ? order.lalamoveTrackingUrl
+      : null;
 
   const stageState = (i: number): 'done' | 'current' | 'future' => {
     if (i < currentIndex) return 'done';
@@ -528,8 +539,6 @@ useEffect(() => {
 
   const lineCls = (st: 'done' | 'current' | 'future') =>
     st === 'done' ? 'bg-emerald-400' : st === 'current' ? 'bg-blue-300' : 'bg-cream-200';
-
-  const isHttp = (u: string) => /^https?:\/\//i.test(u);
 
   if (!user) return <Navigate to="/" replace />;
 
@@ -869,9 +878,9 @@ sessionStorage.setItem(
                       : t(`tracking.live.stage.${key}.body`)}
                   </p>
 
-                  {key === 'supplierDispatch' && currentIndex >= 4 && currentIndex <= 7 && order.lalamoveTrackingUrl && (
+                  {key === 'supplierDispatch' && supplierDispatchTrackingUrl && (
                     <a
-                      href={order.lalamoveTrackingUrl}
+                      href={supplierDispatchTrackingUrl}
                       target="_blank"
                       rel="noreferrer"
                       className="mt-3 inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-forest-700 text-white text-sm font-semibold hover:bg-forest-800 transition-all"
@@ -893,21 +902,6 @@ sessionStorage.setItem(
           })}
         </div>
 
-        {/* Tracking link */}
-        {order.lalamoveTrackingUrl && isHttp(order.lalamoveTrackingUrl) && (
-          <div className="mt-6 pt-4 border-t border-cream-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-            <p className="text-sm text-gray-500">{t("tracking.live.trackSupplierDelivery")}</p>
-            <a
-              href={order.lalamoveTrackingUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-forest-300 text-forest-700 text-sm font-semibold hover:bg-forest-50 transition-all"
-            >
-              <ExternalLink size={16} />
-              {t("tracking.live.trackSupplierDelivery")}
-            </a>
-          </div>
-        )}
       </div>
 
       {/* Delivery details */}
