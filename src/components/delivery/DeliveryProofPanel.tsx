@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Camera,
   CheckCircle2,
@@ -49,6 +49,9 @@ export default function DeliveryProofPanel({
   const [uploading, setUploading] = useState<DeliveryProofType | null>(null);
   const [completing, setCompleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [advanceToPlacement, setAdvanceToPlacement] = useState(false);
+  const placementCardRef = useRef<HTMLDivElement>(null);
+  const placementActionRef = useRef<HTMLButtonElement>(null);
 
   const loadProofs = useCallback(async () => {
     setError(null);
@@ -85,6 +88,24 @@ export default function DeliveryProofPanel({
   const readyToComplete = completedCount === 2;
   const needsPlacementPhoto = Boolean(closeup) && !placement;
 
+  useEffect(() => {
+    if (!advanceToPlacement || !needsPlacementPhoto) return;
+
+    // File pickers must be opened during the original tap/click. Uploading is
+    // asynchronous, so focusing the next action is the reliable mobile-safe
+    // hand-off after Photo 1 has actually been saved.
+    const frame = window.requestAnimationFrame(() => {
+      placementCardRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
+      placementActionRef.current?.focus({ preventScroll: true });
+      setAdvanceToPlacement(false);
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [advanceToPlacement, needsPlacementPhoto]);
+
   const upload = async (
     proofType: DeliveryProofType,
     file: File | undefined,
@@ -105,6 +126,10 @@ export default function DeliveryProofPanel({
         ...current.filter((proof) => proof.proofType !== proofType),
         uploaded,
       ]);
+
+      if (proofType === 'closeup') {
+        setAdvanceToPlacement(true);
+      }
     } catch (err) {
       setError(describeError(err));
     } finally {
@@ -213,6 +238,8 @@ export default function DeliveryProofPanel({
             uploading={uploading === 'placement'}
             disabled={uploading !== null || completing}
             recommended={needsPlacementPhoto}
+            cardRef={placementCardRef}
+            actionRef={placementActionRef}
             onFile={(file) => void upload('placement', file)}
           />
         </div>
@@ -305,6 +332,8 @@ interface ProofPhotoCardProps {
   uploading: boolean;
   disabled: boolean;
   recommended: boolean;
+  cardRef?: React.RefObject<HTMLDivElement>;
+  actionRef?: React.RefObject<HTMLButtonElement>;
   onFile: (file: File | undefined) => void;
 }
 
@@ -317,12 +346,15 @@ function ProofPhotoCard({
   uploading,
   disabled,
   recommended,
+  cardRef,
+  actionRef,
   onFile,
 }: ProofPhotoCardProps) {
   const inputId = `delivery-proof-${proofType}`;
 
   return (
     <div
+      ref={cardRef}
       className={`overflow-hidden rounded-2xl border ${
         proof
           ? 'border-green-200 bg-green-50/40'
@@ -398,9 +430,12 @@ function ProofPhotoCard({
           }}
         />
 
-        <label
-          htmlFor={inputId}
-          className={`mt-3 inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition-all ${
+        <button
+          ref={actionRef}
+          type="button"
+          onClick={() => document.getElementById(inputId)?.click()}
+          disabled={disabled}
+          className={`mt-3 inline-flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-semibold transition-all focus:outline-none focus:ring-4 focus:ring-blue-300 ${
             disabled
               ? 'cursor-not-allowed border-gray-200 bg-gray-100 text-gray-400 opacity-60'
               : proof
@@ -423,7 +458,7 @@ function ProofPhotoCard({
               : recommended
                 ? 'Take Photo 2'
                 : 'Take Photo'}
-        </label>
+        </button>
       </div>
     </div>
   );
