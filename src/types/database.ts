@@ -439,6 +439,7 @@ export type Database = {
         Row: {
           id: number;
           product_id: string;
+          supplier_id: number | null;
           supplier_name: string;
           cost_price: number;
           effective_from: string;
@@ -451,6 +452,7 @@ export type Database = {
         Insert: {
           id?: number;
           product_id: string;
+          supplier_id?: number | null;
           supplier_name?: string;
           cost_price: number;
           effective_from?: string;
@@ -463,6 +465,7 @@ export type Database = {
         Update: {
           id?: number;
           product_id?: string;
+          supplier_id?: number | null;
           supplier_name?: string;
           cost_price?: number;
           effective_from?: string;

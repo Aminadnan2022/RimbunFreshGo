@@ -355,6 +355,7 @@ export async function deleteProducts(ids: string[]): Promise<void> {
 export type SupplierPriceHistoryRow = {
   id: number;
   product_id: string;
+  supplier_id: number | null;
   supplier_name: string;
   cost_price: number;
   effective_from: string;

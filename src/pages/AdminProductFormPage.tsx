@@ -193,8 +193,12 @@ export default function AdminProductFormPage() {
 
   const handleAddSupplierPrice = async () => {
     const c = parseFloat(newCost);
-    if (!isFinite(c) || c < 0) {
+    if (!isFinite(c) || c <= 0) {
       setErrorMsg(t('adminProducts.messages.invalidCost'));
+      return;
+    }
+    if (!newSupplier.trim()) {
+      setErrorMsg('Supplier is required.');
       return;
     }
     setAddingPrice(true);
