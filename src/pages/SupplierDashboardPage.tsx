@@ -174,6 +174,7 @@ interface SupplierOrder {
   supplierWeights: Record<string, number>;
   deliveryFee: number;
   paymentStatus: PaymentStatus;
+  canonicalPriceStatus: 'estimated' | 'final' | null;
   orderNotes: string;
   paidAt: string | null;
   packingStartedAt: string | null;
@@ -342,7 +343,7 @@ export default function SupplierDashboardPage() {
 
         supabase
           .from('sales_orders')
-          .select('id, order_number, customer_snapshot, delivery_snapshot, delivery_fee, payment_status, paid_at, created_at')
+          .select('id, order_number, customer_snapshot, delivery_snapshot, delivery_fee, payment_status, price_status, paid_at, created_at')
           .order('created_at', { ascending: false }),
 
         supabase
@@ -393,6 +394,7 @@ export default function SupplierDashboardPage() {
           supplierWeights: (r.supplier_weights as Record<string, number>) ?? {},
           deliveryFee: Number(r.delivery_fee ?? 0),
           paymentStatus: (r.payment_status as PaymentStatus) ?? 'Pending',
+          canonicalPriceStatus: null,
           orderNotes: r.order_notes ?? '',
           paidAt: r.paid_at ?? null,
           packingStartedAt: r.packing_started_at ?? null,
@@ -574,6 +576,7 @@ export default function SupplierDashboardPage() {
             supplierWeights,
             deliveryFee: Number(row.delivery_fee ?? delivery.fee_amount ?? 0),
             paymentStatus: canonicalPaymentStatus(row.payment_status),
+            canonicalPriceStatus: row.price_status === 'final' ? 'final' : 'estimated',
             orderNotes: String(customer.notes ?? ''),
             paidAt: row.paid_at ?? null,
 
@@ -952,7 +955,11 @@ function WaitingForWeighing({ orders, onStart, onEditWeight, onViewDetails }: {
   // Queue 1: orders that require weighing but don't have all weights submitted yet.
   const needsWeighing = orders.filter((o) => orderRequiresWeighing(o) && !hasAllWeightsSubmitted(o));
   // Queue 2: orders that have all weights submitted (or don't require weighing) but payment not yet Paid.
-  const awaitingPayment = orders.filter((o) => (!orderRequiresWeighing(o) || hasAllWeightsSubmitted(o)) && o.paymentStatus !== 'Paid');
+  const awaitingPayment = orders.filter((o) =>
+    (!orderRequiresWeighing(o) || hasAllWeightsSubmitted(o)) &&
+    o.paymentStatus !== 'Paid' &&
+    (o.source !== 'canonical' || o.canonicalPriceStatus === 'final')
+  );
 
   // eslint-disable-next-line no-console
   console.log("waitingForWeighing", needsWeighing.map(o => ({ ref: o.orderRef })));
