@@ -15,6 +15,7 @@ import {
   confirmCanonicalSupplierBatchHubArrival,
   createCanonicalSupplierBatch,
   dispatchCanonicalSupplierBatch,
+  updateCanonicalSupplierBatchTrackingUrl,
   fetchCanonicalSupplierBatches,
   fetchPackedCanonicalOrders,
   fetchCanonicalHubOrders,
@@ -294,6 +295,40 @@ export default function CanonicalSupplierDeliveryBatches() {
     }
   };
 
+  const updateTrackingLink = async (batch: CanonicalSupplierBatch) => {
+    const tracking = window.prompt(
+      "Lalamove tracking URL. Leave blank to remove the customer tracking link.",
+      batch.tracking_url ?? "",
+    );
+
+    if (tracking === null) return;
+
+    const normalizedTracking = tracking.trim();
+    if (normalizedTracking && !normalizedTracking.startsWith("https://")) {
+      setMessage({ ok: false, text: "Tracking URL must start with https://" });
+      return;
+    }
+
+    const key = `tracking:${batch.id}`;
+    setBusy(key);
+    setMessage(null);
+
+    try {
+      await updateCanonicalSupplierBatchTrackingUrl(batch.id, normalizedTracking);
+      setMessage({
+        ok: true,
+        text: normalizedTracking
+          ? `Tracking link updated for ${batch.batch_code}.`
+          : `Tracking link removed from ${batch.batch_code}.`,
+      });
+      await load();
+    } catch (err) {
+      setMessage({ ok: false, text: describeError(err) });
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const assignRider = async (order: CanonicalHubOrder) => {
     const riderId = selectedRiders[order.sales_order_id];
 
@@ -491,6 +526,7 @@ export default function CanonicalSupplierDeliveryBatches() {
             {visibleBatches.map((batch) => {
               const dispatchKey = `dispatch:${batch.id}`;
               const arrivalKey = `arrival:${batch.id}`;
+              const trackingKey = `tracking:${batch.id}`;
               const cancelKey = `cancel:${batch.id}`;
               const ordersInBatch = hubOrders.filter(
                 (order) => order.batch_id === batch.id,
@@ -589,6 +625,23 @@ export default function CanonicalSupplierDeliveryBatches() {
                             <Truck size={16} />
                           )}
                           Dispatch Batch
+                        </button>
+                      )}
+
+                      {batch.status === "dispatched" && (
+                        <button
+                          onClick={() => updateTrackingLink(batch)}
+                          disabled={busy !== null}
+                          className="px-4 py-2 rounded-xl text-sm font-semibold border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 disabled:opacity-50 inline-flex items-center gap-2"
+                        >
+                          {busy === trackingKey ? (
+                            <Loader2 size={16} className="animate-spin" />
+                          ) : (
+                            <ExternalLink size={16} />
+                          )}
+                          {batch.tracking_url
+                            ? "Edit Tracking Link"
+                            : "Add Tracking Link"}
                         </button>
                       )}
 

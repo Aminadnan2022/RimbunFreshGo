@@ -21,6 +21,7 @@
     "test:phase4b2-projection-guard": "node scripts/check-phase4b2-projection-guard.mjs",
     "test:phase4b2-preparation-physical-units": "node scripts/check-phase4b2-preparation-physical-units.mjs",
     "test:auto-supplier-finalisation": "node scripts/check-auto-supplier-finalisation.mjs",
+    "test:canonical-supplier-tracking-update": "node scripts/check-canonical-supplier-tracking-update.mjs",
     "test:supplier-price-repair": "node scripts/check-supplier-price-repair.mjs",
     "test:e2e": "node --experimental-strip-types e2e/run-all.ts",
     "test:e2e:playwright": "playwright test",

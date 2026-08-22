@@ -292,6 +292,21 @@ export async function dispatchCanonicalSupplierBatch(
   if (error) throw error;
 }
 
+export async function updateCanonicalSupplierBatchTrackingUrl(
+  batchId: string,
+  trackingUrl?: string,
+): Promise<void> {
+  const { error } = await rpc(
+    "admin_update_canonical_supplier_delivery_batch_tracking_url",
+    {
+      p_batch_id: batchId,
+      p_tracking_url: trackingUrl?.trim() || null,
+    },
+  );
+
+  if (error) throw error;
+}
+
 export async function confirmCanonicalSupplierBatchHubArrival(
   batchId: string,
 ): Promise<void> {
