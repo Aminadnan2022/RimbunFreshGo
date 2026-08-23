@@ -1766,6 +1766,38 @@ export type Database = {
           },
         ]
       }
+      sales_order_checkout_idempotency: {
+        Row: {
+          created_at: string
+          customer_id: string
+          idempotency_key: string
+          response: Json
+          sales_order_id: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          idempotency_key: string
+          response: Json
+          sales_order_id: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          idempotency_key?: string
+          response?: Json
+          sales_order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_order_checkout_idempotency_sales_order_id_fkey"
+            columns: ["sales_order_id"]
+            isOneToOne: true
+            referencedRelation: "sales_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sales_order_events: {
         Row: {
           actor_id: string | null
@@ -3158,6 +3190,24 @@ export type Database = {
         Returns: string
       }
       place_sales_order: {
+        Args: {
+          p_customer_snapshot: Json
+          p_delivery_request: Json
+          p_idempotency_key?: string
+          p_items: Json
+          p_preparation_answers?: Json
+        }
+        Returns: {
+          estimated_total: number
+          final_total: number
+          order_number: string
+          payment_status: string
+          price_status: string
+          requires_supplier_finalisation: boolean
+          sales_order_id: string
+        }[]
+      }
+      place_sales_order_unkeyed_internal: {
         Args: {
           p_customer_snapshot: Json
           p_delivery_request: Json

@@ -14,6 +14,7 @@ export interface CanonicalPreparationAnswer {
 }
 
 export interface CanonicalPlaceOrderRequest {
+  p_idempotency_key: string;
   p_customer_snapshot: {
     name: string;
     phone: string;
@@ -148,6 +149,7 @@ function preparationAnswerPayload(
 }
 
 export function buildCanonicalPlaceOrderRequest(input: {
+  idempotencyKey: string;
   customer: CustomerDetails;
   items: CartItem[];
   deliveryMethod: CanonicalDeliveryMethod;
@@ -174,6 +176,7 @@ export function buildCanonicalPlaceOrderRequest(input: {
   }
 
   return {
+    p_idempotency_key: input.idempotencyKey,
     p_customer_snapshot: {
       name: customer.name.trim(),
       phone: customer.phone.trim(),
