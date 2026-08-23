@@ -73,7 +73,6 @@ export function customerStageIndex(input: CustomerStageInput): number {
   const {
     paymentStatus,
     packingStartedAt,
-    packingCompletedAt,
     supplierDispatchStartedAt,
     supplierDispatchCompletedAt,
     readyForRiderAt,

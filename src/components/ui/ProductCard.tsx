@@ -46,7 +46,6 @@ export default function ProductCard({ product }: Props) {
       return;
     }
 
-    const mode = product.orderingMode ?? 'fixed_quantity';
     const itemData = buildCartItem(product, {
       quantity: qty,
       weightG: estimatedWeight,

@@ -116,6 +116,7 @@ export function buildCartItem(
     name: product.name,
     image: product.image,
     price: product.price,
+    quantity: qty,
     unit: product.unit,
     category: product.category,
     showEstimatedQuantity: product.showEstimatedQuantity,

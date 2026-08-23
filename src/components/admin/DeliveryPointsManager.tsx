@@ -195,7 +195,7 @@ export default function DeliveryPointsManager() {
         name: draft.name.trim(),
         area: draft.area.trim(),
         delivery_fee: fee,
-        delivery_method: draft.delivery_method,
+        delivery_method: draft.delivery_method as DeliveryMethod,
         display_order,
         active: draft.active,
         pickup_notes: draft.pickup_notes.trim() || null,

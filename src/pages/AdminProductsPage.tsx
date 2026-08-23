@@ -576,7 +576,7 @@ function PaymentQrSettingsCard() {
         'replace_payment_qr_configuration',
         {
           p_qr_storage_path: storagePath,
-          p_instructions: instructions.trim() || null,
+          p_instructions: instructions.trim() || undefined,
         }
       );
 
@@ -1282,14 +1282,6 @@ interface AdminOrder {
   supplierWeights: Record<string, number>;
   deliveryFee: number;
   subtotal: number;
-}
-
-// Local date formatter (avoids timezone shift)
-function formatLocalDate(date: Date) {
-  const yyyy = date.getFullYear();
-  const mm = String(date.getMonth() + 1).padStart(2, '0');
-  const dd = String(date.getDate()).padStart(2, '0');
-  return `${yyyy}-${mm}-${dd}`;
 }
 
 // Display formatter for delivery date (e.g., "Monday • 3 Aug 2026")
@@ -2226,18 +2218,6 @@ function EditOrderModal({ order, onClose, onSaved }: { order: AdminOrder; onClos
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-
-  // Format delivery date as "Monday\n3 Aug 2026" (two lines) or "Mon 3 Aug 2026" for table
-  function formatDeliveryDate(date: string, slot?: string): string {
-    if (!date || date === '—') return '—';
-    // Parse as local date to avoid timezone shift
-    const [yyyy, mm, dd] = date.split('-').map(Number);
-    if (!yyyy || !mm || !dd) return date;
-    const d = new Date(yyyy, mm - 1, dd);
-    const dayName = d.toLocaleDateString('en-MY', { weekday: 'short' });
-    const formatted = d.toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' });
-    return `${dayName} ${formatted}`;
-  }
 
   // Generate valid upcoming delivery dates based on configured days
   const generateDeliveryDates = () => {

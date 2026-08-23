@@ -10,7 +10,9 @@ import type { CartItem } from '../types';
 import { roundCurrency } from './currency';
 
 /** Weight-based lines are per-kg or slice; final money depends on actual weight. */
-export function isWeightLine(item: CartItem): boolean {
+type PricedItem = Pick<CartItem, 'price' | 'costPrice' | 'quantity' | 'actualWeight' | 'estimatedWeight' | 'pricingType' | 'sliceQuantity'>;
+
+export function isWeightLine(item: PricedItem): boolean {
   return item.pricingType === 'per_kg' || item.pricingType === 'slice' || item.sliceQuantity != null;
 }
 
@@ -19,7 +21,7 @@ export function isWeightLine(item: CartItem): boolean {
  *  - per-kg / slice: weight (supplier) -> actualWeight -> estimatedWeight -> 0
  *  - fixed / combo: item.quantity
  */
-export function lineQuantity(item: CartItem, weightKg?: number): number {
+export function lineQuantity(item: PricedItem, weightKg?: number): number {
   if (isWeightLine(item)) {
     const w = weightKg ?? item.actualWeight ?? item.estimatedWeight;
     return w != null && w > 0 ? w : 0;
@@ -27,34 +29,34 @@ export function lineQuantity(item: CartItem, weightKg?: number): number {
   return item.quantity ?? 0;
 }
 
-export function unitSellingPrice(item: CartItem): number {
+export function unitSellingPrice(item: PricedItem): number {
   return item.price ?? 0;
 }
 
-export function unitCostPrice(item: CartItem): number {
+export function unitCostPrice(item: PricedItem): number {
   return item.costPrice ?? 0;
 }
 
 /** Gross profit per unit (selling - cost). */
-export function unitGrossProfit(item: CartItem): number {
+export function unitGrossProfit(item: PricedItem): number {
   return unitSellingPrice(item) - unitCostPrice(item);
 }
 
-export function lineSelling(item: CartItem, weightKg?: number): number {
+export function lineSelling(item: PricedItem, weightKg?: number): number {
   return roundCurrency(unitSellingPrice(item) * lineQuantity(item, weightKg));
 }
 
-export function lineCost(item: CartItem, weightKg?: number): number {
+export function lineCost(item: PricedItem, weightKg?: number): number {
   return roundCurrency(unitCostPrice(item) * lineQuantity(item, weightKg));
 }
 
-export function lineGross(item: CartItem, weightKg?: number): number {
+export function lineGross(item: PricedItem, weightKg?: number): number {
   return roundCurrency(unitGrossProfit(item) * lineQuantity(item, weightKg));
 }
 
 /** Sum gross profit over all order items (delivery fee excluded from product gross). */
 export function orderGrossProfit(
-  items: CartItem[],
+  items: PricedItem[],
   weights?: Record<string, number> | null,
 ): number {
   return roundCurrency(
@@ -64,7 +66,7 @@ export function orderGrossProfit(
 
 /** Total supplier cost over all order items. */
 export function orderCost(
-  items: CartItem[],
+  items: PricedItem[],
   weights?: Record<string, number> | null,
 ): number {
   return roundCurrency(
@@ -74,7 +76,7 @@ export function orderCost(
 
 /** Total selling amount over all order items. */
 export function orderSelling(
-  items: CartItem[],
+  items: PricedItem[],
   weights?: Record<string, number> | null,
 ): number {
   return roundCurrency(

@@ -13,7 +13,7 @@ export interface DeliveryPoint {
   name: string;
   area: string | null;
   delivery_fee: number;
-  delivery_method: string;
+  delivery_method: DeliveryMethod;
   display_order: number;
   active: boolean;
   pickup_notes: string | null;
@@ -142,7 +142,7 @@ const toDeliveryPoint = (p: {
   name: string;
   area: string | null;
   delivery_fee: number | string;
-  delivery_method: string;
+  delivery_method: DeliveryMethod;
   display_order: number;
   active: boolean;
   pickup_notes: string | null;
@@ -153,7 +153,7 @@ const toDeliveryPoint = (p: {
   name: p.name,
   area: p.area,
   delivery_fee: Number(p.delivery_fee),
-  delivery_method: p.delivery_method,
+  delivery_method: p.delivery_method as DeliveryMethod,
   display_order: p.display_order,
   active: p.active,
   pickup_notes: p.pickup_notes,

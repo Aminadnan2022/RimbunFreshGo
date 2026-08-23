@@ -71,11 +71,12 @@ export interface ComboExpandedItem {
   image: string;
   price: number;
   unit: string;
+  category?: Category;
   quantity: number;
   quantityValue?: number;
   sellingUnit?: string;
   preparation?: PreparationOption;
-  pricingType?: 'per_kg' | 'fixed';
+  pricingType?: 'per_kg' | 'fixed' | 'slice';
   label: string;
 }
 

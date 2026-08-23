@@ -6,6 +6,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { supabase } from '../lib/supabase';
 import { formatCurrency } from '../lib/currency';
 import { orderGrossProfit, orderCost, marginPercent } from '../lib/profit';
+import type { Json } from '../types/database';
 import { formatLocalDate } from '../data/delivery';
 import SupplierDispatchSection from '../components/supplier/SupplierDispatchSection';
 import {
@@ -461,7 +462,7 @@ export default function SupplierDashboardPage() {
       });
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const canonicalMapped: SupplierOrder[] = ((canonicalOrderRes.data ?? []) as any[])
+      const canonicalMapped = ((canonicalOrderRes.data ?? []) as any[])
         .map((row) => {
           const ownedLines = linesByOrder.get(String(row.id)) ?? [];
 
@@ -493,7 +494,7 @@ export default function SupplierDashboardPage() {
           const packingCompletedAt =
             fulfilments.length > 0 &&
             fulfilments.every((f) => f.status === 'packed' && f.packing_completed_at)
-              ? completedTimes.sort().at(-1) ?? null
+              ? completedTimes.sort()[completedTimes.length - 1] ?? null
               : null;
 
           const items: OrderItem[] = ownedLines
@@ -576,7 +577,7 @@ export default function SupplierDashboardPage() {
             supplierWeights,
             deliveryFee: Number(row.delivery_fee ?? delivery.fee_amount ?? 0),
             paymentStatus: canonicalPaymentStatus(row.payment_status),
-            canonicalPriceStatus: row.price_status === 'final' ? 'final' : 'estimated',
+            canonicalPriceStatus: row.price_status === 'final' ? ('final' as const) : ('estimated' as const),
             orderNotes: String(customer.notes ?? ''),
             paidAt: row.paid_at ?? null,
 
@@ -592,7 +593,7 @@ export default function SupplierDashboardPage() {
             lalamoveBookedAt: null,
           };
         })
-        .filter((order): order is SupplierOrder => order !== null);
+        .filter((order): order is NonNullable<typeof order> => order !== null);
 
       const merged = [...canonicalMapped, ...legacyMapped];
 
@@ -632,7 +633,7 @@ export default function SupplierDashboardPage() {
           updated_at: new Date().toISOString(),
           updated_by: user?.id ?? null,
         }, { count: "exact" })
-        .eq("id", order.dbId);
+        .eq("id", Number(order.dbId));
 
       if (updateError) {
         alert(t("weightEntry.messages.saveFailed"));
@@ -2278,13 +2279,13 @@ function WeightEntryView({
         .update({
           supplier_weights: allWeights,
           total: Math.round(newTotal * 100) / 100,
-          order_items: updatedItems,
+          order_items: JSON.parse(JSON.stringify(updatedItems)) as Json,
           gross_profit: Math.round(grossProfit * 100) / 100,
           ...(editMode ? {} : { payment_status: allSaved ? 'Ready To Pay' : 'Pending' }),
           updated_at: new Date().toISOString(),
           updated_by: user?.id ?? null,
         })
-        .eq('id', order.dbId);
+        .eq('id', Number(order.dbId));
 
       if (updateError) throw updateError;
 

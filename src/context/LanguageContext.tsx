@@ -4,6 +4,7 @@ export type Language = 'en' | 'ms';
 
 interface LanguageContextValue {
   language: Language;
+  lang: Language;
   setLanguage: (lang: Language) => void;
   t: (key: string, params?: Record<string, string | number>) => string;
 }
@@ -27,7 +28,7 @@ function loadTranslations(lang: Language): Record<string, string> {
   if (!module) return {};
   const keys = Object.keys(module);
   if (keys.length === 0) return {};
-  const mod = module[keys[0]] as { default: Record<string, string> };
+  const mod = module[keys[0]] as unknown as { default: Record<string, string> };
   return mod.default;
 }
 
@@ -75,7 +76,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     return translation;
   }, [translations, enFallback]);
 
-  const value = useMemo(() => ({ language, setLanguage, t }), [language, setLanguage, t]);
+  const value = useMemo(() => ({ language, lang: language, setLanguage, t }), [language, setLanguage, t]);
 
   return <LanguageContext.Provider value={value}>{children}</LanguageContext.Provider>;
 }

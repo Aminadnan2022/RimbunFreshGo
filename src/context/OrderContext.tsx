@@ -1,6 +1,7 @@
 import React, { createContext, useContext } from 'react';
 import { supabase } from '../lib/supabase';
-import type { Order } from '../types';
+import type { CartItem, Order } from '../types';
+import type { Json } from '../types/database';
 
 interface OrderContextValue {
   addOrder: (order: Order) => Promise<{ id: string }>;
@@ -79,28 +80,28 @@ const toRow = (order: Order) => {
     delivery_point_name: order.customer.deliveryPointName ?? '',
     delivery_method: order.customer.deliveryMethod ?? '',
     order_notes: order.customer.notes || null,
-    item_options: order.items.map((i) => ({
+    item_options: JSON.parse(JSON.stringify(order.items.map((i) => ({
       productId: i.productId,
       name: i.name,
       preparation: i.preparation ?? null,
-    })),
-    order_items: order.items.map((item) => {
+    })))) as Json,
+    order_items: JSON.parse(JSON.stringify(order.items.map((item) => {
       // Fixed-price lines: gross profit known at checkout. Per-kg / slice lines
       // are stamped by the supplier once the actual weight is entered.
       if (item.pricingType === 'per_kg' || item.pricingType === 'slice' || item.sliceQuantity != null) {
         return item;
       }
       return { ...item, grossProfit: Math.round((item.price - (item.costPrice ?? 0)) * (item.quantity ?? 0) * 100) / 100 };
-    }),
+    }))) as Json,
     delivery_slot: order.deliveryDay,
-    order_summary: {
+    order_summary: JSON.parse(JSON.stringify({
       status: order.status,
       deliveryDate: order.deliveryDate,
       deliveryWindow: order.deliveryWindow,
       statusTimeline: order.statusTimeline,
       orderRef: order.id,
       preparationSnapshot: order.preparationSnapshot ?? null,
-    },
+    })) as Json,
     subtotal: order.subtotal,
     delivery_fee: order.deliveryFee,
     total: order.total,

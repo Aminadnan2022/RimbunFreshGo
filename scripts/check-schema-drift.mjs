@@ -30,7 +30,7 @@ for (const column of ['email_address', 'notes']) {
   if (!new RegExp(`ADD COLUMN IF NOT EXISTS ${column} text`, 'i').test(migration)) {
     failures.push(`Compatibility migration does not add customer_profiles.${column}.`);
   }
-  if (!new RegExp(`\\b${column}: string \\| null;`).test(databaseTypes)) {
+  if (!new RegExp(`\\b${column}: string \\| null\\b`).test(databaseTypes)) {
     failures.push(`Database type does not expose customer_profiles.${column}.`);
   }
 }

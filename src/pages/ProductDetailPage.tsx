@@ -13,7 +13,6 @@ import { useWebsiteSettings } from '../context/WebsiteSettingsContext';
 import QuantityStepper from '../components/ui/QuantityStepper';
 import EstimatedWeightStepper from '../components/ui/EstimatedWeightStepper';
 import SliceStepper from '../components/ui/SliceStepper';
-import PrawnEstimationNote from '../components/ui/PrawnEstimationNote';
 import EstimatedQuantityNote from '../components/ui/EstimatedQuantityNote';
 import ProductImage from '../components/ui/ProductImage';
 import ProductCard from '../components/ui/ProductCard';
@@ -29,7 +28,7 @@ export default function ProductDetailPage() {
   const { openSignIn } = useAuthModal();
   const { config } = useDeliveryConfig();
   const { settings, loading: settingsLoading } = useWebsiteSettings();
-  const { t, lang } = useLanguage();
+  const { t } = useLanguage();
   const { product, loading, error } = useProduct(id);
   const { products } = useProducts();
 
@@ -86,7 +85,6 @@ export default function ProductDetailPage() {
       return;
     }
 
-    const mode = product.orderingMode ?? 'fixed_quantity';
     const itemData = buildCartItem(product, {
       quantity: qty,
       weightG: estimatedWeight,
