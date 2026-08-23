@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase';
 import { getPrepOptionsByCategory } from '../lib/preparationOptions';
 import { deriveSellingUnit } from './products';
+import type { Json } from '../types/database';
 import type { CartItem, PreparationOption, Product, SellingUnit } from '../types';
 import type { DbCombo, DbComboItem, ComboWithItems, ComboPayload } from '../types';
 
@@ -137,102 +138,36 @@ export async function fetchComboById(id: string): Promise<ComboWithItems | null>
   return { combo, items: (items ?? []).map(mapComboItem) };
 }
 
-async function getNextComboDisplayOrder(): Promise<number> {
-  const { data, error } = await supabase
-    .from('combos')
-    .select('display_order')
-    .order('display_order', { ascending: false })
-    .limit(1);
-  if (error) throw error;
-  const max = data?.[0]?.display_order;
-  return typeof max === 'number' ? max + 1 : 0;
-}
-
 export async function createCombo(payload: ComboPayload): Promise<DbCombo> {
-  const { items, ...comboData } = payload;
-  delete comboData.discount_percent;
-  const { data: combo, error: comboError } = await supabase
-    .from('combos')
-    .insert({
-      ...comboData,
-      lifecycle_status: comboData.lifecycle_status ?? 'draft',
-      active: false,
-      featured: false,
-      image: (comboData.images && comboData.images[0]) ?? comboData.image ?? '',
-      display_order: comboData.display_order ?? (await getNextComboDisplayOrder()),
-      updated_at: new Date().toISOString(),
-    })
-    .select(COMBO_COLUMNS)
-    .maybeSingle();
-  if (comboError) throw comboError;
-  if (!combo) throw new Error('Combo not found');
-
-  if (items.length > 0) {
-    const { error: itemsError } = await supabase
-      .from('combo_items')
-      .insert(items.map((item, i) => ({
-        combo_id: combo.id,
-        product_id: item.product_id,
-        quantity_value: item.quantity_value,
-        selling_unit: item.selling_unit,
-        sort_order: item.sort_order ?? i,
-        custom_label: item.custom_label ?? null,
-        preparation: item.preparation ?? null,
-        unit: item.unit ?? null,
-      })));
-    if (itemsError) throw itemsError;
-  }
-
-  return combo;
+  const id = await saveCombo(payload.id, payload);
+  const saved = await fetchComboById(id);
+  if (!saved) throw new Error('Combo not found after save');
+  return saved.combo;
 }
 
 export async function updateCombo(id: string, payload: Partial<ComboPayload>): Promise<DbCombo> {
-  const { items, ...comboData } = payload;
-  delete comboData.discount_percent;
-  // Lifecycle changes go through the server-side RPC so activating a draft
-  // also creates its immutable canonical recipe.
-  delete comboData.lifecycle_status;
-  delete comboData.active;
-  const { data: combo, error: comboError } = await supabase
-    .from('combos')
-    .update({
-      ...comboData,
-      image: comboData.images
-        ? (comboData.images[0] ?? '')
-        : comboData.image,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', id)
-    .select(COMBO_COLUMNS)
-    .maybeSingle();
-  if (comboError) throw comboError;
-  if (!combo) throw new Error('Combo not found');
+  const savedId = await saveCombo(id, payload);
+  const saved = await fetchComboById(savedId);
+  if (!saved) throw new Error('Combo not found after save');
+  return saved.combo;
+}
 
-  if (items) {
-    const { error: deleteError } = await supabase
-      .from('combo_items')
-      .delete()
-      .eq('combo_id', id);
-    if (deleteError) throw deleteError;
-
-    if (items.length > 0) {
-      const { error: itemsError } = await supabase
-        .from('combo_items')
-        .insert(items.map((item, i) => ({
-          combo_id: id,
-          product_id: item.product_id,
-          quantity_value: item.quantity_value,
-          selling_unit: item.selling_unit,
-          sort_order: item.sort_order ?? i,
-          custom_label: item.custom_label ?? null,
-          preparation: item.preparation ?? null,
-          unit: item.unit ?? null,
-        })));
-      if (itemsError) throw itemsError;
-    }
-  }
-
-  return combo;
+async function saveCombo(id: string, payload: Partial<ComboPayload>): Promise<string> {
+  const { items, ...combo } = payload;
+  const comboPayload: { [key: string]: Json | undefined } = { ...combo };
+  // Lifecycle and presentation changes have dedicated server-side RPCs.
+  delete comboPayload.discount_percent;
+  delete comboPayload.lifecycle_status;
+  delete comboPayload.active;
+  delete comboPayload.featured;
+  const { data, error } = await supabase.rpc('admin_save_combo', {
+    p_combo_id: id,
+    p_combo: comboPayload,
+    p_items: items ?? null,
+  });
+  if (error) throw error;
+  if (!data) throw new Error('Combo save did not return an id');
+  return data;
 }
 
 export async function deleteCombo(id: string): Promise<void> {
@@ -256,10 +191,9 @@ export async function normalizeComboOrder(): Promise<void> {
 }
 
 export async function toggleComboPinned(id: string, isPinned: boolean): Promise<void> {
-  const { error } = await supabase
-    .from('combos')
-    .update({ is_pinned: isPinned, updated_at: new Date().toISOString() })
-    .eq('id', id);
+  const { error } = await supabase.rpc('admin_set_combo_presentation', {
+    p_combo_id: id, p_is_pinned: isPinned,
+  });
   if (error) throw error;
 }
 
@@ -269,11 +203,7 @@ export async function setCombosActive(ids: string[], active: boolean): Promise<v
 
 export async function setCombosPinned(ids: string[], isPinned: boolean): Promise<void> {
   if (ids.length === 0) return;
-  const { error } = await supabase
-    .from('combos')
-    .update({ is_pinned: isPinned, updated_at: new Date().toISOString() })
-    .in('id', ids);
-  if (error) throw error;
+  await Promise.all(ids.map((id) => toggleComboPinned(id, isPinned)));
 }
 
 export async function deleteCombos(ids: string[]): Promise<void> {
@@ -284,10 +214,9 @@ export async function deleteCombos(ids: string[]): Promise<void> {
 }
 
 export async function toggleComboFeatured(id: string, featured: boolean): Promise<void> {
-  const { error } = await supabase
-    .from('combos')
-    .update({ featured, updated_at: new Date().toISOString() })
-    .eq('id', id);
+  const { error } = await supabase.rpc('admin_set_combo_presentation', {
+    p_combo_id: id, p_featured: featured,
+  });
   if (error) throw error;
 }
 
@@ -304,38 +233,14 @@ export async function setComboLifecycle(id: string, lifecycleStatus: 'draft' | '
 }
 
 export async function duplicateCombo(id: string): Promise<DbCombo> {
-  const original = await fetchComboById(id);
-  if (!original) throw new Error('Combo not found');
-  const newId = `${original.combo.id}-copy-${Date.now()}`;
-  return createCombo({
-    id: newId,
-    name: `${original.combo.name} (Copy)`,
-    slug: `${original.combo.slug}-copy-${Date.now()}`,
-    description: original.combo.description,
-    badge: original.combo.badge,
-    category_label: original.combo.category_label,
-    tagline: original.combo.tagline,
-    price: original.combo.price,
-    original_value: original.combo.original_value,
-    discount_percent: original.combo.discount_percent,
-    image: original.combo.image,
-    images: original.combo.images,
-    servings: original.combo.servings,
-    highlights: original.combo.highlights,
-    featured: false,
-    active: false,
-    lifecycle_status: 'draft',
-    is_pinned: false,
-    items: original.items.map((item) => ({
-      product_id: item.product_id,
-      quantity_value: item.quantity_value,
-      selling_unit: item.selling_unit,
-      sort_order: item.sort_order,
-      custom_label: item.custom_label ?? undefined,
-      preparation: item.preparation ?? undefined,
-      unit: item.unit ?? undefined,
-    })),
+  const { data: newId, error } = await supabase.rpc('admin_duplicate_combo', {
+    p_source_combo_id: id,
   });
+  if (error) throw error;
+  if (!newId) throw new Error('Duplicate did not return a combo id');
+  const duplicate = await fetchComboById(newId);
+  if (!duplicate) throw new Error('Duplicated combo not found');
+  return duplicate.combo;
 }
 
 export function buildComboItems(

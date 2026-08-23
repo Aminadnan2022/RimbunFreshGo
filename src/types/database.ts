@@ -3299,6 +3299,18 @@ export type Database = {
         Args: { p_combo_id: string; p_lifecycle_status: string }
         Returns: undefined
       }
+      admin_duplicate_combo: {
+        Args: { p_source_combo_id: string }
+        Returns: string
+      }
+      admin_save_combo: {
+        Args: { p_combo_id: string; p_combo: Json; p_items?: Json | null }
+        Returns: string
+      }
+      admin_set_combo_presentation: {
+        Args: { p_combo_id: string; p_featured?: boolean | null; p_is_pinned?: boolean | null }
+        Returns: undefined
+      }
       reorder_products: { Args: { p_ids: string[] }; Returns: undefined }
       replace_payment_qr_configuration: {
         Args: { p_instructions?: string; p_qr_storage_path: string }
