@@ -98,11 +98,14 @@ export interface DbCombo {
   highlights: string[];
   featured: boolean;
   active: boolean;
+  lifecycle_status: string;
   is_pinned: boolean;
   display_order: number;
   created_at: string;
   updated_at: string;
 }
+
+export type ComboLifecycleStatus = 'draft' | 'active' | 'inactive';
 
 export interface DbComboItem {
   id: string;
@@ -140,6 +143,7 @@ export type ComboPayload = {
   highlights?: string[];
   featured?: boolean;
   active?: boolean;
+  lifecycle_status?: ComboLifecycleStatus;
   is_pinned?: boolean;
   display_order?: number;
   items: {

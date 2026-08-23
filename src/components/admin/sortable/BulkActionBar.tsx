@@ -7,7 +7,7 @@ interface BulkActionBarProps {
   onDeactivate: () => void;
   onPin: () => void;
   onUnpin: () => void;
-  onDelete: () => void;
+  onDelete?: () => void;
   onClear: () => void;
   labels: {
     selected: string;
@@ -15,7 +15,7 @@ interface BulkActionBarProps {
     deactivate: string;
     pin: string;
     unpin: string;
-    delete: string;
+    delete?: string;
     clear: string;
   };
 }
@@ -51,9 +51,9 @@ export default function BulkActionBar({
       <button onClick={onUnpin} disabled={busy} className={`${btn} bg-gray-600 hover:bg-gray-700`}>
         {labels.unpin}
       </button>
-      <button onClick={onDelete} disabled={busy} className={`${btn} bg-red-600 hover:bg-red-700`}>
+      {onDelete && labels.delete && <button onClick={onDelete} disabled={busy} className={`${btn} bg-red-600 hover:bg-red-700`}>
         {labels.delete}
-      </button>
+      </button>}
       <button onClick={onClear} disabled={busy} className={`${btn} bg-white/10 hover:bg-white/20`}>
         {labels.clear}
       </button>

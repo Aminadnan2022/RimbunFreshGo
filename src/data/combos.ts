@@ -9,7 +9,7 @@ import type { DbCombo, DbComboItem, ComboWithItems, ComboPayload } from '../type
 // query (HTTP 400, "column combos.discount_percent does not exist"), which
 // made the Admin Combo page show "No combo packages yet." The discount is
 // derived on the client from price / original_value instead.
-const COMBO_COLUMNS = 'id, name, name_ms, slug, description, badge, category_label, tagline, price, original_value, image, images, servings, highlights, featured, active, is_pinned, display_order, created_at, updated_at';
+const COMBO_COLUMNS = 'id, name, name_ms, slug, description, badge, category_label, tagline, price, original_value, image, images, servings, highlights, featured, active, lifecycle_status, is_pinned, display_order, created_at, updated_at';
 
 const COMBO_ITEM_COLUMNS = 'id, combo_id, product_id, quantity_value, selling_unit, sort_order, custom_label, preparation, unit, created_at';
 
@@ -155,6 +155,9 @@ export async function createCombo(payload: ComboPayload): Promise<DbCombo> {
     .from('combos')
     .insert({
       ...comboData,
+      lifecycle_status: comboData.lifecycle_status ?? 'draft',
+      active: false,
+      featured: false,
       image: (comboData.images && comboData.images[0]) ?? comboData.image ?? '',
       display_order: comboData.display_order ?? (await getNextComboDisplayOrder()),
       updated_at: new Date().toISOString(),
@@ -186,6 +189,10 @@ export async function createCombo(payload: ComboPayload): Promise<DbCombo> {
 export async function updateCombo(id: string, payload: Partial<ComboPayload>): Promise<DbCombo> {
   const { items, ...comboData } = payload;
   delete comboData.discount_percent;
+  // Lifecycle changes go through the server-side RPC so activating a draft
+  // also creates its immutable canonical recipe.
+  delete comboData.lifecycle_status;
+  delete comboData.active;
   const { data: combo, error: comboError } = await supabase
     .from('combos')
     .update({
@@ -257,12 +264,7 @@ export async function toggleComboPinned(id: string, isPinned: boolean): Promise<
 }
 
 export async function setCombosActive(ids: string[], active: boolean): Promise<void> {
-  if (ids.length === 0) return;
-  const { error } = await supabase
-    .from('combos')
-    .update({ active, updated_at: new Date().toISOString() })
-    .in('id', ids);
-  if (error) throw error;
+  await Promise.all(ids.map((id) => setComboLifecycle(id, active ? 'active' : 'inactive')));
 }
 
 export async function setCombosPinned(ids: string[], isPinned: boolean): Promise<void> {
@@ -290,10 +292,14 @@ export async function toggleComboFeatured(id: string, featured: boolean): Promis
 }
 
 export async function toggleComboActive(id: string, active: boolean): Promise<void> {
-  const { error } = await supabase
-    .from('combos')
-    .update({ active, updated_at: new Date().toISOString() })
-    .eq('id', id);
+  await setComboLifecycle(id, active ? 'active' : 'inactive');
+}
+
+export async function setComboLifecycle(id: string, lifecycleStatus: 'draft' | 'active' | 'inactive'): Promise<void> {
+  const { error } = await supabase.rpc('admin_set_combo_lifecycle', {
+    p_combo_id: id,
+    p_lifecycle_status: lifecycleStatus,
+  });
   if (error) throw error;
 }
 
@@ -318,6 +324,7 @@ export async function duplicateCombo(id: string): Promise<DbCombo> {
     highlights: original.combo.highlights,
     featured: false,
     active: false,
+    lifecycle_status: 'draft',
     is_pinned: false,
     items: original.items.map((item) => ({
       product_id: item.product_id,

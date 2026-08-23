@@ -2,14 +2,14 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getProductImage } from '../lib/image';
-import { fetchComboById, createCombo, updateCombo } from '../data/combos';
+import { fetchComboById, createCombo, updateCombo, setComboLifecycle, toggleComboFeatured } from '../data/combos';
 import { fetchProducts } from '../data/products';
 import { getPrepOptionsByCategory } from '../lib/preparationOptions';
 import { getSellingMode, getWeightOptions, computeComboItemSubtotal, formatWeight } from '../lib/sellingOptions';
 import MultiImageUploader from '../components/ui/MultiImageUploader';
 import QuantityStepper from '../components/ui/QuantityStepper';
 import { formatCurrency } from '../lib/currency';
-import type { ComboPayload, Product } from '../types';
+import type { ComboLifecycleStatus, ComboPayload, Product } from '../types';
 
 type FormItem = {
   product_id: string;
@@ -55,7 +55,7 @@ export default function AdminComboFormPage() {
     servings: 4,
     highlights: '',
     featured: false,
-    active: true,
+    lifecycle_status: 'draft' as ComboLifecycleStatus,
   });
 
   const [items, setItems] = useState<FormItem[]>([]);
@@ -88,7 +88,7 @@ export default function AdminComboFormPage() {
         servings: c.servings,
         highlights: (c.highlights ?? []).join('\n'),
         featured: c.featured,
-        active: c.active,
+        lifecycle_status: c.lifecycle_status as ComboLifecycleStatus,
       });
       setItems(result.items.map((ci) => ({
         product_id: ci.product_id,
@@ -236,7 +236,7 @@ export default function AdminComboFormPage() {
       servings: form.servings,
       highlights,
       featured: form.featured,
-      active: form.active,
+      lifecycle_status: form.lifecycle_status,
       items: items.map((item, i) => ({
         product_id: item.product_id,
         quantity_value: item.quantity_value,
@@ -250,10 +250,18 @@ export default function AdminComboFormPage() {
 
     setSaving(true);
     try {
+      let comboId: string;
       if (isEdit && id) {
         await updateCombo(id, payload);
+        await setComboLifecycle(id, form.lifecycle_status);
+        comboId = id;
       } else {
-        await createCombo(payload);
+        const created = await createCombo(payload);
+        await setComboLifecycle(created.id, form.lifecycle_status);
+        comboId = created.id;
+      }
+      if (form.lifecycle_status === 'active') {
+        await toggleComboFeatured(comboId, form.featured);
       }
       navigate('/admin?tab=combos');
     } catch (err) {
@@ -733,12 +741,16 @@ export default function AdminComboFormPage() {
             Featured (show on homepage)
           </label>
           <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              checked={form.active}
-              onChange={(e) => setForm((f) => ({ ...f, active: e.target.checked }))}
-            />
-            Active (available to customers)
+            Lifecycle
+            <select
+              value={form.lifecycle_status}
+              onChange={(e) => setForm((f) => ({ ...f, lifecycle_status: e.target.value as ComboLifecycleStatus }))}
+              className="border rounded px-2 py-1.5 text-sm"
+            >
+              <option value="draft">Draft (hidden from customers)</option>
+              <option value="active">Active (available to customers)</option>
+              <option value="inactive">Inactive (kept as history)</option>
+            </select>
           </label>
         </div>
       </section>

@@ -436,6 +436,7 @@ export type Database = {
           image: string
           images: string[]
           is_pinned: boolean
+          lifecycle_status: string
           name: string
           name_ms: string
           original_value: number
@@ -459,6 +460,7 @@ export type Database = {
           image?: string
           images?: string[]
           is_pinned?: boolean
+          lifecycle_status?: string
           name: string
           name_ms?: string
           original_value?: number
@@ -482,6 +484,7 @@ export type Database = {
           image?: string
           images?: string[]
           is_pinned?: boolean
+          lifecycle_status?: string
           name?: string
           name_ms?: string
           original_value?: number
@@ -3292,6 +3295,10 @@ export type Database = {
         Returns: undefined
       }
       reorder_combos: { Args: { p_ids: string[] }; Returns: undefined }
+      admin_set_combo_lifecycle: {
+        Args: { p_combo_id: string; p_lifecycle_status: string }
+        Returns: undefined
+      }
       reorder_products: { Args: { p_ids: string[] }; Returns: undefined }
       replace_payment_qr_configuration: {
         Args: { p_instructions?: string; p_qr_storage_path: string }

@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Loader2, Star, Pencil } from 'lucide-react';
+import { Plus, Loader2, Star, Pencil, Copy } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import {
   fetchCombos,
-  deleteCombos,
   toggleComboFeatured,
   toggleComboActive,
   toggleComboPinned,
@@ -37,8 +36,6 @@ export default function AdminComboListPage() {
   const { t } = useLanguage();
   const [combos, setCombos] = useState<DbCombo[]>([]);
   const [loading, setLoading] = useState(true);
-  const [deleting, setDeleting] = useState(false);
-  const [deleteIds, setDeleteIds] = useState<Set<string>>(new Set());
   const [itemCounts, setItemCounts] = useState<Record<string, number>>({});
 
   async function load() {
@@ -63,7 +60,8 @@ export default function AdminComboListPage() {
     onTogglePin: (id, pinned) => toggleComboPinned(id, pinned),
     onBulkActive: (ids, active) => setCombosActive(ids, active),
     onBulkPinned: (ids, pinned) => setCombosPinned(ids, pinned),
-    onBulkDelete: (ids) => deleteCombos(ids),
+    // Weekly operation preserves history: duplicate, edit the draft, then activate.
+    onBulkDelete: async () => undefined,
     onRefetch: load,
     reorderMessage: t('adminCombos.toast.reordered'),
     pinMessage: (pinned) => (pinned ? t('adminCombos.toast.pinned') : t('adminCombos.toast.unpinned')),
@@ -93,7 +91,6 @@ export default function AdminComboListPage() {
     togglePin,
     bulkSetActive,
     bulkSetPinned,
-    bulkDelete,
     resetOrder,
     toast,
     dismissToast,
@@ -144,22 +141,6 @@ export default function AdminComboListPage() {
     }
   };
 
-  const handleDelete = async () => {
-    if (deleteIds.size === 0) return;
-    setDeleting(true);
-    try {
-      await deleteCombos(Array.from(deleteIds));
-      setCombos((prev) => prev.filter((c) => !deleteIds.has(c.id)));
-      manager.removeLocally(Array.from(deleteIds));
-      setDeleteIds(new Set());
-    } catch (err) {
-      console.error('Delete failed:', err);
-      alert(t('adminCombos.messages.deleteFailed'));
-    } finally {
-      setDeleting(false);
-    }
-  };
-
   const confirmReset = () => {
     if (window.confirm(t('adminCombos.sort.resetConfirm'))) resetOrder();
   };
@@ -178,7 +159,6 @@ export default function AdminComboListPage() {
     deactivate: t('adminCombos.bulk.deactivate'),
     pin: t('adminCombos.bulk.pin'),
     unpin: t('adminCombos.bulk.unpin'),
-    delete: t('adminCombos.bulk.delete'),
     clear: t('adminCombos.bulk.clear'),
   };
 
@@ -223,7 +203,6 @@ export default function AdminComboListPage() {
         onDeactivate={() => bulkSetActive(false)}
         onPin={() => bulkSetPinned(true)}
         onUnpin={() => bulkSetPinned(false)}
-        onDelete={bulkDelete}
         onClear={clearSelection}
         labels={bulkLabels}
       />
@@ -278,8 +257,8 @@ export default function AdminComboListPage() {
                         {combo.is_pinned && (
                           <span className="text-xs bg-forest-50 text-forest-700 px-1.5 py-0.5 rounded font-medium">{t('adminCombos.badges.pinned')}</span>
                         )}
-                        <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${combo.active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-500'}`}>
-                          {combo.active ? t('adminCombos.badges.active') : t('adminCombos.badges.inactive')}
+                        <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${combo.lifecycle_status === 'active' ? 'bg-green-100 text-green-800' : combo.lifecycle_status === 'draft' ? 'bg-amber-100 text-amber-800' : 'bg-gray-100 text-gray-500'}`}>
+                          {combo.lifecycle_status === 'active' ? t('adminCombos.badges.active') : combo.lifecycle_status === 'draft' ? 'Draft' : t('adminCombos.badges.inactive')}
                         </span>
                       </div>
                       <p className="text-sm text-gray-500 truncate">{combo.tagline}</p>
@@ -295,7 +274,8 @@ export default function AdminComboListPage() {
                     <div className="flex items-center gap-2 shrink-0">
                       <button
                         onClick={() => handleToggleFeatured(combo.id, combo.featured)}
-                        className={`px-3 py-1.5 text-sm rounded font-medium transition-all ${
+                        disabled={combo.lifecycle_status !== 'active'}
+                        className={`px-3 py-1.5 text-sm rounded font-medium transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
                           combo.featured ? 'bg-amber-400 text-white hover:bg-amber-500' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                         }`}
                       >
@@ -303,12 +283,12 @@ export default function AdminComboListPage() {
                         {combo.featured ? t('adminCombos.buttons.featured') : t('adminCombos.buttons.feature')}
                       </button>
                       <button
-                        onClick={() => handleToggleActive(combo.id, combo.active)}
+                        onClick={() => handleToggleActive(combo.id, combo.lifecycle_status === 'active')}
                         className={`px-3 py-1.5 text-sm rounded transition-all ${
-                          combo.active ? 'bg-green-50 text-green-600 hover:bg-green-100' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+                          combo.lifecycle_status === 'active' ? 'bg-green-50 text-green-600 hover:bg-green-100' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
                         }`}
                       >
-                        {combo.active ? t('adminCombos.buttons.deactivate') : t('adminCombos.buttons.activate')}
+                        {combo.lifecycle_status === 'active' ? t('adminCombos.buttons.deactivate') : t('adminCombos.buttons.activate')}
                       </button>
                       <Link
                         to={`/admin/combos/edit/${combo.id}`}
@@ -320,17 +300,11 @@ export default function AdminComboListPage() {
                       <RowMenu
                         title={t('adminCombos.buttons.edit')}
                         actions={[
-                          { key: 'duplicate', label: t('adminCombos.buttons.duplicate'), onClick: () => handleDuplicate(combo.id) },
+                          { key: 'duplicate', label: t('adminCombos.buttons.duplicate'), icon: <Copy size={15} />, onClick: () => handleDuplicate(combo.id) },
                           {
                             key: 'pin',
                             label: combo.is_pinned ? t('adminProducts.actions.unpin') : t('adminProducts.actions.pin'),
                             onClick: () => togglePin(combo.id),
-                          },
-                          {
-                            key: 'delete',
-                            label: t('adminCombos.buttons.delete'),
-                            danger: true,
-                            onClick: () => setDeleteIds(new Set([combo.id])),
                           },
                         ]}
                       />
@@ -345,24 +319,6 @@ export default function AdminComboListPage() {
             {t('adminCombos.count', { count: totalCount })}
           </div>
         </>
-      )}
-
-      {deleteIds.size > 0 && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => !deleting && setDeleteIds(new Set())} />
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6 animate-[fadeSlideUp_0.2s_ease-out]">
-            <h3 className="font-semibold text-gray-900 text-lg mb-4">{t('adminCombos.buttons.delete')}</h3>
-            <p className="text-sm text-gray-600 mb-6">{t('adminCombos.messages.deleteConfirm')}</p>
-            <div className="flex gap-3 justify-end">
-              <button onClick={() => setDeleteIds(new Set())} disabled={deleting} className="px-4 py-2 rounded-xl text-sm font-medium text-gray-700 border border-gray-200 hover:bg-gray-50 transition-all">
-                {t('adminProducts.buttons.cancel')}
-              </button>
-              <button onClick={handleDelete} disabled={deleting} className="px-4 py-2 rounded-xl text-sm font-semibold text-white bg-red-600 hover:bg-red-700 transition-all disabled:opacity-50">
-                {deleting ? t('adminProducts.messages.deleting') : t('adminCombos.buttons.delete')}
-              </button>
-            </div>
-          </div>
-        </div>
       )}
 
       {toast && (
