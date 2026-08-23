@@ -478,7 +478,7 @@ function ProductsTab() {
 
 
 function PaymentQrSettingsCard() {
-  const [current, setCurrent] = useState<any | null>(null);
+  const [current, setCurrent] = useState<{ qr_storage_path: string } | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [instructions, setInstructions] = useState(
     'Scan the DuitNow QR below and pay the exact order amount. After payment, upload your receipt for verification.'
@@ -1113,7 +1113,7 @@ function UsersTab() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -1275,11 +1275,9 @@ interface AdminOrder {
   paymentStatus: PaymentStatus;
   paidAt: string | null;
   orderStatus: string;
-  orderSummary: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  orderItems: any[];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  supplierWeights: Record<string, number>;
+  orderSummary: unknown;
+    orderItems: unknown[];
+    supplierWeights: Record<string, number>;
   deliveryFee: number;
   subtotal: number;
 }
@@ -1396,7 +1394,7 @@ function buildPaymentMessage(order: AdminOrder): string {
 
 
 function CanonicalPaymentVerificationQueue() {
-  const [rows, setRows] = useState<any[]>([]);
+  const [rows, setRows] = useState<Record<string, unknown>[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionId, setActionId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -1424,7 +1422,7 @@ function CanonicalPaymentVerificationQueue() {
       }
 
       const orderIds = Array.from(
-        new Set(receiptRows.map((r: any) => String(r.sales_order_id)))
+        new Set(receiptRows.map((r: unknown) => String(r.sales_order_id)))
       );
 
       const { data: orders, error: orderError } = await supabase
@@ -1437,11 +1435,11 @@ function CanonicalPaymentVerificationQueue() {
       if (orderError) throw orderError;
 
       const ordersById = new Map(
-        (orders ?? []).map((o: any) => [String(o.id), o])
+        (orders ?? []).map((o: unknown) => [String(o.id), o])
       );
 
       setRows(
-        receiptRows.map((receipt: any) => ({
+        receiptRows.map((receipt: unknown) => ({
           ...receipt,
           order: ordersById.get(String(receipt.sales_order_id)) ?? null,
         }))
@@ -1461,7 +1459,7 @@ function CanonicalPaymentVerificationQueue() {
     loadCanonicalReceipts();
   }, [loadCanonicalReceipts]);
 
-  const viewReceipt = async (row: any) => {
+  const viewReceipt = async (row: unknown) => {
     setError(null);
 
     try {
@@ -1480,7 +1478,7 @@ function CanonicalPaymentVerificationQueue() {
     }
   };
 
-  const confirmReceipt = async (row: any) => {
+  const confirmReceipt = async (row: unknown) => {
     const ref = row.order?.order_number ?? row.sales_order_id;
 
     if (!window.confirm(`Confirm payment for ${ref}?`)) return;
@@ -1508,7 +1506,7 @@ function CanonicalPaymentVerificationQueue() {
     }
   };
 
-  const rejectReceipt = async (row: any) => {
+  const rejectReceipt = async (row: unknown) => {
     const reason = window.prompt(
       'Reason for rejecting this payment receipt:'
     );
@@ -1710,8 +1708,7 @@ const [orders, setOrders] = useState<AdminOrder[]>([]);
       if (fetchErr) throw fetchErr;
 
       const mapped: AdminOrder[] = (data ?? []).map((row) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const r = row as any;
+                const r = row as unknown;
         const summary = r.order_summary ?? {};
         return {
           dbId: r.id,
@@ -1744,7 +1741,7 @@ const [orders, setOrders] = useState<AdminOrder[]>([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => { load(); }, [load]);
 

@@ -5,7 +5,6 @@ import {
   cleanupTestRun,
   getServiceClient,
 } from './support/fixtures';
-import { loadTestEnv } from './support/env';
 import { assertSafeForDestructiveSetup } from './support/safety';
 import { signInViaHeader, todayLocalIso } from './support/ui';
 
@@ -26,7 +25,6 @@ import { signInViaHeader, todayLocalIso } from './support/ui';
  *               Mark Delivered (RPCs, no payment change)
  */
 const RUN_ID = currentTestRunId();
-const env = loadTestEnv();
 const OFFSETS_20 = 'https://example.com/e2e-tracking';
 
 type SeedOptions = {

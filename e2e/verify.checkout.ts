@@ -56,7 +56,7 @@ let failures = 0;
 
 function pass(message: string) { console.log(`PASS: ${message}`); }
 function fail(message: string) { failures += 1; console.log(`FAIL: ${message}`); }
-function check(condition: unknown, message: string) { condition ? pass(message) : fail(message); }
+function check(condition: unknown, message: string) { if (condition) pass(message); else fail(message); }
 function orders(client: SupabaseClient) { return client.schema('public').from('Orders'); }
 
 async function createUser(label: string, runId: string): Promise<TestUser> {

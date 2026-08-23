@@ -176,20 +176,6 @@ function assertEqual(scenario: number, label: string, actual: unknown, expected:
   }
 }
 
-async function supplierLegitToReadyToPay(supplierClient: SupabaseClient, id: number, runId: string): Promise<void> {
-  const weights = { '1': 0.75 };
-  const finalRevenue = 20 + 30 * 0.75;
-  const finalCost = 8 + 18 * 0.75;
-  const finalProfit = finalRevenue - finalCost;
-  const finalTotal = finalRevenue + 6.5;
-  const { error } = await supplierClient.from('Orders').update({
-    supplier_weights: weights, total: finalTotal, order_items: checkoutItems(runId),
-    gross_profit: finalProfit, payment_status: 'Ready To Pay',
-    updated_at: new Date().toISOString(), updated_by: null,
-  }).eq('id', id);
-  if (error) throw new Error(`supplier legit update on order ${id} failed: ${error.message}`);
-}
-
 async function adminConfirmPaid(adminClient: SupabaseClient, id: number, paid_by: string): Promise<void> {
   const { error } = await adminClient.from('Orders').update({
     payment_status: 'Paid', paid_at: new Date().toISOString(), paid_by,
@@ -200,7 +186,7 @@ async function adminConfirmPaid(adminClient: SupabaseClient, id: number, paid_by
 async function cleanup(): Promise<void> {
   if (orderIds.length) {
     const { error } = await service.from('Orders').delete().in('id', orderIds);
-    error ? console.log(`Cleanup orders ERROR: ${error.message}`) : console.log(`Cleanup deleted ${orderIds.length}/${orderIds.length} test orders.`);
+    if (error) console.log(`Cleanup orders ERROR: ${error.message}`); else console.log(`Cleanup deleted ${orderIds.length}/${orderIds.length} test orders.`);
   }
   let deleted = 0;
   for (const user of users) {

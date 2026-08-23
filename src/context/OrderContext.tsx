@@ -252,7 +252,7 @@ export function OrderProvider({ children }: { children: React.ReactNode }) {
     // Additive compatibility write: Orders stays authoritative in Phase 3.
     // A failed optional structured write must never invalidate a valid legacy order.
     if (order.preparationSnapshot && data?.id) {
-      const { error: snapshotError } = await (supabase as any).rpc('record_order_preparation_snapshot', {
+      const { error: snapshotError } = await (supabase as unknown).rpc('record_order_preparation_snapshot', {
         p_legacy_order_id: data.id,
         p_questionnaire_snapshot: order.preparationSnapshot,
       });

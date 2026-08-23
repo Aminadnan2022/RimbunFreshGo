@@ -170,7 +170,7 @@ export default function OrdersPage() {
       }
     })();
     return () => { active = false; };
-  }, [user]);
+  }, [user, t]);
 
   if (authLoading) {
     return (

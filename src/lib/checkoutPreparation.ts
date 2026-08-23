@@ -40,7 +40,7 @@ export type PreparationTarget = {
 
 export type PreparationAnswers = Record<string, Record<string, unknown>>;
 
-const db = supabase as any;
+const db = supabase as unknown;
 
 export async function loadQuestionnaire(
   productId: string,

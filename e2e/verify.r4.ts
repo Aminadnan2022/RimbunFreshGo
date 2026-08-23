@@ -205,7 +205,7 @@ async function adminConfirmPaid(adminClient: SupabaseClient, id: number, paid_by
 async function cleanup(): Promise<void> {
   if (orderIds.length) {
     const { error } = await service.from('Orders').delete().in('id', orderIds);
-    error ? console.log(`Cleanup orders ERROR: ${error.message}`) : console.log(`Cleanup deleted ${orderIds.length}/${orderIds.length} test orders.`);
+    if (error) console.log(`Cleanup orders ERROR: ${error.message}`); else console.log(`Cleanup deleted ${orderIds.length}/${orderIds.length} test orders.`);
   }
   let deleted = 0;
   for (const user of users) {

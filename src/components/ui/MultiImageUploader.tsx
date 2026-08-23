@@ -79,18 +79,18 @@ export default function MultiImageUploader({ category, images, onChange }: Props
     onChange([...images, data?.path ?? storagePath]);
   }, [category, images, onChange, t]);
 
-  const handleFiles = (files: FileList | null) => {
+  const handleFiles = useCallback((files: FileList | null) => {
     if (!files || files.length === 0) return;
     const file = files[0];
     URL.createObjectURL(file);
     uploadFile(file);
-  };
+  }, [uploadFile]);
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
     handleFiles(e.dataTransfer.files);
-  }, []);
+  }, [handleFiles]);
 
   const moveLeft = (index: number) => {
     if (index === 0) return;

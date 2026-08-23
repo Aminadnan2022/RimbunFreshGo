@@ -75,7 +75,7 @@ console.log(`url=${SUPABASE_URL}`);
 async function main() {
   console.log('\n==== [1/3] CHECK ORDERS TABLE ====');
 
-  const { data: tableData, error: tableError } =
+  const { error: tableError } =
     await service
       .from('Orders')
       .select('*')
