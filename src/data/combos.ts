@@ -220,8 +220,11 @@ export async function toggleComboFeatured(id: string, featured: boolean): Promis
   if (error) throw error;
 }
 
-export async function toggleComboActive(id: string, active: boolean): Promise<void> {
+export async function toggleComboActive(id: string, active: boolean): Promise<DbCombo> {
   await setComboLifecycle(id, active ? 'active' : 'inactive');
+  const saved = await fetchComboById(id);
+  if (!saved) throw new Error('Combo not found after lifecycle update');
+  return saved.combo;
 }
 
 export async function setComboLifecycle(id: string, lifecycleStatus: 'draft' | 'active' | 'inactive'): Promise<void> {

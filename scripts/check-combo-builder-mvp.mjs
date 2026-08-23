@@ -32,6 +32,14 @@ if (!list.includes("combo.lifecycle_status === 'draft'") || !list.includes("key:
   failures.push('admin list must expose draft state and duplicate action');
 }
 for (const token of [
+  'const saved = await toggleComboActive',
+  'c.id === id ? saved : c',
+  'lifecyclePendingIds.has(combo.id)',
+]) if (!list.includes(token)) failures.push(`admin lifecycle UI must reconcile and lock the affected row: ${token}`);
+if (!data.includes("Promise<DbCombo>") || !data.includes("fetchComboById(id)")) {
+  failures.push('lifecycle caller must refetch the affected combo after a successful RPC');
+}
+for (const token of [
   'SECURITY DEFINER',
   'IF NOT public.is_admin()',
   'REVOKE INSERT, UPDATE, DELETE ON TABLE public.combos, public.combo_items FROM authenticated',

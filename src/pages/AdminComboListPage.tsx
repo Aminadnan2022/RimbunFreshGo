@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, Loader2, Star, Pencil, Copy } from 'lucide-react';
 import { supabase } from '../lib/supabase';
@@ -37,6 +37,8 @@ export default function AdminComboListPage() {
   const [combos, setCombos] = useState<DbCombo[]>([]);
   const [loading, setLoading] = useState(true);
   const [itemCounts, setItemCounts] = useState<Record<string, number>>({});
+  const [lifecyclePendingIds, setLifecyclePendingIds] = useState<Set<string>>(new Set());
+  const lifecyclePendingRef = useRef(new Set<string>());
 
   async function load() {
     try {
@@ -123,11 +125,17 @@ export default function AdminComboListPage() {
   };
 
   const handleToggleActive = async (id: string, current: boolean) => {
+    if (lifecyclePendingRef.current.has(id)) return;
+    lifecyclePendingRef.current.add(id);
+    setLifecyclePendingIds(new Set(lifecyclePendingRef.current));
     try {
-      await toggleComboActive(id, !current);
-      setCombos((prev) => prev.map((c) => (c.id === id ? { ...c, active: !current } : c)));
+      const saved = await toggleComboActive(id, !current);
+      setCombos((prev) => prev.map((c) => (c.id === id ? saved : c)));
     } catch (err) {
       console.error('Toggle active failed:', err);
+    } finally {
+      lifecyclePendingRef.current.delete(id);
+      setLifecyclePendingIds(new Set(lifecyclePendingRef.current));
     }
   };
 
@@ -284,10 +292,13 @@ export default function AdminComboListPage() {
                       </button>
                       <button
                         onClick={() => handleToggleActive(combo.id, combo.lifecycle_status === 'active')}
+                        disabled={lifecyclePendingIds.has(combo.id)}
+                        aria-busy={lifecyclePendingIds.has(combo.id)}
                         className={`px-3 py-1.5 text-sm rounded transition-all ${
                           combo.lifecycle_status === 'active' ? 'bg-green-50 text-green-600 hover:bg-green-100' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
-                        }`}
+                        } disabled:cursor-not-allowed disabled:opacity-50`}
                       >
+                        {lifecyclePendingIds.has(combo.id) && <Loader2 size={14} className="inline mr-1 -mt-0.5 animate-spin" />}
                         {combo.lifecycle_status === 'active' ? t('adminCombos.buttons.deactivate') : t('adminCombos.buttons.activate')}
                       </button>
                       <Link
