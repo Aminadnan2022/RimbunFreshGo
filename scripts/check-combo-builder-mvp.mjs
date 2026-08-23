@@ -36,8 +36,16 @@ for (const token of [
   'c.id === id ? saved : c',
   'lifecyclePendingIds.has(combo.id)',
 ]) if (!list.includes(token)) failures.push(`admin lifecycle UI must reconcile and lock the affected row: ${token}`);
+for (const token of [
+  "lifecycle_status: active ? 'active' : 'inactive'",
+  'await load();',
+  'bulkLifecyclePartialFailure',
+]) if (!list.includes(token)) failures.push(`bulk lifecycle UI must reconcile lifecycle status and report partial failures: ${token}`);
 if (!data.includes("Promise<DbCombo>") || !data.includes("fetchComboById(id)")) {
   failures.push('lifecycle caller must refetch the affected combo after a successful RPC');
+}
+for (const token of ['Promise.allSettled', 'successfulIds', 'failedIds']) {
+  if (!data.includes(token)) failures.push(`bulk lifecycle writes must retain per-combo outcomes: ${token}`);
 }
 for (const token of [
   'SECURITY DEFINER',

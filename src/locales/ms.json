@@ -1472,6 +1472,7 @@
       "pinned": "Kombo disemat.",
       "unpinned": "Kombo dinyahsemat.",
       "bulkChanged": "{{count}} kombo {{label}}.",
+      "bulkLifecyclePartialFailure": "{{successfulCount}} kombo dikemas kini. {{failedCount}} tidak dapat dikemas kini dan kekal dipilih.",
       "undoFailed": "Tidak dapat membuat asal perubahan terakhir.",
       "undo": "Buat asal"
     }

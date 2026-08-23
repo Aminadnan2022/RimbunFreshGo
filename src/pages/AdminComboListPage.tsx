@@ -58,9 +58,18 @@ export default function AdminComboListPage() {
     sortModes: COMBO_SORT_MODES,
     getPinned: (c) => c.is_pinned,
     applyPinned: (c, pinned) => ({ ...c, is_pinned: pinned }),
+    applyActive: (c, active) => ({
+      ...c,
+      active,
+      lifecycle_status: active ? 'active' : 'inactive',
+    }),
     onMove: (id, toIndex) => moveCombo(id, toIndex),
     onTogglePin: (id, pinned) => toggleComboPinned(id, pinned),
-    onBulkActive: (ids, active) => setCombosActive(ids, active),
+    onBulkActive: async (ids, active) => {
+      const result = await setCombosActive(ids, active);
+      await load();
+      return result;
+    },
     onBulkPinned: (ids, pinned) => setCombosPinned(ids, pinned),
     // Weekly operation preserves history: duplicate, edit the draft, then activate.
     onBulkDelete: async () => undefined,
@@ -68,6 +77,7 @@ export default function AdminComboListPage() {
     reorderMessage: t('adminCombos.toast.reordered'),
     pinMessage: (pinned) => (pinned ? t('adminCombos.toast.pinned') : t('adminCombos.toast.unpinned')),
     bulkMessage: (label, count) => t('adminCombos.toast.bulkChanged', { count, label: t('adminCombos.actions.' + label) }),
+    bulkPartialFailureMessage: (failedCount, successfulCount) => t('adminCombos.toast.bulkLifecyclePartialFailure', { failedCount, successfulCount }),
     undoFailedMessage: t('adminCombos.toast.undoFailed'),
   });
 

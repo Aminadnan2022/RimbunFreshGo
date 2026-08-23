@@ -9,15 +9,22 @@ export interface SortModeOption<T> {
   compare?: (a: T, b: T) => number;
 }
 
+export interface BulkMutationResult {
+  successfulIds: string[];
+  failedIds: string[];
+}
+
 export interface SortableManagerOptions<T extends { id: string }> {
   items: T[];
   sortModes: SortModeOption<T>[];
   getPinned: (item: T) => boolean;
   /** Returns a copy of the item with its pin flag updated (for optimistic UI). */
   applyPinned: (item: T, pinned: boolean) => T;
+  /** Returns a copy of the item with its active state updated after a bulk mutation. */
+  applyActive: (item: T, active: boolean) => T;
   onMove: (id: string, toIndex: number) => Promise<void>;
   onTogglePin: (id: string, pinned: boolean) => Promise<void>;
-  onBulkActive: (ids: string[], active: boolean) => Promise<void>;
+  onBulkActive: (ids: string[], active: boolean) => Promise<BulkMutationResult | void>;
   onBulkPinned: (ids: string[], pinned: boolean) => Promise<void>;
   onBulkDelete: (ids: string[]) => Promise<void>;
   onRefetch: () => Promise<void>;
@@ -25,6 +32,7 @@ export interface SortableManagerOptions<T extends { id: string }> {
   reorderMessage: string;
   pinMessage: (pinned: boolean) => string;
   bulkMessage: (label: string, count: number) => string;
+  bulkPartialFailureMessage?: (failedCount: number, successfulCount: number) => string;
   undoFailedMessage: string;
 }
 
@@ -40,6 +48,7 @@ export function useSortableManager<T extends { id: string }>(opts: SortableManag
     sortModes,
     getPinned,
     applyPinned,
+    applyActive,
     onMove,
     onTogglePin,
     onBulkActive,
@@ -50,6 +59,7 @@ export function useSortableManager<T extends { id: string }>(opts: SortableManag
     reorderMessage,
     pinMessage,
     bulkMessage,
+    bulkPartialFailureMessage,
     undoFailedMessage,
   } = opts;
 
@@ -224,17 +234,48 @@ export function useSortableManager<T extends { id: string }>(opts: SortableManag
   );
 
   const bulkSetActive = useCallback(
-    (active: boolean) => {
+    async (active: boolean) => {
       const ids = Array.from(selected);
-      if (ids.length === 0) return;
-      runMutation(
-        () => setWorking(working.map((i) => (ids.includes(i.id) ? { ...i, active } : i))),
-        () => onBulkActive(ids, active),
-        () => onBulkActive(ids, !active),
-        bulkMessage(active ? 'activated' : 'deactivated', ids.length)
-      );
+      if (ids.length === 0 || busy) return;
+      setBusy(true);
+      try {
+        const result = await onBulkActive(ids, active);
+        const successfulIds = result?.successfulIds ?? ids;
+        const failedIds = result?.failedIds ?? [];
+        const successful = new Set(successfulIds);
+
+        setWorking((current) => current.map((item) => (
+          successful.has(item.id) ? applyActive(item, active) : item
+        )));
+        setSelected(new Set(failedIds));
+
+        if (failedIds.length > 0) {
+          alert(bulkPartialFailureMessage?.(failedIds.length, successfulIds.length) ?? undoFailedMessage);
+        } else {
+          showToast({
+            message: bulkMessage(active ? 'activated' : 'deactivated', successfulIds.length),
+            actionKey: Math.random().toString(36).slice(2),
+            undo: () => {
+              setBusy(true);
+              onBulkActive(successfulIds, !active)
+                .then(() => setWorking((current) => current.map((item) => (
+                  successful.has(item.id) ? applyActive(item, !active) : item
+                ))))
+                .catch(() => alert(undoFailedMessage))
+                .finally(() => {
+                  setBusy(false);
+                  setToast(null);
+                });
+            },
+          });
+        }
+      } catch {
+        alert(undoFailedMessage);
+      } finally {
+        setBusy(false);
+      }
     },
-    [selected, working, runMutation, onBulkActive, bulkMessage]
+    [selected, busy, onBulkActive, applyActive, bulkMessage, bulkPartialFailureMessage, undoFailedMessage, showToast]
   );
 
   const bulkSetPinned = useCallback(

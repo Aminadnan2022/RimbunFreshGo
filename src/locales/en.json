@@ -1472,6 +1472,7 @@
       "pinned": "Combo pinned.",
       "unpinned": "Combo unpinned.",
       "bulkChanged": "{{count}} combo(s) {{label}}.",
+      "bulkLifecyclePartialFailure": "{{successfulCount}} combo(s) updated. {{failedCount}} could not be updated and remain selected.",
       "undoFailed": "Could not undo the last change.",
       "undo": "Undo"
     }

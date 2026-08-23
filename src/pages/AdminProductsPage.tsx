@@ -197,6 +197,7 @@ function ProductsTab() {
     sortModes: PRODUCT_SORT_MODES,
     getPinned: (p) => p.isPinned,
     applyPinned: (p, pinned) => ({ ...p, isPinned: pinned }),
+    applyActive: (p, active) => ({ ...p, freshness: active ? 'available' : 'sold-out' }),
     onMove: (id, toIndex) => moveProduct(id, toIndex),
     onTogglePin: (id, pinned) => toggleProductPinned(id, pinned),
     onBulkActive: (ids, active) => setProductsActive(ids, active),

@@ -197,8 +197,23 @@ export async function toggleComboPinned(id: string, isPinned: boolean): Promise<
   if (error) throw error;
 }
 
-export async function setCombosActive(ids: string[], active: boolean): Promise<void> {
-  await Promise.all(ids.map((id) => setComboLifecycle(id, active ? 'active' : 'inactive')));
+export interface ComboBulkLifecycleResult {
+  successfulIds: string[];
+  failedIds: string[];
+}
+
+export async function setCombosActive(ids: string[], active: boolean): Promise<ComboBulkLifecycleResult> {
+  const results = await Promise.allSettled(
+    ids.map((id) => setComboLifecycle(id, active ? 'active' : 'inactive'))
+  );
+  return results.reduce<ComboBulkLifecycleResult>(
+    (outcome, result, index) => {
+      if (result.status === 'fulfilled') outcome.successfulIds.push(ids[index]);
+      else outcome.failedIds.push(ids[index]);
+      return outcome;
+    },
+    { successfulIds: [], failedIds: [] }
+  );
 }
 
 export async function setCombosPinned(ids: string[], isPinned: boolean): Promise<void> {
