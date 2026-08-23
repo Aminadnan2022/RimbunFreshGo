@@ -331,7 +331,7 @@ export default function AdminProductFormPage() {
     try {
       if (isEdit) {
         const rest = { ...payload };
-        delete rest.id;
+        delete (rest as { id?: string }).id;
         await updateProduct(id!, rest);
 
         // Price history: publish a new history row ONLY when the value changed.

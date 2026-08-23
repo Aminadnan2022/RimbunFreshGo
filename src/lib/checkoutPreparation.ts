@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- preparation RPC response is validated at the use site. */
 import { supabase } from './supabase';
 import type { CartItem } from '../types';
 
@@ -40,7 +41,7 @@ export type PreparationTarget = {
 
 export type PreparationAnswers = Record<string, Record<string, unknown>>;
 
-const db = supabase as unknown;
+const db = supabase as any;
 
 export async function loadQuestionnaire(
   productId: string,

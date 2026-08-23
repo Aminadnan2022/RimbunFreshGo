@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- legacy admin rows remain outside generated schema types. */
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link, Navigate, useSearchParams, useLocation } from 'react-router-dom';
 import { Plus, Pencil, X, AlertTriangle, Package, Loader2, Settings, ShoppingBag, Truck, CheckCircle2, AlertCircle, PenLine, ShieldAlert, Clock, Calendar, Users, ClipboardList, ChevronLeft, CreditCard, Phone, Copy, Save, Gift, Sparkles, Navigation, FileText, Share2, LayoutDashboard, ListOrdered, Trash2, Boxes, BarChart3 } from 'lucide-react';
@@ -479,7 +480,7 @@ function ProductsTab() {
 
 
 function PaymentQrSettingsCard() {
-  const [current, setCurrent] = useState<{ qr_storage_path: string } | null>(null);
+  const [current, setCurrent] = useState<any | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [instructions, setInstructions] = useState(
     'Scan the DuitNow QR below and pay the exact order amount. After payment, upload your receipt for verification.'
@@ -1276,9 +1277,11 @@ interface AdminOrder {
   paymentStatus: PaymentStatus;
   paidAt: string | null;
   orderStatus: string;
-  orderSummary: unknown;
-    orderItems: unknown[];
-    supplierWeights: Record<string, number>;
+  orderSummary: any;
+
+  orderItems: any[];
+
+  supplierWeights: Record<string, number>;
   deliveryFee: number;
   subtotal: number;
 }
@@ -1395,7 +1398,7 @@ function buildPaymentMessage(order: AdminOrder): string {
 
 
 function CanonicalPaymentVerificationQueue() {
-  const [rows, setRows] = useState<Record<string, unknown>[]>([]);
+  const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionId, setActionId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -1423,7 +1426,7 @@ function CanonicalPaymentVerificationQueue() {
       }
 
       const orderIds = Array.from(
-        new Set(receiptRows.map((r: unknown) => String(r.sales_order_id)))
+        new Set(receiptRows.map((r: any) => String(r.sales_order_id)))
       );
 
       const { data: orders, error: orderError } = await supabase
@@ -1436,11 +1439,11 @@ function CanonicalPaymentVerificationQueue() {
       if (orderError) throw orderError;
 
       const ordersById = new Map(
-        (orders ?? []).map((o: unknown) => [String(o.id), o])
+        (orders ?? []).map((o: any) => [String(o.id), o])
       );
 
       setRows(
-        receiptRows.map((receipt: unknown) => ({
+        receiptRows.map((receipt: any) => ({
           ...receipt,
           order: ordersById.get(String(receipt.sales_order_id)) ?? null,
         }))
@@ -1460,7 +1463,7 @@ function CanonicalPaymentVerificationQueue() {
     loadCanonicalReceipts();
   }, [loadCanonicalReceipts]);
 
-  const viewReceipt = async (row: unknown) => {
+  const viewReceipt = async (row: any) => {
     setError(null);
 
     try {
@@ -1479,7 +1482,7 @@ function CanonicalPaymentVerificationQueue() {
     }
   };
 
-  const confirmReceipt = async (row: unknown) => {
+  const confirmReceipt = async (row: any) => {
     const ref = row.order?.order_number ?? row.sales_order_id;
 
     if (!window.confirm(`Confirm payment for ${ref}?`)) return;
@@ -1507,7 +1510,7 @@ function CanonicalPaymentVerificationQueue() {
     }
   };
 
-  const rejectReceipt = async (row: unknown) => {
+  const rejectReceipt = async (row: any) => {
     const reason = window.prompt(
       'Reason for rejecting this payment receipt:'
     );
@@ -1709,7 +1712,8 @@ const [orders, setOrders] = useState<AdminOrder[]>([]);
       if (fetchErr) throw fetchErr;
 
       const mapped: AdminOrder[] = (data ?? []).map((row) => {
-                const r = row as unknown;
+
+        const r = row as any;
         const summary = r.order_summary ?? {};
         return {
           dbId: r.id,

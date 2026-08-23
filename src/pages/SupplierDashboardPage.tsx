@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- supplier projection rows span legacy and canonical schemas. */
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { Loader2, ChevronLeft, ChevronDown, ChevronRight, AlertCircle, CheckCircle2, Scale, Lock, Phone, Home, MapPin, PackageCheck, Package, Truck, ExternalLink } from 'lucide-react';
@@ -374,7 +375,8 @@ export default function SupplierDashboardPage() {
       if (canonicalFulfilmentRes.error) throw canonicalFulfilmentRes.error;
 
       const legacyMapped: SupplierOrder[] = (legacyOrderRes.data ?? []).map((row) => {
-                const r = row as unknown;
+
+        const r = row as any;
         const summary: OrderSummary = r.order_summary ?? {};
         const deliveryDate = toISODate(summary.deliveryDate ?? '');
 
@@ -410,12 +412,16 @@ export default function SupplierDashboardPage() {
 
       // Canonical child tables are already supplier-scoped by Phase 4C.1 RLS.
       // Do not client-filter all suppliers' rows.
-            const canonicalLines = (canonicalLineRes.data ?? []) as unknown[];
-            const canonicalUnits = (canonicalUnitRes.data ?? []) as unknown[];
-            const canonicalAnswers = (canonicalAnswerRes.data ?? []) as unknown[];
-            const canonicalFulfilments = (canonicalFulfilmentRes.data ?? []) as unknown[];
 
-      const fulfilmentsByOrder = new Map<string, Record<string, unknown>[]>();
+      const canonicalLines = (canonicalLineRes.data ?? []) as any[];
+
+      const canonicalUnits = (canonicalUnitRes.data ?? []) as any[];
+
+      const canonicalAnswers = (canonicalAnswerRes.data ?? []) as any[];
+
+      const canonicalFulfilments = (canonicalFulfilmentRes.data ?? []) as any[];
+
+      const fulfilmentsByOrder = new Map<string, any[]>();
       canonicalFulfilments.forEach((fulfilment) => {
         const key = String(fulfilment.sales_order_id);
         const list = fulfilmentsByOrder.get(key) ?? [];
@@ -435,7 +441,7 @@ export default function SupplierDashboardPage() {
         }
       });
 
-      const unitsByLine = new Map<string, Record<string, unknown>[]>();
+      const unitsByLine = new Map<string, any[]>();
       canonicalUnits.forEach((unit) => {
         const key = String(unit.sales_order_line_id);
         const list = unitsByLine.get(key) ?? [];
@@ -443,7 +449,7 @@ export default function SupplierDashboardPage() {
         unitsByLine.set(key, list);
       });
 
-      const linesByOrder = new Map<string, Record<string, unknown>[]>();
+      const linesByOrder = new Map<string, any[]>();
       canonicalLines.forEach((line) => {
         // Phase 4C.1 read bridge currently maps direct product lines only.
         // Combo parent/component mapping will be added from a real canonical
@@ -456,7 +462,8 @@ export default function SupplierDashboardPage() {
         linesByOrder.set(key, list);
       });
 
-            const canonicalMapped = ((canonicalOrderRes.data ?? []) as unknown[])
+
+      const canonicalMapped = ((canonicalOrderRes.data ?? []) as any[])
         .map((row) => {
           const ownedLines = linesByOrder.get(String(row.id)) ?? [];
 

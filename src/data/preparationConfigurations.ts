@@ -1,8 +1,9 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- Phase 2 preparation tables are not represented in the generated schema. */
 import { supabase } from '../lib/supabase';
 
 // Phase 2 tables are deliberately kept separate from the legacy Product
 // preparation_options field. Checkout does not import this module yet.
-const db = supabase as unknown;
+const db = supabase as any;
 
 export type PrepOptionDraft = { code: string; label: string; label_ms: string };
 export type PrepQuestionDraft = {
