@@ -21,19 +21,15 @@ const deferredFinal = resolveCustomerPaymentPresentation({ canonicalPaymentStatu
 assert.deepEqual([deferredFinal.label, deferredFinal.showPaymentQr, deferredFinal.allowReceiptUpload], ['Ready To Pay', true, true]);
 
 assert.match(checkout, /navigate\(`\/order\/\$\{order\.order_number\}`, \{ replace: true \}\)/, 'placement must redirect using the returned order number');
-for (const token of [
-  "from('sales_order_line_components')",
-  "from('sales_order_line_component_units')",
-  "from('sales_order_preparation_answers')",
-  'Array.from({ length: content.comboQuantity }, (_, comboIndex)',
-  'unit.comboUnitNumber === comboIndex + 1',
-]) assert.ok(tracking.includes(token), `canonical order contents detail is missing ${token}`);
+assert.doesNotMatch(tracking, /tracking\.orderContents/, 'legacy order contents must not duplicate or contradict final payment pricing');
 assert.match(tracking, /canonicalPayment\?\.paymentStatus/, 'tracking must prefer canonical payment state');
 assert.match(tracking, /Payment Submitted/, 'tracking must name the submitted receipt stage accurately');
 assert.match(tracking, /Awaiting Final Price/, 'estimated canonical prices must not be presented as awaiting payment');
 assert.match(tracking, /finalItemPricing/, 'ready-to-pay orders must show each weighed whole fish price before payment');
 assert.match(tracking, /actual_weight_kg/, 'final whole-fish pricing must use supplier-recorded actual weights');
 assert.match(tracking, /unit_selling_price/, 'final whole-fish pricing must use the frozen per-kg selling rate');
+assert.match(tracking, /final_subtotal, final_total, delivery_fee/, 'final payment breakdown must read canonical subtotal and delivery fee');
+assert.match(tracking, /canonicalPayment\?\.deliveryFee/, 'delivery charge must be displayed with the final payment amount');
 assert.match(migration, /RETURN QUERY SELECT[\s\S]*'receipt_submitted'::text/, 'guarded placement must return receipt_submitted');
 assert.match(migration, /consumed_sales_order_id = v_result\.sales_order_id/, 'staged receipt must remain tied to the idempotently returned order');
 

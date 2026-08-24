@@ -7,11 +7,9 @@ import {
 import { useOrders } from '../context/OrderContext';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
-import ProductImage from '../components/ui/ProductImage';
 import { formatCurrency } from '../lib/currency';
 import { supabase } from '../lib/supabase';
 import { formatDisplayDate } from '../data/delivery';
-import { isSliceItem } from '../lib/sellingOptions';
 import {
   TRACKING_STAGES,
   customerStageIndex,
@@ -19,7 +17,7 @@ import {
   fetchCustomerCanonicalDeliveryProofs,
   type CustomerDeliveryProof,
 } from '../data/customerTracking';
-import type { Order, CartItem } from '../types';
+import type { Order } from '../types';
 import { createBrowserUuid } from '../lib/browserUuid';
 import { resolveCustomerPaymentPresentation } from '../lib/orderPaymentPresentation';
 
@@ -39,7 +37,9 @@ type CanonicalPaymentMeta = {
   salesOrderId: string;
   priceStatus: 'estimated' | 'final';
   paymentStatus: 'pending' | 'receipt_submitted' | 'rejected' | 'paid';
+  finalSubtotal: number | null;
   finalTotal: number | null;
+  deliveryFee: number;
   rejectionReason: string | null;
 };
 
@@ -47,29 +47,6 @@ type CanonicalPaymentDisplay = {
   qrStoragePath: string;
   instructions: string | null;
   configurationSource: string;
-};
-
-type CanonicalContentUnit = {
-  id: string;
-  unitNumber: number;
-  comboUnitNumber: number;
-  componentUnitNumber: number;
-  preparation: string[];
-};
-
-type CanonicalContentComponent = {
-  id: string;
-  name: string;
-  quantity: number;
-  sellingUnit: string;
-  estimatedWeightKg: number | null;
-  units: CanonicalContentUnit[];
-};
-
-type CanonicalContentLine = {
-  lineNumber: number;
-  comboQuantity: number;
-  components: CanonicalContentComponent[];
 };
 
 type CanonicalFinalPriceItem = {
@@ -86,12 +63,6 @@ export default function OrderTrackingPage() {
   const { user } = useAuth();
   const { getOrder } = useOrders();
   const { t } = useLanguage();
-
-  const isWeightItem = (item: CartItem) => {
-    if (isSliceItem(item)) return false;
-    if (item.orderingMode) return item.orderingMode === 'weight_only' || item.orderingMode === 'whole_fish_by_weight';
-    return item.pricingType === 'per_kg';
-  };
 
   const [order, setOrder] = useState<Order | null | undefined>(undefined);
   const [riderName, setRiderName] = useState<string | null>(null);
@@ -110,8 +81,6 @@ const [initialLoading, setInitialLoading] = useState(true);
 
   const [canonicalPaymentDisplay, setCanonicalPaymentDisplay] =
     useState<CanonicalPaymentDisplay | null>(null);
-  const [canonicalContents, setCanonicalContents] =
-    useState<CanonicalContentLine[]>([]);
   const [canonicalFinalPriceItems, setCanonicalFinalPriceItems] =
     useState<CanonicalFinalPriceItem[]>([]);
 
@@ -148,7 +117,7 @@ const [receiptUploading, setReceiptUploading] = useState(false);
     try {
       const { data: canonicalRow, error: canonicalError } = await supabase
         .from('sales_orders')
-        .select('id, price_status, payment_status, final_total')
+        .select('id, price_status, payment_status, final_subtotal, final_total, delivery_fee')
         .eq('order_number', ref)
         .maybeSingle();
 
@@ -180,10 +149,15 @@ const [receiptUploading, setReceiptUploading] = useState(false);
             | 'receipt_submitted'
             | 'rejected'
             | 'paid',
+          finalSubtotal:
+            canonicalRow.final_subtotal == null
+              ? null
+              : Number(canonicalRow.final_subtotal),
           finalTotal:
             canonicalRow.final_total == null
               ? null
               : Number(canonicalRow.final_total),
+          deliveryFee: Number(canonicalRow.delivery_fee ?? 0),
           rejectionReason,
         });
 
@@ -195,61 +169,6 @@ const [receiptUploading, setReceiptUploading] = useState(false);
           .eq('sales_order_id', canonicalRow.id)
           .order('line_number', { ascending: true });
         if (contentLinesError) throw contentLinesError;
-
-        const comboLines = (contentLines ?? []).filter((line: any) => line.item_kind === 'combo');
-        const lineIds = comboLines.map((line: any) => String(line.id));
-        if (lineIds.length) {
-          const { data: components, error: componentsError } = await db
-            .from('sales_order_line_components')
-            .select('id, sales_order_line_id, component_number, product_snapshot, quantity, selling_unit, estimated_weight_kg')
-            .in('sales_order_line_id', lineIds)
-            .order('component_number', { ascending: true });
-          if (componentsError) throw componentsError;
-
-          const componentIds = (components ?? []).map((component: any) => String(component.id));
-          const [{ data: units, error: unitsError }, { data: answers, error: answersError }] = await Promise.all([
-            db.from('sales_order_line_component_units').select('id, sales_order_line_component_id, unit_number, unit_snapshot').in('sales_order_line_component_id', componentIds).order('unit_number', { ascending: true }),
-            db.from('sales_order_preparation_answers').select('sales_order_line_component_id, sales_order_line_component_unit_id, preparation_question_id, preparation_option_id, question_code, option_code, answer_value').in('sales_order_line_component_id', componentIds),
-          ]);
-          if (unitsError) throw unitsError;
-          if (answersError) throw answersError;
-
-          const questionIds = [...new Set((answers ?? []).map((answer: any) => String(answer.preparation_question_id)))];
-          const optionIds = [...new Set((answers ?? []).filter((answer: any) => answer.preparation_option_id).map((answer: any) => String(answer.preparation_option_id)))];
-          const [{ data: questions }, { data: options }] = await Promise.all([
-            questionIds.length ? db.from('preparation_questions').select('id, label').in('id', questionIds) : Promise.resolve({ data: [] }),
-            optionIds.length ? db.from('preparation_question_options').select('id, label').in('id', optionIds) : Promise.resolve({ data: [] }),
-          ]);
-          const questionLabels = new Map((questions ?? []).map((row: any) => [String(row.id), String(row.label)]));
-          const optionLabels = new Map((options ?? []).map((row: any) => [String(row.id), String(row.label)]));
-          const answerText = (answer: any) => {
-            const label = questionLabels.get(String(answer.preparation_question_id)) ?? String(answer.question_code).replace(/[_-]+/g, ' ');
-            const rawValue = optionLabels.get(String(answer.preparation_option_id)) ?? answer.option_code ?? answer.answer_value;
-            const value = rawValue === true ? 'Yes' : rawValue === false ? 'No' : typeof rawValue === 'string' ? rawValue : JSON.stringify(rawValue);
-            return `${label}: ${value}`;
-          };
-
-          setCanonicalContents(comboLines.map((line: any) => ({
-            lineNumber: Number(line.line_number),
-            comboQuantity: Number(line.quantity),
-            components: (components ?? []).filter((component: any) => String(component.sales_order_line_id) === String(line.id)).map((component: any) => ({
-              id: String(component.id),
-              name: String(component.product_snapshot?.name ?? component.product_snapshot?.label ?? 'Order item'),
-              quantity: Number(component.quantity),
-              sellingUnit: String(component.selling_unit ?? ''),
-              estimatedWeightKg: component.estimated_weight_kg == null ? null : Number(component.estimated_weight_kg),
-              units: (units ?? []).filter((unit: any) => String(unit.sales_order_line_component_id) === String(component.id)).map((unit: any) => ({
-                id: String(unit.id),
-                unitNumber: Number(unit.unit_number),
-                comboUnitNumber: Number(unit.unit_snapshot?.combo_unit_number ?? 1),
-                componentUnitNumber: Number(unit.unit_snapshot?.component_unit_number ?? 1),
-                preparation: (answers ?? []).filter((answer: any) => String(answer.sales_order_line_component_unit_id) === String(unit.id)).map(answerText),
-              })),
-            })),
-          })));
-        } else {
-          setCanonicalContents([]);
-        }
 
         // Whole fish are finalised and charged per physical fish. Surface the
         // actual weighed amount and frozen selling rate before payment so the
@@ -781,10 +700,6 @@ useEffect(() => {
               <span className="w-3 h-3 rounded-full bg-orange-400 flex-shrink-0" />
               <span className="font-semibold text-orange-700">{t("payment.readyToPay")}</span>
             </div>
-            <div className="flex justify-between items-center text-sm border-t border-cream-200 pt-3">
-              <span className="text-gray-600 font-medium">{t("payment.amount")}</span>
-              <span className="font-bold text-forest-800 text-base">RM{formatCurrency(canonicalPayment?.finalTotal ?? order.total)}</span>
-            </div>
             {canonicalFinalPriceItems.length > 0 && (
               <section className="rounded-2xl border border-cream-200 bg-cream-50/60 p-4">
                 <h3 className="text-sm font-semibold text-gray-900">{t('tracking.finalItemPricing')}</h3>
@@ -803,6 +718,20 @@ useEffect(() => {
                 </div>
               </section>
             )}
+            <div className="border-t border-cream-200 pt-3 space-y-2 text-sm">
+              <div className="flex justify-between text-gray-600">
+                <span>{t('checkout.subtotal')}</span>
+                <span>RM{formatCurrency(canonicalPayment?.finalSubtotal ?? order.subtotal)}</span>
+              </div>
+              <div className="flex justify-between text-gray-600">
+                <span>{t('checkout.delivery')}</span>
+                <span>RM{formatCurrency(canonicalPayment?.deliveryFee ?? order.deliveryFee)}</span>
+              </div>
+              <div className="flex justify-between items-center border-t border-cream-200 pt-2 font-bold text-base">
+                <span>{t('payment.amount')}</span>
+                <span className="text-forest-800">RM{formatCurrency(canonicalPayment?.finalTotal ?? order.total)}</span>
+              </div>
+            </div>
             <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 text-sm text-orange-800 leading-relaxed">
               {t("payment.readyToPayInstructions")}
             </div>
@@ -1399,95 +1328,6 @@ useEffect(() => {
           </div>
         </div>
       )}
-
-      {/* Order summary */}
-      <div className="card p-6 sm:p-8">
-        <h3 className="font-semibold text-charcoal mb-4">{t("tracking.orderContents")}</h3>
-        <div className="space-y-3 mb-4">
-          {order.items.map((item, itemIndex) => (
-            <div key={item.comboId ?? item.productId} className="flex gap-3 items-start">
-              <ProductImage src={item.image} alt={item.name} className="w-14 h-14 rounded-2xl object-cover flex-shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold truncate">{item.name}</p>
-                {item.preparation && <p className="text-xs text-gray-400">{t("cartItem.preparation." + item.preparation)}</p>}
-                {isSliceItem(item) ? (
-                  <p className="text-xs text-gray-500">{t("tracking.slices", { count: item.sliceQuantity ?? item.quantity })}</p>
-                ) : isWeightItem(item) ? (
-                  <p className="text-xs text-amber-600">~{(item.estimatedWeight ?? 0).toFixed(2)} kg</p>
-                ) : (
-                  <p className="text-xs text-gray-400">{t("checkout.qty", { count: item.quantity })}</p>
-                )}
-                {isSliceItem(item) && item.actualWeight != null && (
-                  <p className="text-xs text-forest-700 font-medium mt-0.5">
-                    {t("tracking.actualWeight", { weight: item.actualWeight.toFixed(2) })} · {t("tracking.pricePerKg", { price: formatCurrency(item.price) })} · <strong>{t("tracking.finalPrice", { price: formatCurrency(item.price * item.actualWeight) })}</strong>
-                  </p>
-                )}
-                {item.comboItems && item.comboItems.length > 0 && (
-                  <div className="mt-1.5 pt-1.5 border-t border-cream-200 space-y-1">
-                    <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{t("checkout.contains")}</p>
-                    {item.comboItems.map((ci) => (
-                      <div key={ci.productId} className="flex items-center gap-1.5 text-xs">
-                        <span className="text-gray-700">{ci.label}</span>
-                        {ci.preparation && (
-                          <span className="text-gray-400">({t("cartItem.preparation." + ci.preparation)})</span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {item.isCombo && canonicalContents.find((line) => line.lineNumber === itemIndex + 1) && (() => {
-                  const content = canonicalContents.find((line) => line.lineNumber === itemIndex + 1)!;
-                  return (
-                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                      {Array.from({ length: content.comboQuantity }, (_, comboIndex) => (
-                        <section key={comboIndex} className="rounded-xl border border-cream-200 bg-cream-50/60 p-3">
-                          <p className="mb-2 text-xs font-bold uppercase tracking-wide text-forest-700">Combo #{comboIndex + 1}</p>
-                          <div className="space-y-2">
-                            {content.components.map((component) => {
-                              const comboUnits = component.units.filter((unit) => unit.comboUnitNumber === comboIndex + 1);
-                              const quantity = component.estimatedWeightKg != null ? `~${component.estimatedWeightKg.toFixed(2)} kg` : `${component.quantity} ${component.sellingUnit}`.trim();
-                              return (
-                                <div key={component.id} className="text-xs">
-                                  <p className="font-semibold text-gray-800">{component.name} <span className="font-normal text-gray-500">· {quantity}</span></p>
-                                  {comboUnits.flatMap((unit) => unit.preparation.map((value) => `${component.units.length > content.comboQuantity ? `Unit ${unit.componentUnitNumber}: ` : ''}${value}`)).map((value) => <p key={value} className="mt-0.5 text-gray-500">{value}</p>)}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </section>
-                      ))}
-                    </div>
-                  );
-                })()}
-              </div>
-              {isWeightItem(item) ? (
-                <p className="text-sm font-semibold text-amber-700">≈ RM{formatCurrency(item.price * (item.estimatedWeight ?? 0))}</p>
-              ) : isSliceItem(item) ? (
-                item.actualWeight != null ? (
-                  <p className="text-sm font-semibold text-forest-800">RM{formatCurrency(item.price * item.actualWeight)}</p>
-                ) : (
-                  <p className="text-xs text-gray-400">{t("checkout.afterWeighing")}</p>
-                )
-              ) : (
-                <p className="text-sm font-semibold text-forest-800">RM{formatCurrency(item.price * item.quantity)}</p>
-              )}
-            </div>
-          ))}
-        </div>
-        <div className="border-t border-cream-200 pt-3 space-y-1.5">
-          <div className="flex justify-between text-sm text-gray-600">
-            <span>{t("checkout.subtotal")}</span><span>RM{formatCurrency(order.subtotal)}</span>
-          </div>
-          <div className="flex justify-between text-sm text-gray-600">
-            <span>{t("checkout.delivery")}</span>
-            <span>RM{formatCurrency(order.deliveryFee)}</span>
-          </div>
-          <div className="flex justify-between font-bold text-base border-t border-cream-200 pt-2">
-            <span>{t("checkout.total")}</span>
-            <span className="text-forest-800">RM{formatCurrency(order.total)}</span>
-          </div>
-        </div>
-      </div>
 
       <div className="mt-8 text-center">
         <Link to="/shop" className="btn-secondary">{t("orderSuccess.continueShopping")}</Link>
