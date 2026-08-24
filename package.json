@@ -26,6 +26,7 @@
     "test:auto-supplier-finalisation": "node scripts/check-auto-supplier-finalisation.mjs",
     "test:canonical-supplier-tracking-update": "node scripts/check-canonical-supplier-tracking-update.mjs",
     "test:rider-delivery-proof-autoadvance": "node scripts/check-rider-delivery-proof-autoadvance.mjs",
+    "test:admin-canonical-order-history": "node scripts/check-admin-canonical-order-history.mjs",
     "test:supplier-price-repair": "node scripts/check-supplier-price-repair.mjs",
     "test:e2e": "node --experimental-strip-types e2e/run-all.ts",
     "test:e2e:playwright": "playwright test",

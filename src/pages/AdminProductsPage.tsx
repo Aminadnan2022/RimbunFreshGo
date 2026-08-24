@@ -33,6 +33,7 @@ import DeliveryBatchesManager from '../components/admin/DeliveryBatchesManager';
 import BrandLogo from '../components/branding/BrandLogo';
 import { createBrowserUuid } from '../lib/browserUuid';
 import type { PaymentStatus, ComboExpandedItem, Product } from '../types';
+import AdminCanonicalOrderHistory from '../components/admin/AdminCanonicalOrderHistory';
 
 
 type Tab = 'products' | 'combos' | 'settings' | 'users' | 'orders' | 'delivery' | 'batches';
@@ -172,7 +173,7 @@ export default function AdminProductsPage() {
         </button>
       </div>
 
-      {activeTab === 'products' ? <ProductsTab /> : activeTab === 'combos' ? <AdminComboListPage /> : activeTab === 'settings' ? <SettingsTab /> : activeTab === 'users' ? <UsersTab /> : activeTab === 'delivery' ? <DeliveryManagementTab /> : activeTab === 'batches' ? <DeliveryBatchesManager /> : <OrdersTab />}
+      {activeTab === 'products' ? <ProductsTab /> : activeTab === 'combos' ? <AdminComboListPage /> : activeTab === 'settings' ? <SettingsTab /> : activeTab === 'users' ? <UsersTab /> : activeTab === 'delivery' ? <DeliveryManagementTab /> : activeTab === 'batches' ? <DeliveryBatchesManager /> : <AdminCanonicalOrderHistory legacy={<OrdersTab />} />}
     </main>
   );
 }
