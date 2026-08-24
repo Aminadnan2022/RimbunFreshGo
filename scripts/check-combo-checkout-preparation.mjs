@@ -57,16 +57,15 @@ for (const token of [
   if (!checkout.includes(token)) failures.push(`canonical answer mapping is missing ${token}`);
 }
 
-// Review rows come from the actual cart/component snapshot, not preparation
-// targets. That keeps fixed + selected choice components (including products
-// without a questionnaire) exactly once while unselected alternatives remain
-// absent from the snapshot. Preparation is joined by immutable component number.
+// Review is grouped by each ordered combo. Every card is driven by the actual
+// component snapshot, including components without a preparation questionnaire.
 for (const token of [
-  'item.comboItems.map((component, componentIndex)',
+  'Array.from({ length: item.quantity }, (_, comboIndex)',
+  'item.comboItems!.map((component, componentIndex)',
   'candidate.componentNumber === componentNumber',
-  'target?.comboQuantity && target.comboQuantity > 1 ? 1 : item.quantity',
-  'reviewText(target, 0) || reviewText(target, null)',
-  'conciseReviewLabel(target, unit, language)',
+  'const answerUnit = comboIndex * unitsPerCombo + componentUnit',
+  'reviewText(target, answerUnit) || reviewText(target, null)',
+  '{comboLabel} #{comboIndex + 1}',
   '<span className="font-medium text-gray-900">{component.name}</span> — {quantity}',
   '<span className="font-medium text-gray-900">{item.name}</span> — {quantity}',
 ]) {
