@@ -450,6 +450,8 @@
     "qrPayment": "QR Payment",
     "uploadReceipt": "Upload Receipt",
     "pending": "Pending",
+    "awaitingFinalPrice": "Awaiting Final Price",
+    "awaitingFinalPriceInstructions": "Your supplier will weigh the items and confirm the final amount. No payment is required yet.",
     "waitingForPayment": "Waiting for Payment",
     "readyToPay": "Ready To Pay",
     "paid": "Paid",
@@ -603,6 +605,11 @@
         "awaitingPayment": {
           "title": "Awaiting Payment",
           "body": "Your actual total has been confirmed. Please complete your payment."
+        },
+        "awaitingFinalPrice": {
+          "title": "Awaiting Final Price",
+          "body": "Your supplier will weigh the items and confirm the final amount. No payment is required yet.",
+          "next": "We will notify you once the final amount is ready for payment."
         },
         "paymentConfirmed": {
           "title": "Payment Confirmed",

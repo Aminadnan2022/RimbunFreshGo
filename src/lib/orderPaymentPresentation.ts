@@ -2,7 +2,7 @@ export type CanonicalPaymentStatus = 'pending' | 'receipt_submitted' | 'rejected
 export type CanonicalPriceStatus = 'estimated' | 'final';
 
 export type CustomerPaymentPresentation = {
-  label: 'Payment Pending' | 'Ready To Pay' | 'Receipt Submitted' | 'Payment Confirmed';
+  label: 'Awaiting Final Price' | 'Payment Pending' | 'Ready To Pay' | 'Receipt Submitted' | 'Payment Confirmed';
   tone: 'amber' | 'orange' | 'blue' | 'green';
   awaitingVerification: boolean;
   showPaymentQr: boolean;
@@ -26,7 +26,7 @@ export function resolveCustomerPaymentPresentation(input: {
     return { label: 'Ready To Pay', tone: 'orange', awaitingVerification: false, showPaymentQr: true, allowReceiptUpload: true };
   }
   if (canonicalPaymentStatus || canonicalPriceStatus) {
-    return { label: 'Payment Pending', tone: 'amber', awaitingVerification: false, showPaymentQr: false, allowReceiptUpload: false };
+    return { label: 'Awaiting Final Price', tone: 'amber', awaitingVerification: false, showPaymentQr: false, allowReceiptUpload: false };
   }
   if (legacyPaymentStatus === 'Paid') {
     return { label: 'Payment Confirmed', tone: 'green', awaitingVerification: false, showPaymentQr: false, allowReceiptUpload: false };

@@ -602,7 +602,9 @@ useEffect(() => {
     }
   };
   const currentStageNext: Partial<Record<(typeof TRACKING_STAGES)[number], string>> = {
-    awaitingPayment: paymentPresentation.awaitingVerification
+    awaitingPayment: paymentPresentation.label === 'Awaiting Final Price'
+      ? t('tracking.live.stage.awaitingFinalPrice.next')
+      : paymentPresentation.awaitingVerification
       ? 'Admin will verify your receipt next. Payment will be confirmed only after approval.'
       : 'Complete payment once the final amount is ready. We will begin preparation after payment is confirmed.',
     paymentConfirmed: 'Your supplier will begin preparing your order next.',
@@ -713,6 +715,15 @@ useEffect(() => {
           <div className="flex items-center gap-3">
             <span className="w-3 h-3 rounded-full bg-amber-400 flex-shrink-0" />
             <span className="font-semibold text-amber-700">{t("payment.pending")}</span>
+          </div>
+        )}
+        {paymentPresentation.label === 'Awaiting Final Price' && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-3">
+              <span className="w-3 h-3 rounded-full bg-amber-400 flex-shrink-0" />
+              <span className="font-semibold text-amber-700">{t('payment.awaitingFinalPrice')}</span>
+            </div>
+            <p className="text-sm text-amber-700">{t('payment.awaitingFinalPriceInstructions')}</p>
           </div>
         )}
         {paymentPresentation.label === 'Ready To Pay' && (
@@ -941,8 +952,16 @@ useEffect(() => {
             const Icon = STAGE_ICONS[key];
             const isPaymentSubmittedStage =
               key === 'awaitingPayment' && paymentPresentation.awaitingVerification;
+            const isAwaitingFinalPriceStage =
+              key === 'awaitingPayment' && paymentPresentation.label === 'Awaiting Final Price';
+            const isReadyToPayStage =
+              key === 'awaitingPayment' && paymentPresentation.label === 'Ready To Pay';
             const title = isPaymentSubmittedStage
               ? 'Payment Submitted'
+              : isAwaitingFinalPriceStage
+              ? t('tracking.live.stage.awaitingFinalPrice.title')
+              : isReadyToPayStage
+              ? t('payment.readyToPay')
               : t(`tracking.live.stage.${key}.title`);
             const timestamp = stageTimestamp(key);
             const isHistoricalPaymentStep =
@@ -969,6 +988,8 @@ useEffect(() => {
                   <p className={`text-sm mt-0.5 ${st === 'future' ? 'text-gray-400' : 'text-gray-600'}`}>
                     {isPaymentSubmittedStage
                       ? 'Your receipt has been received and is awaiting admin verification.'
+                      : isAwaitingFinalPriceStage
+                      ? t('tracking.live.stage.awaitingFinalPrice.body')
                       : isHistoricalPaymentStep
                       ? 'Final amount was confirmed before preparation began.'
                       : key === 'supplierDispatch'

@@ -15,7 +15,7 @@ const approved = resolveCustomerPaymentPresentation({ canonicalPaymentStatus: 'p
 assert.deepEqual([approved.label, approved.awaitingVerification], ['Payment Confirmed', false]);
 
 const deferredPending = resolveCustomerPaymentPresentation({ canonicalPaymentStatus: 'pending', canonicalPriceStatus: 'estimated', legacyPaymentStatus: 'Pending' });
-assert.deepEqual([deferredPending.label, deferredPending.showPaymentQr], ['Payment Pending', false]);
+assert.deepEqual([deferredPending.label, deferredPending.showPaymentQr, deferredPending.allowReceiptUpload], ['Awaiting Final Price', false, false]);
 
 const deferredFinal = resolveCustomerPaymentPresentation({ canonicalPaymentStatus: 'pending', canonicalPriceStatus: 'final', legacyPaymentStatus: 'Ready To Pay' });
 assert.deepEqual([deferredFinal.label, deferredFinal.showPaymentQr, deferredFinal.allowReceiptUpload], ['Ready To Pay', true, true]);
@@ -30,6 +30,7 @@ for (const token of [
 ]) assert.ok(tracking.includes(token), `canonical order contents detail is missing ${token}`);
 assert.match(tracking, /canonicalPayment\?\.paymentStatus/, 'tracking must prefer canonical payment state');
 assert.match(tracking, /Payment Submitted/, 'tracking must name the submitted receipt stage accurately');
+assert.match(tracking, /Awaiting Final Price/, 'estimated canonical prices must not be presented as awaiting payment');
 assert.match(migration, /RETURN QUERY SELECT[\s\S]*'receipt_submitted'::text/, 'guarded placement must return receipt_submitted');
 assert.match(migration, /consumed_sales_order_id = v_result\.sales_order_id/, 'staged receipt must remain tied to the idempotently returned order');
 

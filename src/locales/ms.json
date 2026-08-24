@@ -450,6 +450,8 @@
     "qrPayment": "Bayaran QR",
     "uploadReceipt": "Muat Naik Resit",
     "pending": "Menunggu",
+    "awaitingFinalPrice": "Menunggu Harga Akhir",
+    "awaitingFinalPriceInstructions": "Pembekal akan menimbang barangan dan mengesahkan jumlah akhir. Tiada bayaran diperlukan buat masa ini.",
     "waitingForPayment": "Menunggu Pembayaran",
     "readyToPay": "Sedia Untuk Bayar",
     "paid": "Dibayar",
@@ -603,6 +605,11 @@
         "awaitingPayment": {
           "title": "Menunggu Pembayaran",
           "body": "Jumlah sebenar anda telah disahkan. Sila lengkapkan pembayaran anda."
+        },
+        "awaitingFinalPrice": {
+          "title": "Menunggu Harga Akhir",
+          "body": "Pembekal akan menimbang barangan dan mengesahkan jumlah akhir. Tiada bayaran diperlukan buat masa ini.",
+          "next": "Kami akan memaklumkan anda apabila jumlah akhir sedia untuk dibayar."
         },
         "paymentConfirmed": {
           "title": "Pembayaran Disahkan",
