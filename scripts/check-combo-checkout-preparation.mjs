@@ -60,13 +60,16 @@ for (const token of [
 for (const token of [
   'item.comboItems.map((component, componentIndex)',
   'candidate.componentNumber === componentNumber',
-  'const quantity = comboComponentQuantity(component, item.quantity)',
+  'const quantity = orderedQuantityText(component, item.quantity)',
   'reviewText(target, 0) || reviewText(target, null)',
   'conciseReviewLabel(target, unit)',
   '<span className="font-medium text-gray-900">{component.name}</span> — {quantity}',
   '<span className="font-medium text-gray-900">{item.name}</span> — {quantity}',
 ]) {
   if (!checkoutPage.includes(token)) failures.push(`checkout review display is missing ${token}`);
+}
+if (checkoutPage.includes('const usefulQuantity =')) {
+  failures.push('checkout review still hides physical quantity when preparation exists');
 }
 for (const token of [
   'candidate.code === answer || candidate.value === answer',

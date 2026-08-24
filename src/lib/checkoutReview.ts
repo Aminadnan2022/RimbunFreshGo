@@ -1,4 +1,5 @@
 import type { PreparationAnswers, PreparationQuestion, PreparationTarget } from './checkoutPreparation';
+import type { CartItem, ComboExpandedItem } from '../types';
 
 type ReviewLanguage = 'en' | 'ms';
 
@@ -58,4 +59,36 @@ export function concisePreparationText(
 
 export function conciseReviewLabel(target: PreparationTarget, unit: number | null) {
   return unit !== null && target.quantity > 1 ? `${target.name} #${unit + 1}` : target.name;
+}
+
+type OrderedQuantitySnapshot = Pick<
+  ComboExpandedItem,
+  'quantity' | 'quantityValue' | 'sellingUnit' | 'pricingType' | 'unit'
+> & Pick<CartItem, 'estimatedWeight' | 'orderingMode'>;
+
+const trimNumber = (value: number) => Number(value.toFixed(3)).toString();
+
+export function orderedQuantityText(snapshot: OrderedQuantitySnapshot, multiplier = 1): string {
+  const configuredQuantity = (snapshot.quantityValue ?? snapshot.quantity) * multiplier;
+  const isWeighted =
+    snapshot.sellingUnit === 'kg' ||
+    snapshot.pricingType === 'per_kg' ||
+    snapshot.orderingMode === 'weight_only' ||
+    (snapshot.orderingMode === 'whole_fish_by_weight' && snapshot.estimatedWeight != null);
+
+  if (isWeighted) {
+    const weight = snapshot.quantityValue == null && snapshot.estimatedWeight != null
+      ? snapshot.estimatedWeight * multiplier
+      : configuredQuantity;
+    return `${trimNumber(weight)}kg`;
+  }
+
+  const configuredUnit = snapshot.sellingUnit && snapshot.sellingUnit !== 'piece'
+    ? snapshot.sellingUnit
+    : snapshot.unit.replace(/^per\s+/i, '').trim();
+  const unit = configuredUnit && !/^items?$/i.test(configuredUnit)
+    ? configuredUnit
+    : configuredQuantity === 1 ? 'item' : 'items';
+
+  return `${trimNumber(configuredQuantity)} ${unit}`;
 }

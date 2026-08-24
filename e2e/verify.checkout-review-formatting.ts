@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { concisePreparationAnswer, concisePreparationText } from '../src/lib/checkoutReview.ts';
+import { concisePreparationAnswer, concisePreparationText, orderedQuantityText } from '../src/lib/checkoutReview.ts';
 import type { PreparationQuestion, PreparationTarget } from '../src/lib/checkoutPreparation.ts';
 
 const question = (overrides: Partial<PreparationQuestion>): PreparationQuestion => ({
@@ -61,4 +61,20 @@ assert.equal(concisePreparationText(target, answers, 0, 'en'), 'Cleaned · Do no
 assert.equal((`Selar (Oxeye Scad) — ${concisePreparationText(target, answers, 0, 'en')}`).match(/Selar/g)?.length, 1);
 assert.equal(concisePreparationText(target, {}, 0, 'en'), '');
 
-console.log('Checkout review formatting checks passed (concise action phrases, combined selections, and no duplicate product name).');
+const selar = { quantity: 1, quantityValue: 1, sellingUnit: 'kg', pricingType: 'per_kg' as const, unit: 'kg' };
+const siakap = { quantity: 1, quantityValue: 1, sellingUnit: 'kg', pricingType: 'per_kg' as const, unit: 'kg' };
+const prawns = { quantity: 1, quantityValue: 0.5, sellingUnit: 'kg', pricingType: 'per_kg' as const, unit: 'kg' };
+const wholeFish = { quantity: 1, quantityValue: 1, sellingUnit: 'piece', pricingType: 'fixed' as const, unit: 'per ekor' };
+const chickenPiece = { quantity: 1, quantityValue: 1, sellingUnit: 'piece', pricingType: 'fixed' as const, unit: 'per bird' };
+const estimatedWholeFish = { quantity: 1, unit: 'per ekor', orderingMode: 'whole_fish_by_weight' as const, estimatedWeight: 0.8 };
+
+assert.equal(orderedQuantityText(selar), '1kg');
+assert.equal(orderedQuantityText(siakap), '1kg');
+assert.equal(orderedQuantityText(prawns), '0.5kg');
+assert.equal(orderedQuantityText(wholeFish), '1 ekor');
+assert.equal(orderedQuantityText(chickenPiece), '1 bird');
+assert.equal(orderedQuantityText(estimatedWholeFish), '0.8kg');
+assert.equal([orderedQuantityText(selar), concisePreparationText(target, answers, 0, 'en')].filter(Boolean).join(' · '), '1kg · Cleaned · Do not cut');
+assert.equal([orderedQuantityText(selar), concisePreparationText(target, {}, 0, 'en')].filter(Boolean).join(' · '), '1kg');
+
+console.log('Checkout review formatting checks passed (snapshot quantity with/without preparation, physical units, concise actions, and no duplicate product name).');
