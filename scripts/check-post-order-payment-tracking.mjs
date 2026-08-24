@@ -31,6 +31,9 @@ for (const token of [
 assert.match(tracking, /canonicalPayment\?\.paymentStatus/, 'tracking must prefer canonical payment state');
 assert.match(tracking, /Payment Submitted/, 'tracking must name the submitted receipt stage accurately');
 assert.match(tracking, /Awaiting Final Price/, 'estimated canonical prices must not be presented as awaiting payment');
+assert.match(tracking, /finalItemPricing/, 'ready-to-pay orders must show each weighed whole fish price before payment');
+assert.match(tracking, /actual_weight_kg/, 'final whole-fish pricing must use supplier-recorded actual weights');
+assert.match(tracking, /unit_selling_price/, 'final whole-fish pricing must use the frozen per-kg selling rate');
 assert.match(migration, /RETURN QUERY SELECT[\s\S]*'receipt_submitted'::text/, 'guarded placement must return receipt_submitted');
 assert.match(migration, /consumed_sales_order_id = v_result\.sales_order_id/, 'staged receipt must remain tied to the idempotently returned order');
 

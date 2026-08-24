@@ -578,6 +578,7 @@
     "pickupDetails": "Butiran Ambilan",
     "deliveryPoint": "Titik Penghantaran",
     "orderContents": "Kandungan Pesanan",
+    "finalItemPricing": "Harga akhir setiap item",
     "unit": "Unit",
     "slices": "Kepingan: {{count}}",
     "actualWeight": "Berat Sebenar: {{weight}} kg",

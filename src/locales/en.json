@@ -578,6 +578,7 @@
     "pickupDetails": "Pickup Details",
     "deliveryPoint": "Delivery Point",
     "orderContents": "Order Contents",
+    "finalItemPricing": "Final item pricing",
     "unit": "Unit",
     "slices": "Slices: {{count}}",
     "actualWeight": "Actual Weight: {{weight}} kg",

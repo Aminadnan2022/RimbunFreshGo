@@ -72,6 +72,15 @@ type CanonicalContentLine = {
   components: CanonicalContentComponent[];
 };
 
+type CanonicalFinalPriceItem = {
+  id: string;
+  name: string;
+  unitNumber: number;
+  actualWeightKg: number;
+  pricePerKg: number;
+  finalPrice: number;
+};
+
 export default function OrderTrackingPage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
@@ -103,6 +112,8 @@ const [initialLoading, setInitialLoading] = useState(true);
     useState<CanonicalPaymentDisplay | null>(null);
   const [canonicalContents, setCanonicalContents] =
     useState<CanonicalContentLine[]>([]);
+  const [canonicalFinalPriceItems, setCanonicalFinalPriceItems] =
+    useState<CanonicalFinalPriceItem[]>([]);
 
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [receiptInputKey, setReceiptInputKey] = useState(0);
@@ -180,7 +191,7 @@ const [receiptUploading, setReceiptUploading] = useState(false);
         const db = supabase as any;
         const { data: contentLines, error: contentLinesError } = await db
           .from('sales_order_lines')
-          .select('id, line_number, item_kind, quantity')
+          .select('id, line_number, item_kind, quantity, ordering_mode, product_snapshot, unit_selling_price, final_line_total')
           .eq('sales_order_id', canonicalRow.id)
           .order('line_number', { ascending: true });
         if (contentLinesError) throw contentLinesError;
@@ -238,6 +249,44 @@ const [receiptUploading, setReceiptUploading] = useState(false);
           })));
         } else {
           setCanonicalContents([]);
+        }
+
+        // Whole fish are finalised and charged per physical fish. Surface the
+        // actual weighed amount and frozen selling rate before payment so the
+        // customer can verify each fish rather than only seeing one total.
+        const wholeFishLines = (contentLines ?? []).filter((line: any) =>
+          line.item_kind === 'product' && line.ordering_mode === 'whole_fish_by_weight'
+        );
+        const wholeFishLineIds = wholeFishLines.map((line: any) => String(line.id));
+        if (wholeFishLineIds.length) {
+          const { data: wholeFishUnits, error: wholeFishUnitsError } = await db
+            .from('sales_order_line_units')
+            .select('id, sales_order_line_id, unit_number, actual_weight_kg')
+            .in('sales_order_line_id', wholeFishLineIds)
+            .order('unit_number', { ascending: true });
+          if (wholeFishUnitsError) throw wholeFishUnitsError;
+
+          setCanonicalFinalPriceItems(
+            wholeFishLines.flatMap((line: any) => {
+              const unitsForLine = (wholeFishUnits ?? []).filter((unit: any) =>
+                String(unit.sales_order_line_id) === String(line.id) && unit.actual_weight_kg != null
+              );
+              return unitsForLine.map((unit: any) => {
+                const actualWeightKg = Number(unit.actual_weight_kg);
+                const pricePerKg = Number(line.unit_selling_price);
+                return {
+                  id: String(unit.id),
+                  name: String(line.product_snapshot?.name ?? line.product_snapshot?.label ?? 'Fish'),
+                  unitNumber: Number(unit.unit_number),
+                  actualWeightKg,
+                  pricePerKg,
+                  finalPrice: Number((actualWeightKg * pricePerKg).toFixed(2)),
+                };
+              });
+            }),
+          );
+        } else {
+          setCanonicalFinalPriceItems([]);
         }
         /* eslint-enable @typescript-eslint/no-explicit-any */
 
@@ -734,8 +783,26 @@ useEffect(() => {
             </div>
             <div className="flex justify-between items-center text-sm border-t border-cream-200 pt-3">
               <span className="text-gray-600 font-medium">{t("payment.amount")}</span>
-              <span className="font-bold text-forest-800 text-base">RM{formatCurrency(order.total)}</span>
+              <span className="font-bold text-forest-800 text-base">RM{formatCurrency(canonicalPayment?.finalTotal ?? order.total)}</span>
             </div>
+            {canonicalFinalPriceItems.length > 0 && (
+              <section className="rounded-2xl border border-cream-200 bg-cream-50/60 p-4">
+                <h3 className="text-sm font-semibold text-gray-900">{t('tracking.finalItemPricing')}</h3>
+                <div className="mt-3 space-y-3">
+                  {canonicalFinalPriceItems.map((item) => (
+                    <div key={item.id} className="flex items-start justify-between gap-4 border-t border-cream-200 pt-3 first:border-t-0 first:pt-0">
+                      <div>
+                        <p className="text-sm font-semibold text-gray-800">{item.name} #{item.unitNumber}</p>
+                        <p className="mt-0.5 text-xs text-gray-600">
+                          {t('tracking.actualWeight', { weight: item.actualWeightKg.toFixed(3) })} · {t('tracking.pricePerKg', { price: formatCurrency(item.pricePerKg) })}
+                        </p>
+                      </div>
+                      <p className="text-sm font-bold text-forest-800">RM{formatCurrency(item.finalPrice)}</p>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
             <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 text-sm text-orange-800 leading-relaxed">
               {t("payment.readyToPayInstructions")}
             </div>
