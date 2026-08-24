@@ -8,6 +8,7 @@ const combos = read('src/data/combos.ts');
 const preparation = read('src/lib/checkoutPreparation.ts');
 const checkout = read('src/lib/canonicalCheckout.ts');
 const checkoutPage = read('src/pages/CheckoutPage.tsx');
+const checkoutReview = read('src/lib/checkoutReview.ts');
 const failures = [];
 
 // Combo Builder no longer exposes or writes an item-level preparation override.
@@ -59,22 +60,30 @@ for (const token of [
 for (const token of [
   'item.comboItems.map((component, componentIndex)',
   'candidate.componentNumber === componentNumber',
-  '!hasPreparation && <p><span className="font-medium text-gray-900">{component.name}</span> — {comboComponentQuantity(component, item.quantity)}</p>',
-  "reviewQuestionText(target, null, 'line')",
-  "reviewQuestionText(target, unit, 'physical_unit')",
-  ".filter((entry) => entry.text)",
-  '</div> : <><p className="font-medium">{item.name}',
-  'target.quantity > 1 ? `${target.name} #${unit + 1}` : target.name',
-  'candidate.code === answer || candidate.value === answer',
-  'option ? display(option) : String(answer)',
+  'const quantity = comboComponentQuantity(component, item.quantity)',
+  'reviewText(target, 0) || reviewText(target, null)',
+  'conciseReviewLabel(target, unit)',
+  '<span className="font-medium text-gray-900">{component.name}</span> — {quantity}',
+  '<span className="font-medium text-gray-900">{item.name}</span> — {quantity}',
 ]) {
   if (!checkoutPage.includes(token)) failures.push(`checkout review display is missing ${token}`);
+}
+for (const token of [
+  'candidate.code === answer || candidate.value === answer',
+  "return language === 'ms' ? 'Dibersihkan' : 'Cleaned'",
+  "return language === 'ms' ? 'Tidak dibersihkan' : 'Not cleaned'",
+  ".join(' · ')",
+]) {
+  if (!checkoutReview.includes(token)) failures.push(`concise checkout review formatter is missing ${token}`);
 }
 if (/item\.comboItems\.filter\([^)]*preparation|lineTargets\.map\([^)]*component/.test(checkoutPage)) {
   failures.push('checkout review component rows are still driven by preparation targets');
 }
 if (checkoutPage.includes("target.category === 'chicken' ? t('checkout.chicken') : t('checkout.unit')")) {
   failures.push('checkout review still uses generic Chicken/Unit preparation labels');
+}
+if (/display\(question\).*reviewAnswer|\$\{display\(question\)\}:/.test(checkoutPage)) {
+  failures.push('checkout review still repeats preparation question wording');
 }
 
 if (failures.length) {
