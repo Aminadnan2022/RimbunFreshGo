@@ -12,7 +12,7 @@ import { answerKey, loadPreparationTargets, requiredMissing, type PreparationAns
 import { buildCanonicalPlaceOrderRequest, placeCanonicalOrder, type CanonicalDeliveryMethod } from '../lib/canonicalCheckout';
 import DeliverySlotSelector from '../components/ui/DeliverySlotSelector';
 import { formatCurrency } from '../lib/currency';
-import { concisePreparationText, conciseReviewLabel, orderedQuantityText } from '../lib/checkoutReview';
+import { concisePreparationText, conciseReviewLabel, estimatedWholeFishDetails, orderedQuantityText } from '../lib/checkoutReview';
 import { getCheckoutPaymentPreview, isPriceFinalAtCheckout, paymentQrPublicUrl, type CheckoutPaymentPreview } from '../lib/checkoutPayment';
 import type { CustomerDetails, DeliveryDay } from '../types';
 
@@ -152,7 +152,7 @@ useEffect(() => {
     finally { placementLock.current = false; setPlacing(false); }
   };
   const Question = ({ target, unit, question }: { target: PreparationTarget; unit: number | null; question: PreparationQuestion }) => { const value = answers[answerKey(target, unit)]?.[question.code]; if (question.answer_type === 'boolean') return <fieldset><legend className="text-sm font-medium">{display(question)}{question.required && ' *'}</legend><div className="mt-2 flex gap-3"><button type="button" onClick={() => setAnswer(target, unit, question, true)} className={`rounded-xl px-4 py-2 text-sm ${value === true ? 'bg-forest-700 text-white' : 'bg-cream-100'}`}>{t('checkout.yes')}</button><button type="button" onClick={() => setAnswer(target, unit, question, false)} className={`rounded-xl px-4 py-2 text-sm ${value === false ? 'bg-forest-700 text-white' : 'bg-cream-100'}`}>{t('checkout.no')}</button></div></fieldset>; if (question.answer_type === 'single_select') return <Field label={`${display(question)}${question.required ? ' *' : ''}`}><select className={input()} value={String(value ?? '')} onChange={(e) => setAnswer(target, unit, question, e.target.value)}><option value="">{t('checkout.selectOption')}</option>{question.options.map((o) => <option key={o.code} value={o.code}>{display(o)}</option>)}</select></Field>; return <Field label={`${display(question)}${question.required ? ' *' : ''}`}><input className={input()} value={String(value ?? '')} onChange={(e) => setAnswer(target, unit, question, e.target.value)} /></Field>; };
-  const Totals = () => <div className="border-t pt-3 space-y-1 text-sm"><p className="flex justify-between"><span>{t('checkout.subtotal')}</span><span>RM{formatCurrency(subtotal)}</span></p><p className="flex justify-between"><span>{t('checkout.delivery')}</span><span>RM{formatCurrency(fee)}</span></p><p className="flex justify-between font-bold"><span>{t('checkout.total')}</span><span>RM{formatCurrency(total)}</span></p></div>;
+  const Totals = () => <div className="border-t pt-3 space-y-1 text-sm"><p className="flex justify-between"><span>{priceFinalAtCheckout ? t('checkout.subtotal') : t('checkout.estimatedSubtotal')}</span><span>RM{formatCurrency(subtotal)}</span></p><p className="flex justify-between"><span>{t('checkout.delivery')}</span><span>RM{formatCurrency(fee)}</span></p><p className="flex justify-between font-bold"><span>{priceFinalAtCheckout ? t('checkout.total') : t('checkout.estimatedTotal')}</span><span>RM{formatCurrency(total)}</span></p></div>;
 const Preparation = () => (
   <div className="card p-5 sm:p-8 space-y-6">
     <h2 className="font-semibold text-lg">
@@ -334,12 +334,13 @@ const Preparation = () => (
 
         const target = lineTargets[0];
         const quantity = orderedQuantityText(item);
+        const estimatedWholeFish = estimatedWholeFishDetails(item);
         const rows = !target ? [] : target.quantity > 1
-          ? Array.from({ length: target.quantity }, (_, unit) => ({ label: conciseReviewLabel(target, unit, language), preparation: reviewText(target, unit) }))
-          : [{ label: item.name, preparation: reviewText(target, 0) || reviewText(target, null) }];
+          ? Array.from({ length: target.quantity }, (_, unit) => ({ label: conciseReviewLabel(target, unit, language), preparation: reviewText(target, unit), estimate: estimatedWholeFish }))
+          : [{ label: item.name, preparation: reviewText(target, 0) || reviewText(target, null), estimate: estimatedWholeFish }];
         return (
           <div key={index} className="border-b pb-3 text-sm text-gray-600">
-            {rows.length ? <div className="space-y-1">{rows.map((row, unit) => <p key={unit}><span className="font-medium text-gray-900">{row.label}</span> — {[quantity, row.preparation].filter(Boolean).join(' · ')}</p>)}</div> : <p><span className="font-medium text-gray-900">{item.name}</span> — {quantity}</p>}
+            {rows.length ? <div className="space-y-1">{rows.map((row, unit) => <p key={unit}><span className="font-medium text-gray-900">{row.label}</span> — {[row.estimate ? t('checkout.estimatedWeightLabel', { weight: `${Number(row.estimate.weightKg.toFixed(3))}kg` }) : quantity, row.estimate ? t('checkout.estimatedPriceLabel', { price: formatCurrency(row.estimate.estimatedPrice) }) : '', row.preparation].filter(Boolean).join(' · ')}</p>)}</div> : <p><span className="font-medium text-gray-900">{item.name}</span> — {quantity}</p>}
           </div>
         );
       })}

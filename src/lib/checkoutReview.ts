@@ -76,6 +76,22 @@ type OrderedQuantitySnapshot = Pick<
 
 const trimNumber = (value: number) => Number(value.toFixed(3)).toString();
 
+type EstimatedWholeFishSnapshot = Pick<
+  CartItem,
+  'estimatedWeight' | 'orderingMode' | 'price' | 'quantity' | 'selectedOrderMode'
+>;
+
+export function estimatedWholeFishDetails(snapshot: EstimatedWholeFishSnapshot) {
+  const isWholeFish = snapshot.orderingMode === 'whole_fish_by_weight' || snapshot.selectedOrderMode === 'whole';
+  const quantity = Number(snapshot.quantity);
+  const totalWeightKg = Number(snapshot.estimatedWeight);
+
+  if (!isWholeFish || !Number.isFinite(quantity) || quantity <= 0 || !Number.isFinite(totalWeightKg) || totalWeightKg <= 0) return null;
+
+  const weightKg = totalWeightKg / quantity;
+  return { weightKg, estimatedPrice: Number(snapshot.price) * weightKg };
+}
+
 export function orderedQuantityText(snapshot: OrderedQuantitySnapshot, multiplier = 1): string {
   const configuredQuantity = (snapshot.quantityValue ?? snapshot.quantity) * multiplier;
   const isWeighted =

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { concisePreparationAnswer, concisePreparationText, orderedQuantityText } from '../src/lib/checkoutReview.ts';
+import { concisePreparationAnswer, concisePreparationText, estimatedWholeFishDetails, orderedQuantityText } from '../src/lib/checkoutReview.ts';
 import type { PreparationQuestion, PreparationTarget } from '../src/lib/checkoutPreparation.ts';
 
 const question = (overrides: Partial<PreparationQuestion>): PreparationQuestion => ({
@@ -67,6 +67,7 @@ const prawns = { quantity: 1, quantityValue: 0.5, sellingUnit: 'kg', pricingType
 const wholeFish = { quantity: 1, quantityValue: 1, sellingUnit: 'piece', pricingType: 'fixed' as const, unit: 'per ekor' };
 const chickenPiece = { quantity: 1, quantityValue: 1, sellingUnit: 'piece', pricingType: 'fixed' as const, unit: 'per bird' };
 const estimatedWholeFish = { quantity: 1, unit: 'per ekor', orderingMode: 'whole_fish_by_weight' as const, estimatedWeight: 0.8 };
+const twoEstimatedWholeFish = { quantity: 2, unit: 'per ekor', orderingMode: 'whole_fish_by_weight' as const, estimatedWeight: 1.2, price: 27 };
 
 assert.equal(orderedQuantityText(selar), '1kg');
 assert.equal(orderedQuantityText(siakap), '1kg');
@@ -74,6 +75,8 @@ assert.equal(orderedQuantityText(prawns), '0.5kg');
 assert.equal(orderedQuantityText(wholeFish), '1 ekor');
 assert.equal(orderedQuantityText(chickenPiece), '1 bird');
 assert.equal(orderedQuantityText(estimatedWholeFish), '0.8kg');
+assert.deepEqual(estimatedWholeFishDetails(twoEstimatedWholeFish), { weightKg: 0.6, estimatedPrice: 16.2 });
+assert.equal(estimatedWholeFishDetails({ quantity: 1, orderingMode: 'fixed_quantity', estimatedWeight: 0.6, price: 27 }), null);
 assert.equal([orderedQuantityText(selar), concisePreparationText(target, answers, 0, 'en')].filter(Boolean).join(' · '), '1kg · Cleaned · Do not cut');
 assert.equal([orderedQuantityText(selar), concisePreparationText(target, {}, 0, 'en')].filter(Boolean).join(' · '), '1kg');
 
