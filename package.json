@@ -27,6 +27,7 @@
     "test:combo-republication-lifecycle": "node scripts/check-combo-republication-lifecycle.mjs",
     "test:checkout-review-formatting": "node --experimental-strip-types e2e/verify.checkout-review-formatting.ts",
     "test:checkout-payment-preview": "node --experimental-strip-types scripts/check-checkout-payment-preview.mjs",
+    "test:checkout-placement-sql-identifiers": "node scripts/check-checkout-placement-sql-identifiers.mjs",
     "test:fixed-combo-customer-price-finalisation": "node --experimental-strip-types scripts/check-fixed-combo-customer-price-finalisation.mjs",
     "test:checkout-customer-choice-staging": "node --experimental-strip-types scripts/check-checkout-customer-choice-staging.mjs",
     "test:phase4b1-place-order": "node scripts/check-phase4b1-place-sales-order.mjs",
