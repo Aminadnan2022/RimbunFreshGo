@@ -143,7 +143,8 @@ useEffect(() => {
       if (priceFinalAtCheckout && paymentPreview) { request.p_expected_final_total = total; request.p_expected_payment_configuration_version_id = paymentPreview.configurationVersionId; }
       const order = await placeCanonicalOrder(request); checkoutAttemptKey.current = null;
       await supabase.from('customer_profiles').upsert({ id: user!.id, email_address: user!.email, full_name: details.name, phone: details.phone, apartment: details.apartment, house_unit: details.houseUnit, pickup_location: details.pickupLocation, notes: details.notes || null, updated_at: new Date().toISOString() }, { onConflict: 'id' });
-      clearCart(); navigate(`/order/${order.order_number}`);
+      navigate(`/order/${order.order_number}`);
+      clearCart();
     } catch (err) { setPlaceError(err instanceof Error ? err.message : t('checkout.validation.failedToPlaceOrder')); }
     finally { placementLock.current = false; setPlacing(false); }
   };
