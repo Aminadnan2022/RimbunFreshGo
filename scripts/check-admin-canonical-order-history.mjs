@@ -20,11 +20,16 @@ for (const token of [
   'Pending Payment',
   'Paid / Preparing',
   'Out for Delivery',
+  'Canonical Orders',
+  'Primary operational view',
   'Legacy / Historical Orders',
 ]) if (!component.includes(token)) failures.push(`missing canonical history guard: ${token}`);
 
-if (!admin.includes('AdminCanonicalOrderHistory legacy={<OrdersTab />}')) {
-  failures.push('Admin Orders must default to canonical history and keep legacy visibly separated');
+if (!admin.includes('AdminCanonicalOrderHistory paymentVerification={<CanonicalPaymentVerificationQueue />} legacy={<OrdersTab />}')) {
+  failures.push('Admin Orders must keep payment verification, canonical history, and legacy orders explicitly separated');
+}
+if (admin.match(/<CanonicalPaymentVerificationQueue \/>/g)?.length !== 1) {
+  failures.push('Payment verification must render exactly once at the cohesive Orders page level');
 }
 if (/\.insert\(|\.update\(|\.delete\(|\.rpc\([^)]*(confirm|reject|archive)/i.test(component)) {
   failures.push('canonical history must remain read-only');

@@ -173,7 +173,7 @@ export default function AdminProductsPage() {
         </button>
       </div>
 
-      {activeTab === 'products' ? <ProductsTab /> : activeTab === 'combos' ? <AdminComboListPage /> : activeTab === 'settings' ? <SettingsTab /> : activeTab === 'users' ? <UsersTab /> : activeTab === 'delivery' ? <DeliveryManagementTab /> : activeTab === 'batches' ? <DeliveryBatchesManager /> : <AdminCanonicalOrderHistory legacy={<OrdersTab />} />}
+      {activeTab === 'products' ? <ProductsTab /> : activeTab === 'combos' ? <AdminComboListPage /> : activeTab === 'settings' ? <SettingsTab /> : activeTab === 'users' ? <UsersTab /> : activeTab === 'delivery' ? <DeliveryManagementTab /> : activeTab === 'batches' ? <DeliveryBatchesManager /> : <AdminCanonicalOrderHistory paymentVerification={<CanonicalPaymentVerificationQueue />} legacy={<OrdersTab />} />}
     </main>
   );
 }
@@ -1782,8 +1782,6 @@ const [orders, setOrders] = useState<AdminOrder[]>([]);
 
   return (
     <>
-      <CanonicalPaymentVerificationQueue />
-
       {/* Filter pills */}
       <div className="flex flex-wrap gap-2 mb-5">
         {PAYMENT_FILTERS(t).map((f) => {

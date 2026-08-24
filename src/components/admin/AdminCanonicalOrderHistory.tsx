@@ -127,7 +127,7 @@ const FILTERS: { value: LifecycleFilter; label: string }[] = [
   { value: 'cancelled', label: 'Cancelled' },
 ];
 
-export default function AdminCanonicalOrderHistory({ legacy }: { legacy: ReactNode }) {
+export default function AdminCanonicalOrderHistory({ paymentVerification, legacy }: { paymentVerification: ReactNode; legacy: ReactNode }) {
   const [orders, setOrders] = useState<CanonicalOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -179,9 +179,17 @@ export default function AdminCanonicalOrderHistory({ legacy }: { legacy: ReactNo
 
   return (
     <div className="space-y-5">
+      <section aria-labelledby="payment-verification-heading">
+        <div id="payment-verification-heading" className="sr-only">Payment Verification</div>
+        {paymentVerification}
+      </section>
+
       <div>
-        <h2 className="text-xl font-bold text-forest-900">Canonical Order History</h2>
-        <p className="text-sm text-gray-500 mt-1">Read-only audit view for current and past canonical orders.</p>
+        <div className="flex flex-wrap items-center gap-2">
+          <h2 className="text-xl font-bold text-forest-900">Canonical Orders</h2>
+          <span className="rounded-full bg-forest-100 px-2.5 py-1 text-xs font-semibold text-forest-800">Primary operational view</span>
+        </div>
+        <p className="text-sm text-gray-500 mt-1">Search, filter and inspect current and past canonical orders in this read-only audit view.</p>
       </div>
 
       <div className="bg-white rounded-2xl border border-cream-200 p-4 space-y-3">
