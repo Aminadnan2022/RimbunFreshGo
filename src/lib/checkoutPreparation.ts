@@ -104,9 +104,9 @@ export async function loadPreparationTargets(
         }
 
         candidates.push({
-          key: `${lineKey}-combo-${(part.componentNumber ?? partIndex + 1) - 1}`,
+          key: `${lineKey}-combo-${partIndex}`,
           lineKey,
-          componentNumber: part.componentNumber ?? partIndex + 1,
+          componentNumber: partIndex + 1,
           productId: part.productId,
           name: part.name || part.label,
           category: part.category,

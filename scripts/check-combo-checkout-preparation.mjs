@@ -33,7 +33,7 @@ if (combos.includes('preparation: item.preparation')) {
 // become preparation targets. Standalone items retain their existing path.
 for (const token of [
   'item.comboItems.forEach((part, partIndex)',
-  'componentNumber: part.componentNumber ?? partIndex + 1',
+  'componentNumber: partIndex + 1',
   'productId: part.productId',
   'if (!shouldIncludePreparationItem(item))',
   'productId: item.productId',
@@ -41,7 +41,7 @@ for (const token of [
   if (!preparation.includes(token)) failures.push(`preparation targeting is missing ${token}`);
 }
 
-// Supplier/order answers use the immutable selected component number directly;
+// Supplier/order answers use the selected projected component number directly;
 // separate targets therefore map chicken, Selar, and further actual components
 // to their own server-resolved component records.
 for (const token of [

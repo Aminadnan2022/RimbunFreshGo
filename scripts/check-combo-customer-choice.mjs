@@ -22,7 +22,7 @@ for (const token of ['Item Type', 'Fixed Item', 'Customer Choice', 'Choice Label
 }
 for (const token of ['type="radio"', 'Choose 1', 'Please choose one option from every Customer Choice', 'chosenItems']) if (!detail.includes(token)) failures.push(`missing customer UX: ${token}`);
 if (!checkout.includes('canonicalCheckoutItems(items)') || !checkoutItems.includes('combo_selections') || !checkoutItems.includes('combo_item_id')) failures.push('checkout does not send canonical selections');
-if (!preparation.includes('part.componentNumber')) failures.push('preparation does not preserve canonical component numbering');
+if (!preparation.includes('componentNumber: partIndex + 1')) failures.push('preparation does not use projected component numbering');
 
 if (failures.length) {
   console.error('Combo Customer Choice checks failed:\n- ' + failures.join('\n- '));
