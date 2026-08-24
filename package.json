@@ -32,6 +32,7 @@
     "test:post-place-order-navigation": "node scripts/check-post-place-order-navigation.mjs",
     "test:post-order-payment-tracking": "node --experimental-strip-types scripts/check-post-order-payment-tracking.mjs",
     "test:order-number-prefix": "node scripts/check-order-number-prefix.mjs",
+    "test:delivery-points-delete-access": "node scripts/check-delivery-points-delete-access.mjs",
     "test:fixed-combo-customer-price-finalisation": "node --experimental-strip-types scripts/check-fixed-combo-customer-price-finalisation.mjs",
     "test:checkout-customer-choice-staging": "node --experimental-strip-types scripts/check-checkout-customer-choice-staging.mjs",
     "test:phase4b1-place-order": "node scripts/check-phase4b1-place-sales-order.mjs",
