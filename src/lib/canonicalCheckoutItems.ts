@@ -3,6 +3,7 @@ import type { CartItem } from '../types';
 export interface CanonicalCheckoutItem {
   product_id?: string;
   combo_id?: string;
+  combo_version_id?: string;
   quantity: number;
   estimated_weight_kg?: number;
   component_estimated_weights?: Record<string, number>;
@@ -12,7 +13,10 @@ export interface CanonicalCheckoutItem {
 
 export function canonicalCheckoutItems(items: CartItem[]): CanonicalCheckoutItem[] {
   return items.map((item) => ({
-    ...(item.isCombo && item.comboId ? { combo_id: item.comboId } : { product_id: item.productId }),
+    ...(item.isCombo && item.comboId ? {
+      combo_id: item.comboId,
+      ...(item.comboVersionId ? { combo_version_id: item.comboVersionId } : {}),
+    } : { product_id: item.productId }),
     quantity: item.quantity,
     ...(item.estimatedWeight !== undefined && { estimated_weight_kg: item.estimatedWeight }),
     ...(item.isCombo && item.comboItems ? {

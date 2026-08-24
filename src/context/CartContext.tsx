@@ -85,6 +85,7 @@ function itemMode(item: CartItem): string {
 
 function cartItemKey(item: CartItem): string {
   const base = item.comboId ?? item.productId;
+  const comboVersion = item.comboVersionId ? `|version${item.comboVersionId}` : '';
   const prep = item.preparation ?? 'default';
   const mode = itemMode(item);
 
@@ -106,7 +107,7 @@ function cartItemKey(item: CartItem): string {
     .sort()
     .join(',') ?? '';
 
-  return `${base}|${prep}|${mode}${weight}${slices}|${choices}`;
+  return `${base}${comboVersion}|${prep}|${mode}${weight}${slices}|${choices}`;
 }
 
 function actionMatchesItem(

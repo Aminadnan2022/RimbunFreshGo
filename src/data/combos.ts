@@ -30,6 +30,17 @@ type RawDbComboItem = {
   price_adjustment?: number;
 };
 
+type RawComboVersionItem = {
+  id: string;
+  product_id: string;
+  quantity: number;
+  unit_snapshot: Json;
+  display_order: number;
+  choice_group_key: string | null;
+  choice_group_label: string | null;
+  price_adjustment: number;
+};
+
 function mapComboItem(row: RawDbComboItem): DbComboItem {
   return {
     id: row.id,
@@ -50,6 +61,53 @@ function mapComboItem(row: RawDbComboItem): DbComboItem {
 
 function getSellingUnit(product: Product): SellingUnit {
   return product.selling_unit ?? deriveSellingUnit(product.orderingMode);
+}
+
+async function fetchCurrentComboVersionItems(comboId: string): Promise<{
+  comboVersionId: string;
+  items: DbComboItem[];
+} | null> {
+  const now = new Date().toISOString();
+  const { data: version, error: versionError } = await supabase
+    .from('combo_versions')
+    .select('id')
+    .eq('combo_id', comboId)
+    .eq('status', 'published')
+    .lte('effective_from', now)
+    .or(`effective_to.is.null,effective_to.gt.${now}`)
+    .order('effective_from', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (versionError) throw versionError;
+  if (!version) return null;
+
+  const { data, error } = await supabase
+    .from('combo_version_items')
+    .select('id, product_id, quantity, unit_snapshot, display_order, choice_group_key, choice_group_label, price_adjustment')
+    .eq('combo_version_id', version.id)
+    .order('display_order', { ascending: true });
+  if (error) throw error;
+
+  return {
+    comboVersionId: version.id,
+    items: ((data ?? []) as RawComboVersionItem[]).map((row) => {
+      const unitSnapshot = row.unit_snapshot && typeof row.unit_snapshot === 'object' && !Array.isArray(row.unit_snapshot)
+        ? row.unit_snapshot as Record<string, Json | undefined>
+        : {};
+      return {
+        id: row.id,
+        combo_id: comboId,
+        product_id: row.product_id,
+        quantity_value: Number(row.quantity),
+        selling_unit: String(unitSnapshot.selling_unit ?? ''),
+        sort_order: row.display_order,
+        created_at: '',
+        choice_group_key: row.choice_group_key ?? undefined,
+        choice_group_label: row.choice_group_label ?? undefined,
+        price_adjustment: Number(row.price_adjustment ?? 0),
+      };
+    }),
+  };
 }
 
 export async function fetchCombos(): Promise<DbCombo[]> {
@@ -85,14 +143,9 @@ export async function fetchComboBySlug(slug: string): Promise<ComboWithItems | n
     .maybeSingle();
   if (comboError || !combo) return null;
 
-  const { data: items, error: itemsError } = await supabase
-    .from('combo_items')
-    .select(COMBO_ITEM_COLUMNS)
-    .eq('combo_id', combo.id)
-    .order('sort_order', { ascending: true });
-  if (itemsError) throw itemsError;
-
-  return { combo, items: (items ?? []).map(mapComboItem) };
+  const recipe = await fetchCurrentComboVersionItems(combo.id);
+  if (!recipe) return null;
+  return { combo, items: recipe.items, comboVersionId: recipe.comboVersionId };
 }
 
 export async function fetchActiveComboList(): Promise<ComboWithItems[]> {
@@ -106,23 +159,11 @@ export async function fetchActiveComboList(): Promise<ComboWithItems[]> {
   const rows = combos ?? [];
   if (rows.length === 0) return [];
 
-  const { data: items, error: itemsError } = await supabase
-    .from('combo_items')
-    .select(COMBO_ITEM_COLUMNS)
-    .in('combo_id', rows.map((c) => c.id))
-    .order('combo_id', { ascending: true })
-    .order('sort_order', { ascending: true });
-  if (itemsError) throw itemsError;
-
-  const byCombo = new Map<string, DbComboItem[]>();
-  (items ?? []).forEach((row) => {
-    const item = mapComboItem(row as RawDbComboItem);
-    const arr = byCombo.get(item.combo_id) ?? [];
-    arr.push(item);
-    byCombo.set(item.combo_id, arr);
+  const recipes = await Promise.all(rows.map((combo) => fetchCurrentComboVersionItems(combo.id)));
+  return rows.flatMap((combo, index) => {
+    const recipe = recipes[index];
+    return recipe ? [{ combo, items: recipe.items, comboVersionId: recipe.comboVersionId }] : [];
   });
-
-  return rows.map((combo) => ({ combo, items: byCombo.get(combo.id) ?? [] }));
 }
 
 export async function fetchComboById(id: string): Promise<ComboWithItems | null> {
@@ -326,6 +367,7 @@ export function buildComboCartItem(
   return {
     productId: comboWithItems.combo.id,
     comboId: comboWithItems.combo.id,
+    comboVersionId: comboWithItems.comboVersionId,
     name: comboWithItems.combo.name,
     image: comboWithItems.combo.image,
     price: comboWithItems.combo.price,

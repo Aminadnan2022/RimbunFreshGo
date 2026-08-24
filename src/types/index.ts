@@ -131,6 +131,7 @@ export interface DbComboItem {
 export interface ComboWithItems {
   combo: DbCombo;
   items: DbComboItem[];
+  comboVersionId?: string;
 }
 
 export type ComboPayload = {
@@ -186,6 +187,7 @@ export interface CartItem {
   pricingType?: 'per_kg' | 'fixed' | 'slice';
   isCombo?: boolean;
   comboId?: string;
+  comboVersionId?: string;
   comboItems?: ComboExpandedItem[];
   /** Slice ordering (orderingMode === 'slice'). */
   ordering_type?: 'slice';

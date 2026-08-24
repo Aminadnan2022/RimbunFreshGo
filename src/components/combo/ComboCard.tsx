@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { ShoppingCart, Star, Users, Clock, ChevronRight, Package } from 'lucide-react';
 import type { ComboWithItems, Product } from '../../types';
 import { buildComboCartItem } from '../../data/combos';
@@ -25,6 +25,7 @@ const BADGE_STYLES: Record<string, string> = {
 
 export default function ComboCard({ comboWithItems, products }: Props) {
   const { addItem } = useCart();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { openSignIn } = useAuthModal();
   const { t } = useLanguage();
@@ -37,6 +38,7 @@ export default function ComboCard({ comboWithItems, products }: Props) {
   const savings = Math.max(0, original - price);
   const savingsPct = Number(combo.discount_percent) || (original > 0 ? Math.round((savings / original) * 100) : 0);
   const itemCount = comboWithItems.items.length;
+  const hasCustomerChoice = comboWithItems.items.some((item) => item.choice_group_key);
 
   const productMap = new Map(products.map((p) => [p.id, p]));
   const thumbnails = comboWithItems.items
@@ -45,6 +47,10 @@ export default function ComboCard({ comboWithItems, products }: Props) {
     .slice(0, 4);
 
   const handleAdd = () => {
+    if (hasCustomerChoice) {
+      navigate(`/combos/${combo.slug}`);
+      return;
+    }
     if (!user) {
       openSignIn('/combos');
       return;

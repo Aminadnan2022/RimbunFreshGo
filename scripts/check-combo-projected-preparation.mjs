@@ -12,8 +12,9 @@ const comboItems = [
   { productId: 'udang-a', comboItemId: 'current-udang', componentNumber: 6, name: 'Udang A', image: '', price: 1, unit: 'kg', category: 'prawns', quantity: 1, quantityValue: 0.5, sellingUnit: 'kg', label: 'Udang A' },
   { productId: 'siakap', comboItemId: 'current-siakap', componentNumber: 7, name: 'Siakap', image: '', price: 1, unit: 'fish', category: 'fish', quantity: 1, quantityValue: 1, sellingUnit: 'piece', label: 'Siakap' },
 ];
-const item = { productId: 'combo', comboId: 'combo', isCombo: true, name: 'Fixed combo', image: '', price: 50, unit: 'combo', quantity: 1, comboItems };
+const item = { productId: 'combo', comboId: 'combo', comboVersionId: 'current-version', isCombo: true, name: 'Fixed combo', image: '', price: 50, unit: 'combo', quantity: 1, comboItems };
 const projected = canonicalCheckoutItems([item])[0];
+if (projected.combo_version_id !== 'current-version') failures.push('current immutable combo version identity is not serialized');
 const expectedComponents = [
   { component_number: 1, combo_item_id: 'current-chicken', product_id: 'chicken' },
   { component_number: 2, combo_item_id: 'current-selar', product_id: 'selar' },
