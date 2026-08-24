@@ -21,6 +21,13 @@ const deferredFinal = resolveCustomerPaymentPresentation({ canonicalPaymentStatu
 assert.deepEqual([deferredFinal.label, deferredFinal.showPaymentQr, deferredFinal.allowReceiptUpload], ['Ready To Pay', true, true]);
 
 assert.match(checkout, /navigate\(`\/order\/\$\{order\.order_number\}`, \{ replace: true \}\)/, 'placement must redirect using the returned order number');
+for (const token of [
+  "from('sales_order_line_components')",
+  "from('sales_order_line_component_units')",
+  "from('sales_order_preparation_answers')",
+  'Array.from({ length: content.comboQuantity }, (_, comboIndex)',
+  'unit.comboUnitNumber === comboIndex + 1',
+]) assert.ok(tracking.includes(token), `canonical order contents detail is missing ${token}`);
 assert.match(tracking, /canonicalPayment\?\.paymentStatus/, 'tracking must prefer canonical payment state');
 assert.match(tracking, /Payment Submitted/, 'tracking must name the submitted receipt stage accurately');
 assert.match(migration, /RETURN QUERY SELECT[\s\S]*'receipt_submitted'::text/, 'guarded placement must return receipt_submitted');

@@ -49,6 +49,29 @@ type CanonicalPaymentDisplay = {
   configurationSource: string;
 };
 
+type CanonicalContentUnit = {
+  id: string;
+  unitNumber: number;
+  comboUnitNumber: number;
+  componentUnitNumber: number;
+  preparation: string[];
+};
+
+type CanonicalContentComponent = {
+  id: string;
+  name: string;
+  quantity: number;
+  sellingUnit: string;
+  estimatedWeightKg: number | null;
+  units: CanonicalContentUnit[];
+};
+
+type CanonicalContentLine = {
+  lineNumber: number;
+  comboQuantity: number;
+  components: CanonicalContentComponent[];
+};
+
 export default function OrderTrackingPage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
@@ -78,6 +101,8 @@ const [initialLoading, setInitialLoading] = useState(true);
 
   const [canonicalPaymentDisplay, setCanonicalPaymentDisplay] =
     useState<CanonicalPaymentDisplay | null>(null);
+  const [canonicalContents, setCanonicalContents] =
+    useState<CanonicalContentLine[]>([]);
 
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [receiptInputKey, setReceiptInputKey] = useState(0);
@@ -150,6 +175,71 @@ const [receiptUploading, setReceiptUploading] = useState(false);
               : Number(canonicalRow.final_total),
           rejectionReason,
         });
+
+        /* eslint-disable @typescript-eslint/no-explicit-any -- canonical detail rows are runtime-validated and not yet present in the generated client types. */
+        const db = supabase as any;
+        const { data: contentLines, error: contentLinesError } = await db
+          .from('sales_order_lines')
+          .select('id, line_number, item_kind, quantity')
+          .eq('sales_order_id', canonicalRow.id)
+          .order('line_number', { ascending: true });
+        if (contentLinesError) throw contentLinesError;
+
+        const comboLines = (contentLines ?? []).filter((line: any) => line.item_kind === 'combo');
+        const lineIds = comboLines.map((line: any) => String(line.id));
+        if (lineIds.length) {
+          const { data: components, error: componentsError } = await db
+            .from('sales_order_line_components')
+            .select('id, sales_order_line_id, component_number, product_snapshot, quantity, selling_unit, estimated_weight_kg')
+            .in('sales_order_line_id', lineIds)
+            .order('component_number', { ascending: true });
+          if (componentsError) throw componentsError;
+
+          const componentIds = (components ?? []).map((component: any) => String(component.id));
+          const [{ data: units, error: unitsError }, { data: answers, error: answersError }] = await Promise.all([
+            db.from('sales_order_line_component_units').select('id, sales_order_line_component_id, unit_number, unit_snapshot').in('sales_order_line_component_id', componentIds).order('unit_number', { ascending: true }),
+            db.from('sales_order_preparation_answers').select('sales_order_line_component_id, sales_order_line_component_unit_id, preparation_question_id, preparation_option_id, question_code, option_code, answer_value').in('sales_order_line_component_id', componentIds),
+          ]);
+          if (unitsError) throw unitsError;
+          if (answersError) throw answersError;
+
+          const questionIds = [...new Set((answers ?? []).map((answer: any) => String(answer.preparation_question_id)))];
+          const optionIds = [...new Set((answers ?? []).filter((answer: any) => answer.preparation_option_id).map((answer: any) => String(answer.preparation_option_id)))];
+          const [{ data: questions }, { data: options }] = await Promise.all([
+            questionIds.length ? db.from('preparation_questions').select('id, label').in('id', questionIds) : Promise.resolve({ data: [] }),
+            optionIds.length ? db.from('preparation_question_options').select('id, label').in('id', optionIds) : Promise.resolve({ data: [] }),
+          ]);
+          const questionLabels = new Map((questions ?? []).map((row: any) => [String(row.id), String(row.label)]));
+          const optionLabels = new Map((options ?? []).map((row: any) => [String(row.id), String(row.label)]));
+          const answerText = (answer: any) => {
+            const label = questionLabels.get(String(answer.preparation_question_id)) ?? String(answer.question_code).replace(/[_-]+/g, ' ');
+            const rawValue = optionLabels.get(String(answer.preparation_option_id)) ?? answer.option_code ?? answer.answer_value;
+            const value = rawValue === true ? 'Yes' : rawValue === false ? 'No' : typeof rawValue === 'string' ? rawValue : JSON.stringify(rawValue);
+            return `${label}: ${value}`;
+          };
+
+          setCanonicalContents(comboLines.map((line: any) => ({
+            lineNumber: Number(line.line_number),
+            comboQuantity: Number(line.quantity),
+            components: (components ?? []).filter((component: any) => String(component.sales_order_line_id) === String(line.id)).map((component: any) => ({
+              id: String(component.id),
+              name: String(component.product_snapshot?.name ?? component.product_snapshot?.label ?? 'Order item'),
+              quantity: Number(component.quantity),
+              sellingUnit: String(component.selling_unit ?? ''),
+              estimatedWeightKg: component.estimated_weight_kg == null ? null : Number(component.estimated_weight_kg),
+              units: (units ?? []).filter((unit: any) => String(unit.sales_order_line_component_id) === String(component.id)).map((unit: any) => ({
+                id: String(unit.id),
+                unitNumber: Number(unit.unit_number),
+                comboUnitNumber: Number(unit.unit_snapshot?.combo_unit_number ?? 1),
+                componentUnitNumber: Number(unit.unit_snapshot?.component_unit_number ?? 1),
+                preparation: (answers ?? []).filter((answer: any) => String(answer.sales_order_line_component_unit_id) === String(unit.id)).map(answerText),
+              })),
+            })),
+          })));
+        } else {
+          setCanonicalContents([]);
+        }
+        /* eslint-enable @typescript-eslint/no-explicit-any */
 
         const { data: paymentDisplayData, error: paymentDisplayError } =
           await supabase.rpc('get_sales_order_payment_display', {
@@ -1226,8 +1316,8 @@ useEffect(() => {
       <div className="card p-6 sm:p-8">
         <h3 className="font-semibold text-charcoal mb-4">{t("tracking.orderContents")}</h3>
         <div className="space-y-3 mb-4">
-          {order.items.map((item) => (
-            <div key={item.comboId ?? item.productId} className="flex gap-3 items-center">
+          {order.items.map((item, itemIndex) => (
+            <div key={item.comboId ?? item.productId} className="flex gap-3 items-start">
               <ProductImage src={item.image} alt={item.name} className="w-14 h-14 rounded-2xl object-cover flex-shrink-0" />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold truncate">{item.name}</p>
@@ -1257,6 +1347,30 @@ useEffect(() => {
                     ))}
                   </div>
                 )}
+                {item.isCombo && canonicalContents.find((line) => line.lineNumber === itemIndex + 1) && (() => {
+                  const content = canonicalContents.find((line) => line.lineNumber === itemIndex + 1)!;
+                  return (
+                    <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                      {Array.from({ length: content.comboQuantity }, (_, comboIndex) => (
+                        <section key={comboIndex} className="rounded-xl border border-cream-200 bg-cream-50/60 p-3">
+                          <p className="mb-2 text-xs font-bold uppercase tracking-wide text-forest-700">Combo #{comboIndex + 1}</p>
+                          <div className="space-y-2">
+                            {content.components.map((component) => {
+                              const comboUnits = component.units.filter((unit) => unit.comboUnitNumber === comboIndex + 1);
+                              const quantity = component.estimatedWeightKg != null ? `~${component.estimatedWeightKg.toFixed(2)} kg` : `${component.quantity} ${component.sellingUnit}`.trim();
+                              return (
+                                <div key={component.id} className="text-xs">
+                                  <p className="font-semibold text-gray-800">{component.name} <span className="font-normal text-gray-500">· {quantity}</span></p>
+                                  {comboUnits.flatMap((unit) => unit.preparation.map((value) => `${component.units.length > content.comboQuantity ? `Unit ${unit.componentUnitNumber}: ` : ''}${value}`)).map((value) => <p key={value} className="mt-0.5 text-gray-500">{value}</p>)}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </section>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
               {isWeightItem(item) ? (
                 <p className="text-sm font-semibold text-amber-700">≈ RM{formatCurrency(item.price * (item.estimatedWeight ?? 0))}</p>
