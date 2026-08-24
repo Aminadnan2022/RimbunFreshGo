@@ -52,17 +52,26 @@ for (const token of [
   if (!checkout.includes(token)) failures.push(`canonical answer mapping is missing ${token}`);
 }
 
-// Review labels come from the immutable product/component snapshot already on
-// each target. A counter is added only when that same target has multiple units,
-// and stored option codes are resolved through their configured human labels.
+// Review rows come from the actual cart/component snapshot, not preparation
+// targets. That keeps fixed + selected choice components (including products
+// without a questionnaire) exactly once while unselected alternatives remain
+// absent from the snapshot. Preparation is joined by immutable component number.
 for (const token of [
+  'item.comboItems.map((component, componentIndex)',
+  'candidate.componentNumber === componentNumber',
+  '!hasPreparation && <p><span className="font-medium text-gray-900">{component.name}</span> — {comboComponentQuantity(component, item.quantity)}</p>',
+  "reviewQuestionText(target, null, 'line')",
+  "reviewQuestionText(target, unit, 'physical_unit')",
+  ".filter((entry) => entry.text)",
+  '</div> : <><p className="font-medium">{item.name}',
   'target.quantity > 1 ? `${target.name} #${unit + 1}` : target.name',
   'candidate.code === answer || candidate.value === answer',
   'option ? display(option) : String(answer)',
-  'reviewTargetLabel(target, unit)',
-  'reviewAnswer(q, answers[answerKey(target, unit)]?.[q.code])',
 ]) {
   if (!checkoutPage.includes(token)) failures.push(`checkout review display is missing ${token}`);
+}
+if (/item\.comboItems\.filter\([^)]*preparation|lineTargets\.map\([^)]*component/.test(checkoutPage)) {
+  failures.push('checkout review component rows are still driven by preparation targets');
 }
 if (checkoutPage.includes("target.category === 'chicken' ? t('checkout.chicken') : t('checkout.unit')")) {
   failures.push('checkout review still uses generic Chicken/Unit preparation labels');
@@ -73,4 +82,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('Combo checkout preparation checks passed (builder override removed; fixed + selected components targeted independently; unselected choices excluded; standalone path and canonical component mapping preserved).');
+console.log('Combo checkout preparation checks passed (review lists every actual fixed/selected component exactly once, keeps no-preparation items with quantity, joins only existing answers, excludes unselected choices, and preserves standalone/canonical paths).');
