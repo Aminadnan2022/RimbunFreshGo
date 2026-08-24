@@ -253,6 +253,69 @@ export type Database = {
           },
         ]
       }
+      checkout_payment_receipt_staging: {
+        Row: {
+          consumed_at: string | null
+          consumed_sales_order_id: string | null
+          created_at: string
+          customer_id: string
+          expected_final_total: number
+          file_size: number
+          id: string
+          idempotency_key: string
+          mime_type: string
+          original_file_name: string
+          payment_configuration_version_id: string
+          storage_path: string
+          updated_at: string
+        }
+        Insert: {
+          consumed_at?: string | null
+          consumed_sales_order_id?: string | null
+          created_at?: string
+          customer_id: string
+          expected_final_total: number
+          file_size: number
+          id?: string
+          idempotency_key: string
+          mime_type: string
+          original_file_name: string
+          payment_configuration_version_id: string
+          storage_path: string
+          updated_at?: string
+        }
+        Update: {
+          consumed_at?: string | null
+          consumed_sales_order_id?: string | null
+          created_at?: string
+          customer_id?: string
+          expected_final_total?: number
+          file_size?: number
+          id?: string
+          idempotency_key?: string
+          mime_type?: string
+          original_file_name?: string
+          payment_configuration_version_id?: string
+          storage_path?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checkout_payment_receipt_stag_payment_configuration_versio_fkey"
+            columns: ["payment_configuration_version_id"]
+            isOneToOne: false
+            referencedRelation: "payment_configuration_versions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checkout_payment_receipt_staging_consumed_sales_order_id_fkey"
+            columns: ["consumed_sales_order_id"]
+            isOneToOne: true
+            referencedRelation: "sales_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       combo_items: {
         Row: {
           choice_group_key: string | null
@@ -3489,6 +3552,24 @@ export type Database = {
           p_supplier_name: string
         }
         Returns: undefined
+      }
+      stage_checkout_payment_receipt: {
+        Args: {
+          p_expected_final_total: number
+          p_file_size: number
+          p_idempotency_key: string
+          p_mime_type: string
+          p_original_file_name: string
+          p_payment_configuration_version_id: string
+          p_storage_path: string
+        }
+        Returns: {
+          file_size: number
+          id: string
+          mime_type: string
+          original_file_name: string
+          storage_path: string
+        }[]
       }
       submit_sales_order_payment_receipt: {
         Args: {

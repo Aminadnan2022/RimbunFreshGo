@@ -5,6 +5,7 @@ import { isPriceFinalAtCheckout } from '../src/lib/checkoutPricing.ts';
 const root = resolve(import.meta.dirname, '..');
 const read = (file) => readFileSync(resolve(root, file), 'utf8');
 const migration = read('supabase/migrations/20261021000000_checkout_fixed_price_payment_preview.sql');
+const receiptStaging = read('supabase/migrations/20261022000000_checkout_payment_receipt_staging.sql');
 const canonicalPlacement = read('supabase/migrations/20260924000000_supplier_canonical_checkout_enforcement.sql');
 const checkout = read('src/pages/CheckoutPage.tsx');
 const payment = read('src/lib/checkoutPayment.ts');
@@ -41,7 +42,28 @@ if (fixedCombo.price * fixedCombo.quantity + 2 !== 57) failures.push('fixed RM55
 for (const token of [
   'payment.amountToPay', 'paymentQrPublicUrl', 'p_expected_final_total',
   'p_expected_payment_configuration_version_id', 'weighedOrderInstructions',
+  'stage_checkout_payment_receipt', 'payment.uploadPaymentReceipt',
+  '!stagedReceipt', 'disabled:bg-gray-300',
 ]) if (!checkout.includes(token)) failures.push(`missing checkout payment behavior: ${token}`);
+
+for (const token of [
+  'CREATE TABLE public.checkout_payment_receipt_staging',
+  'UNIQUE (customer_id, idempotency_key)',
+  'REVOKE ALL ON TABLE public.checkout_payment_receipt_staging FROM PUBLIC, anon, authenticated',
+  'CREATE POLICY checkout_receipt_staging_insert',
+  "split_part(name, '/', 2) = auth.uid()::text",
+  'SELECT * INTO v_stage',
+  'FOR UPDATE',
+  'round(v_stage.expected_final_total, 2) <> round(p_expected_final_total, 2)',
+  'v_stage.payment_configuration_version_id IS DISTINCT FROM p_expected_payment_configuration_version_id',
+  'INSERT INTO public.sales_order_payment_receipts',
+  "'receipt_submitted'::text",
+  'consumed_sales_order_id = v_result.sales_order_id',
+]) if (!receiptStaging.includes(token)) failures.push(`missing staged receipt safeguard: ${token}`);
+
+if (receiptStaging.includes('GRANT INSERT ON TABLE public.checkout_payment_receipt_staging TO authenticated')) {
+  failures.push('staging metadata must not expose broad authenticated table inserts');
+}
 
 for (const token of [
   'get_checkout_payment_configuration', 'place_sales_order_with_checkout_payment_preview',
