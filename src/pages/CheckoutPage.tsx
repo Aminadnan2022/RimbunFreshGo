@@ -8,7 +8,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { useWebsiteSettings } from '../context/WebsiteSettingsContext';
 import { supabase } from '../lib/supabase';
 import { fetchActiveDeliveryPoints, type DeliveryPoint } from '../data/delivery';
-import { answerKey, loadPreparationTargets, requiredMissing, type PreparationAnswers, type PreparationQuestion, type PreparationTarget } from '../lib/checkoutPreparation';
+import { answerKey, loadPreparationTargets, requiredMissing, type PreparationAnswers, type PreparationLoadFailure, type PreparationQuestion, type PreparationTarget } from '../lib/checkoutPreparation';
 import { buildCanonicalPlaceOrderRequest, placeCanonicalOrder, type CanonicalDeliveryMethod } from '../lib/canonicalCheckout';
 import DeliverySlotSelector from '../components/ui/DeliverySlotSelector';
 import { formatCurrency } from '../lib/currency';
@@ -29,7 +29,7 @@ export default function CheckoutPage() {
   const { cart, subtotal, clearCart } = useCart(); const { user, loading: authLoading } = useAuth(); const { config } = useDeliveryConfig(); const { t, language } = useLanguage(); const { settings } = useWebsiteSettings(); const navigate = useNavigate();
   const [details, setDetails] = useState(blank); const [points, setPoints] = useState<DeliveryPoint[]>([]); const [deliveryDay, setDeliveryDay] = useState<DeliveryDay | null>(cart.deliveryDay); const [errors, setErrors] = useState<Record<string, string>>({});
   const [deliveryMethod, setDeliveryMethod] = useState<CanonicalDeliveryMethod>('normal_bulk'); const [instantDate, setInstantDate] = useState(''); const [instantTime, setInstantTime] = useState('');
-  const [step, setStep] = useState<'details' | 'preparation' | 'review' | 'payment'>('details'); const [targets, setTargets] = useState<PreparationTarget[]>([]); const [answers, setAnswers] = useState<PreparationAnswers>({}); const [prepLoading, setPrepLoading] = useState(true); const [prepError, setPrepError] = useState<string | null>(null); const [placing, setPlacing] = useState(false); const [placeError, setPlaceError] = useState<string | null>(null);
+  const [step, setStep] = useState<'details' | 'preparation' | 'review' | 'payment'>('details'); const [targets, setTargets] = useState<PreparationTarget[]>([]); const [answers, setAnswers] = useState<PreparationAnswers>({}); const [prepLoading, setPrepLoading] = useState(true); const [prepError, setPrepError] = useState<string | null>(null); const [prepLoadFailures, setPrepLoadFailures] = useState<PreparationLoadFailure[]>([]); const [placing, setPlacing] = useState(false); const [placeError, setPlaceError] = useState<string | null>(null);
   const [paymentPreview, setPaymentPreview] = useState<CheckoutPaymentPreview | null>(null); const [paymentPreviewLoading, setPaymentPreviewLoading] = useState(false); const [paymentPreviewError, setPaymentPreviewError] = useState<string | null>(null);
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [stagedReceipt, setStagedReceipt] = useState<{ storagePath: string; fileName: string } | null>(null);
@@ -51,19 +51,20 @@ useEffect(() => {
 
   setPrepLoading(true);
   setPrepError(null);
+  setPrepLoadFailures([]);
 
   loadPreparationTargets(cart.items)
-    .then((loadedTargets) => {
+    .then(({ targets: loadedTargets, failures }) => {
       if (!mounted) return;
 
       setTargets(loadedTargets);
-      setPrepError(null);
+      setPrepLoadFailures(failures);
     })
     .catch(() => {
       if (!mounted) return;
 
       setTargets([]);
-      setPrepError(t('checkout.preparationLoadError'));
+      setPrepLoadFailures([{ productId: '', name: '', error: new Error(t('checkout.preparationLoadError')) }]);
     })
     .finally(() => {
       if (mounted) {
@@ -247,6 +248,12 @@ const Preparation = () => (
       });
     })}
 
+    {prepLoadFailures.length > 0 && (
+      <p className="text-sm text-red-600">
+        {t('checkout.preparationPartialLoadError', { items: prepLoadFailures.filter((failure) => failure.name).map((failure) => failure.name).join(', ') || t('checkout.preparationLoadError') })}
+      </p>
+    )}
+
     {prepError && (
       <p className="text-sm text-red-600">
         {prepError}
@@ -263,7 +270,7 @@ const Preparation = () => (
 
       <button
         className="btn-primary flex-1"
-        disabled={prepLoading || Boolean(prepError)}
+        disabled={prepLoading}
         onClick={() => {
           if (requiredMissing(targets, answers)) {
             setPrepError(t('checkout.preparationRequired'));

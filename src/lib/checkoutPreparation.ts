@@ -44,6 +44,17 @@ export type PreparationTarget = {
 
 export type PreparationAnswers = Record<string, Record<string, unknown>>;
 
+export type PreparationLoadFailure = {
+  productId: string;
+  name: string;
+  error: unknown;
+};
+
+export type PreparationLoadResult = {
+  targets: PreparationTarget[];
+  failures: PreparationLoadFailure[];
+};
+
 const db = supabase as any;
 
 export async function loadQuestionnaire(
@@ -82,7 +93,7 @@ function shouldIncludePreparationItem(item: CartItem): boolean {
 
 export async function loadPreparationTargets(
   items: CartItem[],
-): Promise<PreparationTarget[]> {
+): Promise<PreparationLoadResult> {
   const candidates: Omit<PreparationTarget, 'questionnaire'>[] = [];
 
   items.forEach((item, line) => {
@@ -135,26 +146,46 @@ export async function loadPreparationTargets(
     });
   });
 
+  // Do not let one stale/misconfigured line make every other product's
+  // questionnaire disappear. A missing published configuration is a normal
+  // result (null); only an actual RPC failure is recorded as a failure.
   const questionnaires = await Promise.all(
-    candidates.map(async (candidate) => ({
-      candidate,
-      questionnaire: await loadQuestionnaire(candidate.productId),
-    })),
+    candidates.map(async (candidate) => {
+      try {
+        return {
+          candidate,
+          questionnaire: await loadQuestionnaire(candidate.productId),
+          error: null,
+        };
+      } catch (error) {
+        return { candidate, questionnaire: null, error };
+      }
+    }),
   );
 
-  return questionnaires
-    .filter(
-      (
-        x,
-      ): x is {
-        candidate: Omit<PreparationTarget, 'questionnaire'>;
-        questionnaire: Questionnaire;
-      } => !!x.questionnaire && x.questionnaire.questions.length > 0,
-    )
-    .map(({ candidate, questionnaire }) => ({
-      ...candidate,
-      questionnaire,
-    }));
+  return {
+    targets: questionnaires
+      .filter(
+        (
+          x,
+        ): x is {
+          candidate: Omit<PreparationTarget, 'questionnaire'>;
+          questionnaire: Questionnaire;
+          error: null;
+        } => !!x.questionnaire && x.questionnaire.questions.length > 0,
+      )
+      .map(({ candidate, questionnaire }) => ({
+        ...candidate,
+        questionnaire,
+      })),
+    failures: questionnaires
+      .filter((x) => x.error !== null)
+      .map(({ candidate, error }) => ({
+        productId: candidate.productId,
+        name: candidate.name,
+        error,
+      })),
+  };
 }
 
 export function answerKey(

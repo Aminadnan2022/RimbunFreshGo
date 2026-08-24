@@ -341,6 +341,7 @@
     "preparationTitle": "Preparation preferences",
     "preparationLoading": "Loading available preparation options…",
     "preparationLoadError": "Preparation options could not be loaded. Please try again.",
+    "preparationPartialLoadError": "Preparation options could not be loaded for: {{items}}. Other available preparation questions can still be completed.",
     "preparationRequired": "Please answer all required preparation questions.",
     "noPreparationNeeded": "No preparation choices are needed for these items.",
     "applySameToAll": "Apply the first unit's choices to all",

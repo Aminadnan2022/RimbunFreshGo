@@ -341,6 +341,7 @@
     "preparationTitle": "Pilihan penyediaan",
     "preparationLoading": "Memuatkan pilihan penyediaan…",
     "preparationLoadError": "Pilihan penyediaan tidak dapat dimuatkan. Sila cuba lagi.",
+    "preparationPartialLoadError": "Pilihan penyediaan tidak dapat dimuatkan untuk: {{items}}. Soalan penyediaan lain yang tersedia masih boleh dilengkapkan.",
     "preparationRequired": "Sila jawab semua soalan penyediaan yang diperlukan.",
     "noPreparationNeeded": "Tiada pilihan penyediaan diperlukan untuk barangan ini.",
     "applySameToAll": "Gunakan pilihan unit pertama untuk semua",
