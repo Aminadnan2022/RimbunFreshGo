@@ -88,12 +88,14 @@ export default function AdminHistoricalDataPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [status, setStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [status, setStatus] = useState<'idle' | 'success'>('idle');
   const [statusMsg, setStatusMsg] = useState('');
   const [formOpen, setFormOpen] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const [editing, setEditing] = useState<HistoricalBusinessDaily | null>(null);
   const [draft, setDraft] = useState<Draft>(emptyDraft());
   const [deleteTarget, setDeleteTarget] = useState<HistoricalBusinessDaily | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -121,41 +123,50 @@ export default function AdminHistoricalDataPage() {
     return { orders, revenue, cost, delivery, profit };
   }, [rows]);
 
-  const notify = (msg: string, ok = true) => {
-    setStatus(ok ? 'success' : 'error');
+  const notify = (msg: string) => {
+    setStatus('success');
     setStatusMsg(msg);
     setTimeout(() => setStatus('idle'), 3000);
+  };
+
+  const closeForm = () => {
+    setFormOpen(false);
+    setFormError(null);
+  };
+
+  const closeDelete = () => {
+    setDeleteTarget(null);
+    setDeleteError(null);
   };
 
   const openCreate = () => {
     setEditing(null);
     setDraft(emptyDraft());
+    setFormError(null);
     setFormOpen(true);
   };
 
   const openEdit = (row: HistoricalBusinessDaily) => {
     setEditing(row);
     setDraft(draftFromRow(row));
+    setFormError(null);
     setFormOpen(true);
   };
 
   const save = async () => {
     const input = draftToInput(draft);
     if (!input) {
-      setStatus('error');
-      setStatusMsg(t('historicalData.errors.dateRequired'));
-      setTimeout(() => setStatus('idle'), 3000);
+      setFormError(t('historicalData.errors.dateRequired'));
       return;
     }
     const numericValues = [input.order_count, input.revenue_amount, input.supplier_cost_amount,
       input.delivery_income_amount, input.gross_profit_amount];
     if (!numericValues.every(Number.isFinite) || !Number.isInteger(input.order_count)
       || input.order_count < 0 || numericValues.slice(1, 4).some((value) => value < 0)) {
-      setStatus('error');
-      setStatusMsg(t('historicalData.errors.invalidValues'));
-      setTimeout(() => setStatus('idle'), 4000);
+      setFormError(t('historicalData.errors.invalidValues'));
       return;
     }
+    setFormError(null);
     setSaving(true);
     try {
       if (editing) {
@@ -165,12 +176,10 @@ export default function AdminHistoricalDataPage() {
         await createHistoricalBusinessDaily(input);
         notify(t('historicalData.messages.saved'));
       }
-      setFormOpen(false);
+      closeForm();
       await load();
     } catch (err) {
-      setStatus('error');
-      setStatusMsg(mutationErrorMessage(err, t));
-      setTimeout(() => setStatus('idle'), 4000);
+      setFormError(mutationErrorMessage(err, t));
     } finally {
       setSaving(false);
     }
@@ -182,12 +191,10 @@ export default function AdminHistoricalDataPage() {
     try {
       await deleteHistoricalBusinessDaily(deleteTarget.id);
       notify(t('historicalData.messages.deleted'));
-      setDeleteTarget(null);
+      closeDelete();
       await load();
     } catch (err) {
-      setStatus('error');
-      setStatusMsg(err instanceof Error ? err.message : t('historicalData.errors.delete'));
-      setTimeout(() => setStatus('idle'), 4000);
+      setDeleteError(err instanceof Error ? err.message : t('historicalData.errors.delete'));
     } finally {
       setSaving(false);
     }
@@ -248,9 +255,9 @@ export default function AdminHistoricalDataPage() {
         </div>
       </div>
 
-      {status !== 'idle' && (
-        <div className={`flex items-center gap-2 p-3 rounded-xl text-sm mb-6 ${status === 'success' ? 'bg-green-50 text-green-700 border border-green-100' : 'bg-red-50 text-red-600 border border-red-100'}`}>
-          {status === 'success' ? <CheckCircle2 size={16} /> : <AlertCircle size={16} />} {statusMsg}
+      {status === 'success' && (
+        <div className="flex items-center gap-2 p-3 rounded-xl text-sm mb-6 bg-green-50 text-green-700 border border-green-100">
+          <CheckCircle2 size={16} /> {statusMsg}
         </div>
       )}
 
@@ -289,7 +296,7 @@ export default function AdminHistoricalDataPage() {
                       <button onClick={() => openEdit(r)} className="p-2 rounded-lg text-gray-500 hover:text-forest-700 hover:bg-forest-50 transition-all" title={t('historicalData.buttons.edit')}>
                         <Pencil size={16} />
                       </button>
-                      <button onClick={() => setDeleteTarget(r)} className="p-2 rounded-lg text-gray-500 hover:text-red-600 hover:bg-red-50 transition-all" title={t('historicalData.buttons.delete')}>
+                      <button onClick={() => { setDeleteError(null); setDeleteTarget(r); }} className="p-2 rounded-lg text-gray-500 hover:text-red-600 hover:bg-red-50 transition-all" title={t('historicalData.buttons.delete')}>
                         <Trash2 size={16} />
                       </button>
                     </div>
@@ -303,16 +310,22 @@ export default function AdminHistoricalDataPage() {
 
       {/* Add / Edit modal */}
       {formOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setFormOpen(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={closeForm}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-5">
               <h2 className="font-display font-bold text-forest-900 text-lg">
                 {editing ? t('historicalData.buttons.edit') : t('historicalData.buttons.add')}
               </h2>
-              <button onClick={() => setFormOpen(false)} className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-cream-50 transition-all">
+              <button onClick={closeForm} className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-cream-50 transition-all">
                 <X size={18} />
               </button>
             </div>
+            {formError && (
+              <div role="alert" className="flex items-start gap-2 p-3 mb-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+                <AlertCircle size={18} className="shrink-0 mt-0.5" />
+                <span className="min-w-0 break-words">{formError}</span>
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
                 <label className={labelCls}>{t('historicalData.form.date')}</label>
@@ -345,7 +358,7 @@ export default function AdminHistoricalDataPage() {
               </div>
             </div>
             <div className="flex justify-end gap-3 mt-6">
-              <button onClick={() => setFormOpen(false)} className="px-4 py-2 rounded-xl text-sm font-semibold text-gray-600 border border-gray-200 hover:bg-gray-50 transition-all">
+              <button onClick={closeForm} className="px-4 py-2 rounded-xl text-sm font-semibold text-gray-600 border border-gray-200 hover:bg-gray-50 transition-all">
                 {t('historicalData.buttons.cancel')}
               </button>
               <button onClick={save} disabled={saving} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-forest-700 hover:bg-forest-800 disabled:opacity-50 transition-all">
@@ -358,7 +371,7 @@ export default function AdminHistoricalDataPage() {
 
       {/* Delete confirm */}
       {deleteTarget && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setDeleteTarget(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={closeDelete}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center gap-2 mb-3">
               <History size={18} className="text-red-600" />
@@ -367,8 +380,14 @@ export default function AdminHistoricalDataPage() {
             <p className="text-sm text-gray-600 mb-6">
               {t('historicalData.confirmDelete.body', { date: deleteTarget.business_date })}
             </p>
+            {deleteError && (
+              <div role="alert" className="flex items-start gap-2 p-3 mb-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+                <AlertCircle size={18} className="shrink-0 mt-0.5" />
+                <span className="min-w-0 break-words">{deleteError}</span>
+              </div>
+            )}
             <div className="flex justify-end gap-3">
-              <button onClick={() => setDeleteTarget(null)} className="px-4 py-2 rounded-xl text-sm font-semibold text-gray-600 border border-gray-200 hover:bg-gray-50 transition-all">
+              <button onClick={closeDelete} className="px-4 py-2 rounded-xl text-sm font-semibold text-gray-600 border border-gray-200 hover:bg-gray-50 transition-all">
                 {t('historicalData.buttons.cancel')}
               </button>
               <button onClick={remove} disabled={saving} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 transition-all">

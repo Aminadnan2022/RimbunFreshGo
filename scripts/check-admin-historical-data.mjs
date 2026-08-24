@@ -15,6 +15,14 @@ if ((migration.match(/IF NOT public\.is_admin\(\)/g) ?? []).length !== 3) failur
 if ((migration.match(/SECURITY DEFINER/g) ?? []).length !== 3) failures.push('Every mutation RPC must be SECURITY DEFINER.');
 if (/\.from\('historical_business_daily'\)\.(insert|update|delete)/.test(data)) failures.push('Historical data layer still writes directly to the table.');
 for (const code of ['23505', '23514']) if (!page.includes(`'${code}'`)) failures.push(`UI does not map PostgreSQL error ${code}.`);
+for (const modalError of ['formError', 'deleteError']) {
+  if (!page.includes(`const [${modalError}, set${modalError[0].toUpperCase()}${modalError.slice(1)}]`)) {
+    failures.push(`UI does not keep ${modalError} scoped to its modal.`);
+  }
+}
+if ((page.match(/role="alert"/g) ?? []).length < 2) {
+  failures.push('Form and delete modal errors must use accessible alert semantics.');
+}
 
 if (failures.length) {
   console.error('Admin Previous Data regression failed:');
