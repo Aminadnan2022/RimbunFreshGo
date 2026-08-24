@@ -20,6 +20,9 @@ type FormItem = {
   preparation: string;
   unit: string;
   mode?: 'whole' | 'weight';
+  choice_group_key?: string;
+  choice_group_label?: string;
+  price_adjustment?: number;
 };
 
 function slugify(text: string) {
@@ -99,6 +102,9 @@ export default function AdminComboFormPage() {
         preparation: ci.preparation ?? '',
         unit: ci.unit ?? '',
         mode: ci.selling_unit === 'kg' ? 'weight' : 'whole',
+        choice_group_key: ci.choice_group_key,
+        choice_group_label: ci.choice_group_label,
+        price_adjustment: ci.price_adjustment,
       })));
     }).finally(() => setLoading(false));
   }, [id]);
@@ -156,11 +162,17 @@ export default function AdminComboFormPage() {
     return item.selling_unit || product.selling_unit || 'piece';
   }
 
-  const totalManualValue = selectedProducts.reduce((sum, s) => {
+  const fixedValue = selectedProducts.filter((item) => !item.choice_group_key).reduce((sum, s) => {
     const p = s.product!;
-    const su = resolveSellingUnit(s);
-    return sum + computeComboItemSubtotal(p, s.quantity_value, su);
+    return sum + computeComboItemSubtotal(p, s.quantity_value, resolveSellingUnit(s));
   }, 0);
+  const choiceValues = new Map<string, number[]>();
+  selectedProducts.filter((item) => item.choice_group_key).forEach((s) => {
+    const key = slugify(s.choice_group_label ?? '');
+    const value = computeComboItemSubtotal(s.product!, s.quantity_value, resolveSellingUnit(s));
+    choiceValues.set(key, [...(choiceValues.get(key) ?? []), value]);
+  });
+  const totalManualValue = fixedValue + [...choiceValues.values()].reduce((sum, values) => sum + Math.max(...values), 0);
 
   // ── Pricing ────────────────────────────────────────────────────────────
   const clampDiscount = (v: number) => Math.min(90, Math.max(0, v));
@@ -210,6 +222,18 @@ export default function AdminComboFormPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.name.trim()) { alert('Name is required.'); return; }
+    const groups = new Map<string, FormItem[]>();
+    items.forEach((item) => {
+      if (!item.choice_group_key) return;
+      const groupKey = slugify(item.choice_group_label ?? '');
+      groups.set(groupKey, [...(groups.get(groupKey) ?? []), item]);
+    });
+    for (const options of groups.values()) {
+      if (options.length < 2 || options.some((option) => !option.product_id || !option.choice_group_label?.trim())) {
+        alert('Each Customer Choice needs a label and at least 2 valid options.');
+        return;
+      }
+    }
 
     const comboId = form.id || slugify(form.name) + '-' + Date.now();
     const slug = form.slug || slugify(form.name);
@@ -245,6 +269,9 @@ export default function AdminComboFormPage() {
         custom_label: item.custom_label || undefined,
         preparation: item.preparation || undefined,
         unit: item.unit || undefined,
+        choice_group_key: item.choice_group_key ? `choice-${slugify(item.choice_group_label ?? '')}` : undefined,
+        choice_group_label: item.choice_group_label || undefined,
+        price_adjustment: item.price_adjustment ?? 0,
       })),
     };
 
@@ -635,6 +662,31 @@ export default function AdminComboFormPage() {
                   </div>
 
                   <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Item type</label>
+                      <select
+                        value={item.choice_group_key ? 'choice' : 'fixed'}
+                        onChange={(e) => updateItem(index, e.target.value === 'choice'
+                          ? { choice_group_key: item.choice_group_key || `choice-${Date.now()}`, choice_group_label: item.choice_group_label || 'Pilih satu' }
+                          : { choice_group_key: undefined, choice_group_label: undefined, price_adjustment: 0 })}
+                        className="border rounded px-2 py-1.5 text-xs w-full"
+                      >
+                        <option value="fixed">Fixed Item</option>
+                        <option value="choice">Customer Choice</option>
+                      </select>
+                    </div>
+                    {item.choice_group_key && (
+                      <div className="sm:col-span-2">
+                        <label className="block text-xs text-gray-500 mb-1">Choice label</label>
+                        <input
+                          value={item.choice_group_label ?? ''}
+                          onChange={(e) => updateItem(index, { choice_group_label: e.target.value })}
+                          placeholder="e.g. Pilih ikan anda"
+                          className="border rounded px-2 py-1.5 text-xs w-full"
+                        />
+                        <p className="text-[11px] text-gray-400 mt-1">Use the same label on 2 or more products to make them options in one Customer Choice.</p>
+                      </div>
+                    )}
                     {/* Whole / Weight toggle for whole_fish_by_weight products */}
                     {isWholeOrWeight && (
                       <div className="flex items-center gap-2">

@@ -100,7 +100,13 @@ function cartItemKey(item: CartItem): string {
       ? `|slices${item.sliceQuantity ?? 0}`
       : '';
 
-  return `${base}|${prep}|${mode}${weight}${slices}`;
+  const choices = item.comboItems
+    ?.filter((part) => part.choiceGroupKey)
+    .map((part) => `${part.choiceGroupKey}:${part.comboItemId}`)
+    .sort()
+    .join(',') ?? '';
+
+  return `${base}|${prep}|${mode}${weight}${slices}|${choices}`;
 }
 
 function actionMatchesItem(

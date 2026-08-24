@@ -258,8 +258,11 @@ export type Database = {
           combo_id: string
           created_at: string
           custom_label: string | null
+          choice_group_key: string | null
+          choice_group_label: string | null
           id: string
           preparation: string | null
+          price_adjustment: number
           product_id: string
           quantity_value: number
           selling_unit: string
@@ -270,8 +273,11 @@ export type Database = {
           combo_id: string
           created_at?: string
           custom_label?: string | null
+          choice_group_key?: string | null
+          choice_group_label?: string | null
           id?: string
           preparation?: string | null
+          price_adjustment?: number
           product_id: string
           quantity_value?: number
           selling_unit?: string
@@ -282,8 +288,11 @@ export type Database = {
           combo_id?: string
           created_at?: string
           custom_label?: string | null
+          choice_group_key?: string | null
+          choice_group_label?: string | null
           id?: string
           preparation?: string | null
+          price_adjustment?: number
           product_id?: string
           quantity_value?: number
           selling_unit?: string
@@ -310,32 +319,44 @@ export type Database = {
       combo_version_items: {
         Row: {
           combo_version_id: string
+          choice_group_key: string | null
+          choice_group_label: string | null
           created_at: string
           display_order: number
           id: string
           product_id: string
           product_version_id: string | null
+          price_adjustment: number
           quantity: number
+          source_combo_item_id: string | null
           unit_snapshot: Json
         }
         Insert: {
           combo_version_id: string
+          choice_group_key?: string | null
+          choice_group_label?: string | null
           created_at?: string
           display_order?: number
           id?: string
           product_id: string
           product_version_id?: string | null
+          price_adjustment?: number
           quantity: number
+          source_combo_item_id?: string | null
           unit_snapshot?: Json
         }
         Update: {
           combo_version_id?: string
+          choice_group_key?: string | null
+          choice_group_label?: string | null
           created_at?: string
           display_order?: number
           id?: string
           product_id?: string
           product_version_id?: string | null
+          price_adjustment?: number
           quantity?: number
+          source_combo_item_id?: string | null
           unit_snapshot?: Json
         }
         Relationships: [

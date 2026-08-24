@@ -66,6 +66,8 @@ export interface Combo {
 }
 
 export interface ComboExpandedItem {
+  comboItemId?: string;
+  componentNumber?: number;
   productId: string;
   name: string;
   image: string;
@@ -78,6 +80,9 @@ export interface ComboExpandedItem {
   preparation?: PreparationOption;
   pricingType?: 'per_kg' | 'fixed' | 'slice';
   label: string;
+  choiceGroupKey?: string;
+  choiceGroupLabel?: string;
+  priceAdjustment?: number;
 }
 
 export interface DbCombo {
@@ -118,6 +123,9 @@ export interface DbComboItem {
   preparation?: string;
   unit?: string;
   created_at: string;
+  choice_group_key?: string;
+  choice_group_label?: string;
+  price_adjustment: number;
 }
 
 export interface ComboWithItems {
@@ -154,6 +162,9 @@ export type ComboPayload = {
     custom_label?: string;
     preparation?: string;
     unit?: string;
+    choice_group_key?: string;
+    choice_group_label?: string;
+    price_adjustment?: number;
   }[];
 };
 

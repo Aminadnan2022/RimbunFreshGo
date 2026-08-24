@@ -37,6 +37,7 @@ export interface CanonicalPlaceOrderRequest {
     quantity: number;
     estimated_weight_kg?: number;
     component_estimated_weights?: Record<string, number>;
+    combo_selections?: Array<{ choice_group_key: string; combo_item_id: string }>;
   }>;
   p_preparation_answers: CanonicalPreparationAnswer[];
 }
@@ -197,6 +198,11 @@ export function buildCanonicalPlaceOrderRequest(input: {
       ...(item.isCombo && item.comboId ? { combo_id: item.comboId } : { product_id: item.productId }),
       quantity: item.quantity,
       ...(item.estimatedWeight !== undefined && { estimated_weight_kg: item.estimatedWeight }),
+      ...(item.isCombo && item.comboItems ? {
+        combo_selections: item.comboItems
+          .filter((part) => part.choiceGroupKey && part.comboItemId)
+          .map((part) => ({ choice_group_key: part.choiceGroupKey!, combo_item_id: part.comboItemId! })),
+      } : {}),
     })),
     p_preparation_answers: preparationAnswerPayload(input.preparationTargets, input.preparationAnswers),
   };

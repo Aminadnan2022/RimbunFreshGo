@@ -12,7 +12,7 @@ import type { DbCombo, DbComboItem, ComboWithItems, ComboPayload } from '../type
 // derived on the client from price / original_value instead.
 const COMBO_COLUMNS = 'id, name, name_ms, slug, description, badge, category_label, tagline, price, original_value, image, images, servings, highlights, featured, active, lifecycle_status, is_pinned, display_order, created_at, updated_at';
 
-const COMBO_ITEM_COLUMNS = 'id, combo_id, product_id, quantity_value, selling_unit, sort_order, custom_label, preparation, unit, created_at';
+const COMBO_ITEM_COLUMNS = 'id, combo_id, product_id, quantity_value, selling_unit, sort_order, custom_label, preparation, unit, choice_group_key, choice_group_label, price_adjustment, created_at';
 
 type RawDbComboItem = {
   id: string;
@@ -26,6 +26,9 @@ type RawDbComboItem = {
   quantity_value?: number;
   quantity?: number;
   selling_unit?: string;
+  choice_group_key?: string | null;
+  choice_group_label?: string | null;
+  price_adjustment?: number;
 };
 
 function mapComboItem(row: RawDbComboItem): DbComboItem {
@@ -40,6 +43,9 @@ function mapComboItem(row: RawDbComboItem): DbComboItem {
     preparation: row.preparation ?? undefined,
     unit: row.unit ?? undefined,
     created_at: row.created_at,
+    choice_group_key: row.choice_group_key ?? undefined,
+    choice_group_label: row.choice_group_label ?? undefined,
+    price_adjustment: Number(row.price_adjustment ?? 0),
   };
 }
 
@@ -277,6 +283,10 @@ export function buildComboItems(
   preparation?: PreparationOption;
   pricingType?: 'per_kg' | 'fixed';
   label: string;
+  choiceGroupKey?: string;
+  choiceGroupLabel?: string;
+  priceAdjustment?: number;
+  componentNumber: number;
 }[] {
   return comboWithItems.items.map((ci) => {
     const product = products.find((p) => p.id === ci.product_id);
@@ -287,6 +297,7 @@ export function buildComboItems(
     const isKg = sellingUnit === 'kg';
     return {
       id: ci.id,
+      componentNumber: ci.sort_order + 1,
       productId: ci.product_id,
       name: product?.name ?? ci.custom_label ?? ci.product_id,
       image: product?.image ?? comboWithItems.combo.image,
@@ -302,6 +313,9 @@ export function buildComboItems(
           ? `${product?.name ?? ci.product_id} ${ci.quantity_value}kg`
           : `${product?.name ?? ci.product_id} x${Math.round(ci.quantity_value)}`
       ),
+      choiceGroupKey: ci.choice_group_key,
+      choiceGroupLabel: ci.choice_group_label,
+      priceAdjustment: ci.price_adjustment,
     };
   });
 }
@@ -323,6 +337,8 @@ export function buildComboCartItem(
     isCombo: true,
     comboItems: expanded.map((item) => ({
       productId: item.productId,
+      comboItemId: item.id,
+      componentNumber: item.componentNumber,
       name: item.name,
       image: item.image,
       price: item.price,
@@ -333,6 +349,9 @@ export function buildComboCartItem(
       preparation: item.preparation as PreparationOption,
       pricingType: item.pricingType,
       label: item.label,
+      choiceGroupKey: item.choiceGroupKey,
+      choiceGroupLabel: item.choiceGroupLabel,
+      priceAdjustment: item.priceAdjustment,
     })),
   };
 }

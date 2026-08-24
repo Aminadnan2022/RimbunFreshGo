@@ -53,6 +53,8 @@ export default function ComboDetailPage() {
   const [comboWithItems, setComboWithItems] = useState<ComboWithItems | null>(null);
   const [related, setRelated] = useState<ComboWithItems[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedChoices, setSelectedChoices] = useState<Record<string, string>>({});
+  const [choiceError, setChoiceError] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -76,6 +78,14 @@ export default function ComboDetailPage() {
     () => (comboWithItems ? comboWithItems.items.map((ci) => productMap.get(ci.product_id)).filter((p): p is Product => Boolean(p)) : []),
     [comboWithItems, productMap]
   );
+  const choiceGroups = useMemo(() => {
+    const groups = new Map<string, DbComboItem[]>();
+    comboWithItems?.items.forEach((item) => {
+      if (!item.choice_group_key) return;
+      groups.set(item.choice_group_key, [...(groups.get(item.choice_group_key) ?? []), item]);
+    });
+    return [...groups.entries()];
+  }, [comboWithItems]);
 
   if (!settingsLoading && !settings.show_family_combo) {
     return <FeatureDisabledPage />;
@@ -87,7 +97,13 @@ export default function ComboDetailPage() {
       return;
     }
     if (!comboWithItems) return;
-    addItem(buildComboCartItem(comboWithItems, comboProducts, qty));
+    if (choiceGroups.some(([key]) => !selectedChoices[key])) {
+      setChoiceError(true);
+      return;
+    }
+    const chosenItems = comboWithItems.items.filter((item) => !item.choice_group_key || selectedChoices[item.choice_group_key] === item.id);
+    addItem(buildComboCartItem({ combo: comboWithItems.combo, items: chosenItems }, comboProducts, qty));
+    setChoiceError(false);
     setAdded(true);
     setTimeout(() => setAdded(false), 2000);
   };
@@ -188,7 +204,7 @@ export default function ComboDetailPage() {
           <div className="bg-forest-50 rounded-3xl p-5 mb-6">
             <h3 className="font-semibold text-forest-800 mb-3">{t("comboDetail.whatsIncluded")}</h3>
             <ul className="space-y-3">
-              {comboWithItems.items.map((ci) => {
+              {comboWithItems.items.filter((item) => !item.choice_group_key).map((ci) => {
                 const product = comboProducts.find((p) => p.id === ci.product_id);
                 const prep = ci.preparation ? getPrepLabel(ci.preparation as PreparationOption) : null;
                 const weight = itemWeightLabel(ci, product);
@@ -216,6 +232,33 @@ export default function ComboDetailPage() {
                 );
               })}
             </ul>
+            {choiceGroups.map(([key, options]) => (
+              <fieldset key={key} className="mt-4 rounded-2xl border border-jade-200 bg-white p-4">
+                <legend className="px-1 text-sm font-semibold text-forest-800">
+                  {options[0]?.choice_group_label || 'Customer Choice'} <span className="text-xs font-normal text-gray-500">— Choose 1</span>
+                </legend>
+                <div className="mt-2 space-y-2">
+                  {options.map((option) => {
+                    const product = productMap.get(option.product_id);
+                    return (
+                      <label key={option.id} className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 ${selectedChoices[key] === option.id ? 'border-forest-600 bg-forest-50' : 'border-cream-200'}`}>
+                        <input
+                          type="radio"
+                          name={`choice-${key}`}
+                          value={option.id}
+                          checked={selectedChoices[key] === option.id}
+                          onChange={() => { setSelectedChoices((current) => ({ ...current, [key]: option.id })); setChoiceError(false); }}
+                        />
+                        <ProductImage src={product?.image} alt="" className="h-10 w-10 rounded-lg object-cover" />
+                        <span className="flex-1 text-sm font-medium text-gray-900">{product?.name ?? option.custom_label ?? option.product_id}</span>
+                        <span className="text-xs text-gray-500">{itemQtyLabel(option)}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </fieldset>
+            ))}
+            {choiceError && <p role="alert" className="mt-3 text-sm font-medium text-red-600">Please choose one option from every Customer Choice.</p>}
             {Number(combo.original_value) > 0 && (
               <div className="border-t border-forest-200 mt-4 pt-3 flex justify-between text-sm font-semibold">
                 <span className="text-gray-500">{t("comboDetail.ifBoughtSeparately")}</span>

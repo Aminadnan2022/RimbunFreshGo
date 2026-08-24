@@ -103,7 +103,7 @@ export async function loadPreparationTargets(
         }
 
         candidates.push({
-          key: `${lineKey}-combo-${partIndex}`,
+          key: `${lineKey}-combo-${(part.componentNumber ?? partIndex + 1) - 1}`,
           lineKey,
           productId: part.productId,
           name: part.name || part.label,
