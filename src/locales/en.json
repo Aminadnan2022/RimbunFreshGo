@@ -2156,8 +2156,12 @@
     "refresh": "Refresh"
   },
   "businessReports": {
-    "title": "Business Reports",
+    "title": "Reports",
     "subtitle": "Supplier cost, selling price, gross profit and margins",
+    "navigation": {
+      "label": "Report sections",
+      "overview": "Overview"
+    },
     "period": "{{from}} — {{to}}",
     "errors": {
       "loadFailed": "Failed to load orders. Please try again."
@@ -2220,7 +2224,7 @@
     }
   },
   "historicalData": {
-    "title": "Historical Business Data",
+    "title": "Previous Data",
     "subtitle": "Pre-platform daily business totals (April–July 2026)",
     "summary": {
       "orders": "Orders",

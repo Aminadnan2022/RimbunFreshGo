@@ -2156,8 +2156,12 @@
     "refresh": "Muat Semula"
   },
   "businessReports": {
-    "title": "Laporan Perniagaan",
+    "title": "Laporan",
     "subtitle": "Kos pembekal, harga jualan, untung kasar dan margin",
+    "navigation": {
+      "label": "Bahagian laporan",
+      "overview": "Ringkasan"
+    },
     "period": "{{from}} — {{to}}",
     "errors": {
       "loadFailed": "Gagal memuatkan pesanan. Sila cuba lagi."
@@ -2220,7 +2224,7 @@
     }
   },
   "historicalData": {
-    "title": "Data Perniagaan Sejarah",
+    "title": "Data Terdahulu",
     "subtitle": "Jumlah harian perniagaan sebelum platform (April–Julai 2026)",
     "summary": {
       "orders": "Pesanan",

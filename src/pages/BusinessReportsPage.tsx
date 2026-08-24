@@ -8,6 +8,7 @@ import { formatCurrency } from '../lib/currency';
 import { orderSelling, orderCost, orderGrossProfit, lineQuantity, isWeightLine, marginPercent } from '../lib/profit';
 import { downloadCsv } from '../lib/exportCsv';
 import { MultiLineChart, BarChart } from '../components/charts/ReportCharts';
+import ReportsNavigation from '../components/admin/ReportsNavigation';
 import { fetchHistoricalBusinessDaily, type HistoricalBusinessDaily } from '../data/historicalBusinessDaily';
 import type { CartItem } from '../types';
 
@@ -311,6 +312,8 @@ export default function BusinessReportsPage() {
           </button>
         </div>
       </div>
+
+      <ReportsNavigation />
 
       {/* Filters */}
       <div className="bg-white rounded-2xl border border-cream-200 shadow-soft p-4 mb-6 flex flex-wrap items-end gap-3 print:hidden">

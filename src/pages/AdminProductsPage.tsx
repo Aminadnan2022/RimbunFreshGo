@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- legacy admin rows remain outside generated schema types. */
 import { useState, useEffect, useCallback } from 'react';
 import { Link, Navigate, useSearchParams, useLocation } from 'react-router-dom';
-import { Plus, Pencil, X, AlertTriangle, Package, Loader2, Settings, ShoppingBag, Truck, CheckCircle2, AlertCircle, PenLine, ShieldAlert, Clock, Calendar, Users, ClipboardList, Phone, Gift, Sparkles, Navigation, FileText, Share2, LayoutDashboard, ListOrdered, Boxes, BarChart3 } from 'lucide-react';
+import { Plus, Pencil, X, AlertTriangle, Package, Loader2, Settings, ShoppingBag, Truck, CheckCircle2, AlertCircle, PenLine, ShieldAlert, Clock, Calendar, Users, ClipboardList, Phone, Gift, Sparkles, Navigation, FileText, Share2, LayoutDashboard, ListOrdered, Boxes } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { useProducts } from '../hooks/useProducts';
@@ -76,20 +76,6 @@ export default function AdminProductsPage() {
           <h1 className="font-display font-bold text-forest-900 text-2xl">{t("adminDashboard.title")}</h1>
           <p className="text-sm text-gray-500 mt-1">{t("adminDashboard.subtitle")}</p>
         </div>
-        <Link
-          to="/admin/historical"
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-forest-800 bg-cream-100 hover:bg-cream-200 transition-all"
-        >
-          <FileText size={16} />
-          {t("historicalData.title")}
-        </Link>
-        <Link
-          to="/admin/reports"
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-forest-700 hover:bg-forest-800 transition-all"
-        >
-          <BarChart3 size={16} />
-          {t("businessReports.title")}
-        </Link>
       </div>
 
       <div className="flex gap-1 border-b border-cream-200 mb-6 overflow-x-auto">

@@ -6,6 +6,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { formatCurrency } from '../lib/currency';
+import ReportsNavigation from '../components/admin/ReportsNavigation';
 import {
   fetchHistoricalBusinessDaily,
   createHistoricalBusinessDaily,
@@ -184,7 +185,7 @@ export default function AdminHistoricalDataPage() {
     <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <Link to="/admin/products" className="p-2 rounded-xl text-gray-500 hover:text-forest-700 hover:bg-forest-50 transition-all" aria-label="Back">
+          <Link to="/admin/reports" className="p-2 rounded-xl text-gray-500 hover:text-forest-700 hover:bg-forest-50 transition-all" aria-label="Back to reports">
             <ArrowLeft size={20} />
           </Link>
           <div>
@@ -196,6 +197,8 @@ export default function AdminHistoricalDataPage() {
           <Plus size={15} /> {t('historicalData.buttons.add')}
         </button>
       </div>
+
+      <ReportsNavigation />
 
       {error && (
         <div className="flex items-center gap-2 p-4 bg-red-50 border border-red-100 rounded-xl text-red-600 text-sm mb-6">
