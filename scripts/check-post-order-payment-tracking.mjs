@@ -20,7 +20,7 @@ assert.deepEqual([deferredPending.label, deferredPending.showPaymentQr], ['Payme
 const deferredFinal = resolveCustomerPaymentPresentation({ canonicalPaymentStatus: 'pending', canonicalPriceStatus: 'final', legacyPaymentStatus: 'Ready To Pay' });
 assert.deepEqual([deferredFinal.label, deferredFinal.showPaymentQr, deferredFinal.allowReceiptUpload], ['Ready To Pay', true, true]);
 
-assert.match(checkout, /navigate\(`\/order\/\$\{order\.order_number\}`\)/, 'placement must redirect using the returned order number');
+assert.match(checkout, /navigate\(`\/order\/\$\{order\.order_number\}`, \{ replace: true \}\)/, 'placement must redirect using the returned order number');
 assert.match(tracking, /canonicalPayment\?\.paymentStatus/, 'tracking must prefer canonical payment state');
 assert.match(tracking, /Payment Submitted/, 'tracking must name the submitted receipt stage accurately');
 assert.match(migration, /RETURN QUERY SELECT[\s\S]*'receipt_submitted'::text/, 'guarded placement must return receipt_submitted');

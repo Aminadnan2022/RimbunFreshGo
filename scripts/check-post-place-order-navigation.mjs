@@ -14,11 +14,13 @@ assert.notEqual(successStart, -1, 'placement success result must be handled');
 assert.notEqual(catchStart, -1, 'placement errors must be handled separately');
 
 const successBranch = checkout.slice(successStart, catchStart);
-assert.match(successBranch, /navigate\(`\/order\/\$\{order\.order_number\}`\)/, 'success must navigate to the returned order number');
+assert.match(successBranch, /navigate\(`\/order\/\$\{order\.order_number\}`, \{ replace: true \}\)/, 'success must navigate to the returned order number');
 assert.ok(
-  successBranch.indexOf('navigate(`/order/${order.order_number}`)') < successBranch.indexOf('clearCart()'),
+  successBranch.indexOf('navigate(`/order/${order.order_number}`, { replace: true })') < successBranch.indexOf('clearCart()'),
   'success must navigate before clearing the cart can activate the empty-cart redirect',
 );
+assert.match(successBranch, /placementSucceeded\.current = true;[\s\S]*navigate\(`\/order\/\$\{order\.order_number\}`, \{ replace: true \}\)/, 'success must suppress the empty-cart guard before navigation');
+assert.match(checkout, /!cart\.items\.length && !placing && !placementSucceeded\.current/, 'empty-cart redirect must not override successful order navigation');
 
 const failureBranch = checkout.slice(catchStart, checkout.indexOf('finally', catchStart));
 assert.doesNotMatch(failureBranch, /navigate\(/, 'placement failure must not navigate');

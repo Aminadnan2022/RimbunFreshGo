@@ -9,6 +9,7 @@ const preparation = read('src/lib/checkoutPreparation.ts');
 const checkout = read('src/lib/canonicalCheckout.ts');
 const checkoutPage = read('src/pages/CheckoutPage.tsx');
 const checkoutReview = read('src/lib/checkoutReview.ts');
+const comboQuantityMigration = read('supabase/migrations/20261029000000_scale_combo_preparation_units_by_ordered_quantity.sql');
 const failures = [];
 
 // Combo Builder no longer exposes or writes an item-level preparation override.
@@ -37,6 +38,9 @@ for (const token of [
   'productId: part.productId',
   'if (!shouldIncludePreparationItem(item))',
   'productId: item.productId',
+  'quantity: part.quantity * item.quantity',
+  'comboQuantity: item.quantity',
+  'unitsPerCombo: part.quantity',
 ]) {
   if (!preparation.includes(token)) failures.push(`preparation targeting is missing ${token}`);
 }
@@ -60,13 +64,24 @@ for (const token of [
 for (const token of [
   'item.comboItems.map((component, componentIndex)',
   'candidate.componentNumber === componentNumber',
-  'const quantity = orderedQuantityText(component, item.quantity)',
+  'target?.comboQuantity && target.comboQuantity > 1 ? 1 : item.quantity',
   'reviewText(target, 0) || reviewText(target, null)',
-  'conciseReviewLabel(target, unit)',
+  'conciseReviewLabel(target, unit, language)',
   '<span className="font-medium text-gray-900">{component.name}</span> — {quantity}',
   '<span className="font-medium text-gray-900">{item.name}</span> — {quantity}',
 ]) {
   if (!checkoutPage.includes(token)) failures.push(`checkout review display is missing ${token}`);
+}
+for (const token of [
+  'SELECT quantity INTO v_combo_quantity',
+  'v_unit_count := (NEW.quantity * v_combo_quantity)::integer',
+  "'combo_unit_number'",
+  "'component_unit_number'",
+]) {
+  if (!comboQuantityMigration.includes(token)) failures.push(`combo quantity preparation migration is missing ${token}`);
+}
+for (const token of ['target.comboQuantity && target.comboQuantity > 1', "language === 'ms' ? 'Kombo' : 'Combo'", 'Math.floor(unit / unitsPerCombo) + 1']) {
+  if (!checkoutReview.includes(token)) failures.push(`per-combo review label is missing ${token}`);
 }
 if (checkoutPage.includes('const usefulQuantity =')) {
   failures.push('checkout review still hides physical quantity when preparation exists');
@@ -94,4 +109,4 @@ if (failures.length) {
   process.exit(1);
 }
 
-console.log('Combo checkout preparation checks passed (review lists every actual fixed/selected component exactly once, keeps no-preparation items with quantity, joins only existing answers, excludes unselected choices, and preserves standalone/canonical paths).');
+console.log('Combo checkout preparation checks passed (per-ordered-combo units and labels, actual component review, canonical answer mapping, and server unit materialisation).');

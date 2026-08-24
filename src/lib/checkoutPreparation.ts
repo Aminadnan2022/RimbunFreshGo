@@ -37,6 +37,8 @@ export type PreparationTarget = {
   name: string;
   category?: string;
   quantity: number;
+  comboQuantity?: number;
+  unitsPerCombo?: number;
   questionnaire: Questionnaire;
 };
 
@@ -110,7 +112,9 @@ export async function loadPreparationTargets(
           productId: part.productId,
           name: part.name || part.label,
           category: part.category,
-          quantity: part.quantity,
+          quantity: part.quantity * item.quantity,
+          comboQuantity: item.quantity,
+          unitsPerCombo: part.quantity,
         });
       });
 

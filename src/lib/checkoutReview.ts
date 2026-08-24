@@ -57,8 +57,16 @@ export function concisePreparationText(
     .join(' · ');
 }
 
-export function conciseReviewLabel(target: PreparationTarget, unit: number | null) {
-  return unit !== null && target.quantity > 1 ? `${target.name} #${unit + 1}` : target.name;
+export function conciseReviewLabel(target: PreparationTarget, unit: number | null, language: ReviewLanguage = 'en') {
+  if (unit === null) return target.name;
+  if (target.comboQuantity && target.comboQuantity > 1) {
+    const unitsPerCombo = target.unitsPerCombo ?? 1;
+    const comboNumber = Math.floor(unit / unitsPerCombo) + 1;
+    const unitWithinCombo = unit % unitsPerCombo;
+    const comboLabel = language === 'ms' ? 'Kombo' : 'Combo';
+    return `${comboLabel} #${comboNumber} · ${target.name}${unitsPerCombo > 1 ? ` #${unitWithinCombo + 1}` : ''}`;
+  }
+  return target.quantity > 1 ? `${target.name} #${unit + 1}` : target.name;
 }
 
 type OrderedQuantitySnapshot = Pick<
