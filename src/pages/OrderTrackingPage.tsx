@@ -244,7 +244,12 @@ const [receiptUploading, setReceiptUploading] = useState(false);
           }
         );
 
-        if (fulfilmentTrackingError) throw fulfilmentTrackingError;
+        // Fulfilment and rider rows are optional at this point in the lifecycle.
+        // Do not let either optional projection hide an authoritative supplier
+        // batch dispatch from the customer timeline.
+        if (fulfilmentTrackingError) {
+          console.warn('[tracking] Supplier fulfilment projection unavailable:', fulfilmentTrackingError.message);
+        }
 
         const fulfilmentTracking = Array.isArray(fulfilmentTrackingData)
           ? fulfilmentTrackingData[0] ?? null
@@ -260,7 +265,9 @@ const [receiptUploading, setReceiptUploading] = useState(false);
           }
         );
 
-        if (deliveryTrackingError) throw deliveryTrackingError;
+        if (deliveryTrackingError) {
+          console.warn('[tracking] Supplier batch tracking unavailable:', deliveryTrackingError.message);
+        }
 
         const deliveryTracking = Array.isArray(deliveryTrackingData)
           ? deliveryTrackingData[0] ?? null
@@ -276,7 +283,9 @@ const [receiptUploading, setReceiptUploading] = useState(false);
           }
         );
 
-        if (riderTrackingError) throw riderTrackingError;
+        if (riderTrackingError) {
+          console.warn('[tracking] Rider tracking unavailable:', riderTrackingError.message);
+        }
 
         const riderTracking = Array.isArray(riderTrackingData)
           ? riderTrackingData[0] ?? null
