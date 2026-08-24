@@ -7,6 +7,7 @@ const admin = read('src/pages/AdminComboFormPage.tsx');
 const combos = read('src/data/combos.ts');
 const preparation = read('src/lib/checkoutPreparation.ts');
 const checkout = read('src/lib/canonicalCheckout.ts');
+const checkoutPage = read('src/pages/CheckoutPage.tsx');
 const failures = [];
 
 // Combo Builder no longer exposes or writes an item-level preparation override.
@@ -49,6 +50,22 @@ for (const token of [
   'unit_number: unitNumber',
 ]) {
   if (!checkout.includes(token)) failures.push(`canonical answer mapping is missing ${token}`);
+}
+
+// Review labels come from the immutable product/component snapshot already on
+// each target. A counter is added only when that same target has multiple units,
+// and stored option codes are resolved through their configured human labels.
+for (const token of [
+  'target.quantity > 1 ? `${target.name} #${unit + 1}` : target.name',
+  'candidate.code === answer || candidate.value === answer',
+  'option ? display(option) : String(answer)',
+  'reviewTargetLabel(target, unit)',
+  'reviewAnswer(q, answers[answerKey(target, unit)]?.[q.code])',
+]) {
+  if (!checkoutPage.includes(token)) failures.push(`checkout review display is missing ${token}`);
+}
+if (checkoutPage.includes("target.category === 'chicken' ? t('checkout.chicken') : t('checkout.unit')")) {
+  failures.push('checkout review still uses generic Chicken/Unit preparation labels');
 }
 
 if (failures.length) {
