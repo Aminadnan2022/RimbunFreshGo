@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Bell } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { fetchNotifications, markNotificationRead, type AppNotification } from '../../data/notifications';
+import { fetchNotifications, markNotificationRead, notificationAction, type AppNotification } from '../../data/notifications';
 import { useLanguage } from '../../context/LanguageContext';
 
 export default function NotificationBell() {
@@ -16,7 +16,7 @@ export default function NotificationBell() {
     if (!item.read_at) await markNotificationRead(item.id).catch(() => undefined);
     setItems((current) => current.map((entry) => entry.id === item.id ? { ...entry, read_at: new Date().toISOString() } : entry));
     setOpen(false);
-    navigate(item.action_url || '/notifications');
+    navigate(notificationAction(item));
   };
   return <div className="relative">
     <button onClick={() => { setOpen((value) => !value); if (!open) refresh(); }} className="touch-target relative p-2.5 rounded-xl text-gray-500 hover:text-forest-700 hover:bg-forest-50" aria-label={t('notifications.bell')}>
