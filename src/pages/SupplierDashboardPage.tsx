@@ -728,7 +728,7 @@ export default function SupplierDashboardPage() {
 
   const handleStartDispatch = async (order: SupplierOrder, trackingUrl: string, bookingReference: string) => {
     if (order.source === 'canonical') {
-      alert('Canonical supplier dispatch actions are not enabled yet.');
+      alert('Supplier dispatch is managed through FreshGo delivery batches.');
       return;
     }
     try {
@@ -1246,7 +1246,7 @@ function ReadyForSupplierDispatch({ orders, onStartDispatch, onViewDetails }: {
                       Packing completed
                     </p>
                     <p className="text-[13px] text-green-700 mt-1">
-                      Waiting for FreshGo canonical delivery batch / hub dispatch.
+                      Waiting for a FreshGo delivery batch and hub dispatch.
                     </p>
                   </div>
 
@@ -2035,7 +2035,7 @@ function WeightEntryView({
       order.source !== 'canonical' ||
       item.orderingMode !== 'whole_fish_by_weight'
     ) {
-      setError('Per-unit weight entry is only available for canonical whole fish.');
+      setError('Per-unit weight entry is only available for whole fish orders.');
       return;
     }
 
@@ -2168,11 +2168,11 @@ function WeightEntryView({
     try {
       if (order.source === 'canonical') {
         if (!item.canonicalLineId) {
-          throw new Error('Canonical sales order line ID is missing.');
+          throw new Error('Order item ID is missing.');
         }
 
         if (!['weight_only', 'slice'].includes(item.orderingMode ?? '')) {
-          throw new Error('This canonical item requires per-unit weight entry.');
+          throw new Error('This item requires per-unit weight entry.');
         }
 
         const { error: weightError } = await supabase.rpc(

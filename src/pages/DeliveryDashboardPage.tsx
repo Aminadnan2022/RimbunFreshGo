@@ -135,7 +135,7 @@ export default function DeliveryDashboardPage() {
           </h1>
 
           <p className="text-sm text-gray-500">
-            Canonical FreshGo hub → customer deliveries
+            FreshGo Hub → Customer Deliveries
           </p>
         </div>
 
@@ -199,7 +199,7 @@ export default function DeliveryDashboardPage() {
           />
 
           <p className="text-gray-500">
-            No canonical deliveries assigned to you.
+            No deliveries assigned to you.
           </p>
         </div>
       ) : (

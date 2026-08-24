@@ -441,10 +441,10 @@ export default function CanonicalSupplierDeliveryBatches() {
             <PackageCheck size={20} className="text-forest-700" />
             <div>
               <h3 className="font-semibold text-forest-900">
-                Packed Orders Ready for Supplier Dispatch
+                Ready for Supplier Dispatch
               </h3>
               <p className="text-xs text-gray-500 mt-0.5">
-                Paid canonical orders with supplier packing completed and not
+                Paid orders with supplier packing completed and not
                 yet assigned to a supplier → hub batch.
               </p>
             </div>
@@ -453,7 +453,7 @@ export default function CanonicalSupplierDeliveryBatches() {
 
         {readyOrders.length === 0 ? (
           <div className="p-8 text-center text-sm text-gray-500">
-            No packed canonical orders are waiting for a supplier batch.
+            No packed orders are waiting for a supplier delivery batch.
           </div>
         ) : (
           <div className="divide-y divide-cream-100">
@@ -517,7 +517,7 @@ export default function CanonicalSupplierDeliveryBatches() {
               <Boxes size={20} className="text-forest-700" />
               <div>
                 <h3 className="font-semibold text-forest-900">
-                  Canonical Supplier → Hub Batches
+                  Supplier Delivery Batches
                 </h3>
                 <p className="text-xs text-gray-500 mt-0.5">
                   One supplier transport may carry multiple customer orders to
@@ -541,7 +541,7 @@ export default function CanonicalSupplierDeliveryBatches() {
 
         {batches.length === 0 ? (
           <div className="p-8 text-center text-sm text-gray-500">
-            No canonical supplier delivery batches yet.
+            No supplier delivery batches yet.
           </div>
         ) : (
           <div className="divide-y divide-cream-100">
@@ -754,7 +754,7 @@ export default function CanonicalSupplierDeliveryBatches() {
                             Hub → Customer Delivery
                           </p>
                           <p className="text-xs text-gray-500 mt-0.5">
-                            Assign each canonical order to a rider rostered for
+                            Assign each order to a rider rostered for
                             its delivery date.
                           </p>
                         </div>
