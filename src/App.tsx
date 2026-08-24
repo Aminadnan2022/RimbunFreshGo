@@ -36,6 +36,7 @@ import DeliveryDashboardPage from './pages/DeliveryDashboardPage';
 import MaintenancePage from './pages/MaintenancePage';
 import FeatureRoute from './components/system/FeatureRoute';
 import FullScreenLoader from './components/system/FullScreenLoader';
+import NotificationsPage from './pages/NotificationsPage';
 
 function AppRoutes() {
   const { loading, isAdmin, isSupplier, isRider } = useAuth();
@@ -105,6 +106,7 @@ function AppRoutes() {
             <FeatureRoute feature="show_recurring_basket"><RecurringBasketPage /></FeatureRoute>
           } />
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/admin" element={<AdminProductsPage />} />
           <Route path="/admin/products" element={<AdminProductsPage />} />
           <Route path="/admin/reports" element={<BusinessReportsPage />} />

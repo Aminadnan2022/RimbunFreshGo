@@ -11,6 +11,7 @@ import { useWebsiteSettings } from '../../context/WebsiteSettingsContext';
 import { isPageEnabled, type PublicPage } from '../../lib/websiteVisibility';
 import LanguageSwitcher from './LanguageSwitcher';
 import BrandLogo from '../branding/BrandLogo';
+import NotificationBell from '../notifications/NotificationBell';
 
 // ---------------------------------------------------------------------------
 // Sign In Modal
@@ -430,6 +431,8 @@ export default function Header() {
 
             {/* Language Switcher */}
             <LanguageSwitcher />
+
+            {user && <NotificationBell />}
 
             {user ? (
               /* Signed-in state */

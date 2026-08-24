@@ -64,6 +64,15 @@
     "signInButton": "Daftar Masuk",
     "createAccountButton": "Buat Akaun"
   },
+  "notifications": {
+    "bell": "Notifikasi",
+    "title": "Notifikasi",
+    "subtitle": "Kemas kini yang memerlukan perhatian anda.",
+    "viewAll": "Lihat semua",
+    "empty": "Semua sudah dikemas kini.",
+    "loading": "Memuatkan notifikasi…",
+    "markAllRead": "Tanda semua telah dibaca"
+  },
   "footer": {
     "description": "Protein segar yang disediakan setiap hari, dihantar ke pintu anda setiap {{days}}. Tidak pernah dibekukan. Sentiasa tempatan.",
     "shop": "Kedai",

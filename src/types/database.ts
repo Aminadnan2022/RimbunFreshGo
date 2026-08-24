@@ -1019,7 +1019,11 @@ export type Database = {
       }
       notifications: {
         Row: {
+          action_url: string | null
           created_at: string
+          dedupe_key: string
+          entity_id: string | null
+          entity_type: string | null
           id: string
           message: string
           notification_type: string
@@ -1031,7 +1035,11 @@ export type Database = {
           title: string
         }
         Insert: {
+          action_url?: string | null
           created_at?: string
+          dedupe_key?: string
+          entity_id?: string | null
+          entity_type?: string | null
           id?: string
           message: string
           notification_type: string
@@ -1043,7 +1051,11 @@ export type Database = {
           title: string
         }
         Update: {
+          action_url?: string | null
           created_at?: string
+          dedupe_key?: string
+          entity_id?: string | null
+          entity_type?: string | null
           id?: string
           message?: string
           notification_type?: string
@@ -3163,6 +3175,46 @@ export type Database = {
         Returns: undefined
       }
       e2e_cleanup_phase3_test_run: { Args: { p_run_id: string }; Returns: Json }
+      emit_notification: {
+        Args: {
+          p_action_url?: string
+          p_dedupe_key?: string
+          p_entity_id?: string
+          p_entity_type?: string
+          p_event_type: string
+          p_message?: string
+          p_payload?: Json
+          p_recipient_role: string
+          p_recipient_user_id: string
+          p_sales_order_id?: string
+          p_title?: string
+        }
+        Returns: undefined
+      }
+      emit_order_notification_to_admins: {
+        Args: {
+          p_action_url: string
+          p_event_type: string
+          p_key_suffix?: string
+          p_message: string
+          p_payload?: Json
+          p_sales_order_id: string
+          p_title: string
+        }
+        Returns: undefined
+      }
+      emit_order_notification_to_suppliers: {
+        Args: {
+          p_action_url: string
+          p_event_type: string
+          p_key_suffix?: string
+          p_message: string
+          p_payload?: Json
+          p_sales_order_id: string
+          p_title: string
+        }
+        Returns: undefined
+      }
       finalize_sales_order_pricing: {
         Args: { p_sales_order_id: string }
         Returns: undefined

@@ -64,6 +64,15 @@
     "signInButton": "Sign In",
     "createAccountButton": "Create Account"
   },
+  "notifications": {
+    "bell": "Notifications",
+    "title": "Notifications",
+    "subtitle": "Updates that need your attention.",
+    "viewAll": "View all",
+    "empty": "You are all caught up.",
+    "loading": "Loading notifications…",
+    "markAllRead": "Mark all read"
+  },
   "footer": {
     "description": "Freshly prepared daily proteins, delivered to your door every {{days}}. Never frozen. Always local.",
     "shop": "Shop",
