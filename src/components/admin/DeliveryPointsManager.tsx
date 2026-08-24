@@ -52,6 +52,10 @@ const emptyDraft = (): Draft => ({
 const inputCls =
   'w-full bg-cream-50 border border-cream-200 rounded-xl px-3 py-2 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-forest-500 focus:border-transparent transition-all';
 const labelCls = 'block text-xs font-semibold text-gray-600 mb-1.5';
+const noTableHandoverNote = 'Please come down to collect your order; the delivery rider will wait in the vehicle until you arrive for handover.';
+
+const defaultHandoverNote = (name: string, area: string): string | null =>
+  /emas|parkland/i.test(`${name} ${area}`) ? noTableHandoverNote : null;
 
 const numOrNull = (raw: string): number | null => {
   const t = raw.trim();
@@ -166,7 +170,14 @@ export default function DeliveryPointsManager() {
     setFormOpen(true);
   };
 
-  const set = (patch: Partial<Draft>) => setDraft((d) => ({ ...d, ...patch }));
+  const set = (patch: Partial<Draft>) => setDraft((d) => {
+    const next = { ...d, ...patch };
+    const changingLocation = patch.name !== undefined || patch.area !== undefined;
+    if (changingLocation && !next.pickup_notes.trim()) {
+      next.pickup_notes = defaultHandoverNote(next.name, next.area) ?? '';
+    }
+    return next;
+  });
 
   const validate = (): string | null => {
     if (!draft.name.trim()) return t("adminDelivery.points.nameRequired");
@@ -331,14 +342,13 @@ export default function DeliveryPointsManager() {
       ) : (
         <>
           <div className="bg-white rounded-2xl border border-cream-200 shadow-soft overflow-hidden">
-            <div className="flex items-center gap-3 px-3 py-2 bg-cream-50/70 border-b border-cream-100 text-xs font-semibold text-gray-500 uppercase tracking-wide">
-              <span className="w-8 text-center">{t("adminDelivery.points.tableOrder")}</span>
+            <div className="flex items-center gap-3 pl-[30px] pr-3 py-2 bg-cream-50/70 border-b border-cream-100 text-xs font-semibold text-gray-500 uppercase tracking-wide">
+              <span className="w-8 shrink-0 text-center">{t("adminDelivery.points.tableOrder")}</span>
               <span className="flex-1 min-w-0">{t("adminDelivery.points.tableName")}</span>
-              <span className="hidden md:block w-40">{t("adminDelivery.points.tableArea")}</span>
-              <span className="w-24 text-right">{t("adminDelivery.points.tableFee")}</span>
-              <span className="w-24 text-center">{t("adminDelivery.points.tableStatus")}</span>
-              <span className="w-12 text-center">{t("adminDelivery.points.tableActions")}</span>
-              {canReorder && <span className="text-gray-400 normal-case">{t("adminDelivery.points.dragHint")}</span>}
+              <span className="hidden md:block w-40 shrink-0">{t("adminDelivery.points.tableArea")}</span>
+              <span className="w-24 shrink-0 text-right">{t("adminDelivery.points.tableFee")}</span>
+              <span className="w-24 shrink-0 text-center">{t("adminDelivery.points.tableStatus")}</span>
+              <span className="w-12 shrink-0 text-center">{t("adminDelivery.points.tableActions")}</span>
             </div>
             <SortableList ids={filtered.map((p) => String(p.id))} onDragEnd={handleDragEnd} disabled={!canReorder}>
               <div className="divide-y divide-cream-100">

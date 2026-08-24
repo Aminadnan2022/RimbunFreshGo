@@ -10,6 +10,10 @@ const writeMigration = readFileSync(
   resolve(root, 'supabase/migrations/20261102000000_restore_admin_delivery_point_write_access.sql'),
   'utf8',
 );
+const handoverNotesMigration = readFileSync(
+  resolve(root, 'supabase/migrations/20261103000000_add_customer_handover_notes_for_emas_and_parkland.sql'),
+  'utf8',
+);
 
 const failures = [];
 for (const token of [
@@ -35,6 +39,15 @@ for (const token of [
 
 if (/GRANT\s+ALL\s+ON\s+TABLE\s+public\.delivery_points\s+TO\s+authenticated/i.test(`${deleteMigration}\n${writeMigration}`)) {
   failures.push('authenticated must not receive unrestricted delivery_points access');
+}
+
+for (const token of [
+  "Please come down to collect your order; the delivery rider will wait in the vehicle until you arrive for handover.",
+  "COALESCE(area, '') ILIKE '%Emas%'",
+  "COALESCE(area, '') ILIKE '%Parkland%'",
+  "COALESCE(btrim(pickup_notes), '') = ''",
+]) {
+  if (!handoverNotesMigration.includes(token)) failures.push(`missing customer handover-note safeguard: ${token}`);
 }
 
 if (failures.length) {
