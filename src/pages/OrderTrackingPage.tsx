@@ -21,6 +21,7 @@ import {
 } from '../data/customerTracking';
 import type { Order, CartItem } from '../types';
 import { createBrowserUuid } from '../lib/browserUuid';
+import { resolveCustomerPaymentPresentation } from '../lib/orderPaymentPresentation';
 
 const STAGE_ICONS: Record<(typeof TRACKING_STAGES)[number], typeof Package> = {
   orderReceived: PackageCheck,
@@ -473,7 +474,7 @@ useEffect(() => {
   const currentIndex = useMemo(() => {
     if (!order) return 0;
     return customerStageIndex({
-      paymentStatus: order.paymentStatus,
+      paymentStatus: canonicalPayment?.paymentStatus === 'paid' ? 'Paid' : order.paymentStatus,
       packingStartedAt: order.packingStartedAt ?? null,
       packingCompletedAt: order.packingCompletedAt ?? null,
       supplierDispatchStartedAt: order.supplierDispatchStartedAt ?? null,
@@ -488,7 +489,13 @@ useEffect(() => {
           | 'delivered') ?? 'pending',
       deliveredAt: order.deliveredAt ?? null,
     });
-  }, [order]);
+  }, [canonicalPayment?.paymentStatus, order]);
+
+  const paymentPresentation = resolveCustomerPaymentPresentation({
+    canonicalPaymentStatus: canonicalPayment?.paymentStatus,
+    canonicalPriceStatus: canonicalPayment?.priceStatus,
+    legacyPaymentStatus: order?.paymentStatus,
+  });
 
   const isTerminalDelivered = currentIndex === TRACKING_STAGES.length - 1;
   const stageTimestamp = (key: (typeof TRACKING_STAGES)[number]) => {
@@ -505,7 +512,9 @@ useEffect(() => {
     }
   };
   const currentStageNext: Partial<Record<(typeof TRACKING_STAGES)[number], string>> = {
-    awaitingPayment: 'Complete payment once the final amount is ready. We will begin preparation after payment is confirmed.',
+    awaitingPayment: paymentPresentation.awaitingVerification
+      ? 'Admin will verify your receipt next. Payment will be confirmed only after approval.'
+      : 'Complete payment once the final amount is ready. We will begin preparation after payment is confirmed.',
     paymentConfirmed: 'Your supplier will begin preparing your order next.',
     preparing: 'Your supplier will send the packed order to FreshGo Hub next.',
     supplierDispatch: 'The order is on its way to FreshGo Hub. We will prepare it for your rider after it arrives.',
@@ -610,13 +619,13 @@ useEffect(() => {
       {/* Payment Status */}
       <div className="card p-6 sm:p-8 mb-6">
         <h2 className="font-semibold text-charcoal mb-4">{t("payment.status")}</h2>
-        {order.paymentStatus === 'Pending' && (
+        {paymentPresentation.label === 'Payment Pending' && (
           <div className="flex items-center gap-3">
             <span className="w-3 h-3 rounded-full bg-amber-400 flex-shrink-0" />
             <span className="font-semibold text-amber-700">{t("payment.pending")}</span>
           </div>
         )}
-        {order.paymentStatus === 'Ready To Pay' && (
+        {paymentPresentation.label === 'Ready To Pay' && (
           <div className="space-y-4">
             <div className="flex items-center gap-3">
               <span className="w-3 h-3 rounded-full bg-orange-400 flex-shrink-0" />
@@ -631,10 +640,19 @@ useEffect(() => {
             </div>
           </div>
         )}
-        {order.paymentStatus === 'Paid' && (
+        {paymentPresentation.label === 'Receipt Submitted' && (
+          <div className="space-y-1">
+            <div className="flex items-center gap-3">
+              <span className="w-3 h-3 rounded-full bg-blue-500 flex-shrink-0" />
+              <span className="font-semibold text-blue-700">Payment Submitted</span>
+            </div>
+            <p className="text-sm text-blue-700">Your receipt is awaiting admin verification.</p>
+          </div>
+        )}
+        {paymentPresentation.label === 'Payment Confirmed' && (
           <div className="flex items-center gap-3">
             <span className="w-3 h-3 rounded-full bg-green-500 flex-shrink-0" />
-            <span className="font-semibold text-green-700">{t("payment.paid")}</span>
+            <span className="font-semibold text-green-700">Payment Confirmed</span>
             {order.paidAt && (
               <span className="text-xs text-gray-400 ml-1">
                 {new Date(order.paidAt).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
@@ -658,9 +676,7 @@ useEffect(() => {
             </div>
           )}
 
-          {canonicalPayment.priceStatus === 'final' &&
-            canonicalPayment.paymentStatus !== 'paid' &&
-            paymentQrUrl && (
+          {paymentPresentation.showPaymentQr && paymentQrUrl && (
               <div className="mb-5 rounded-2xl border border-forest-200 bg-forest-50/40 p-5 text-center">
                 <p className="text-sm font-semibold text-gray-700 mb-2">
                   Amount to pay
@@ -691,9 +707,7 @@ useEffect(() => {
               </div>
             )}
 
-          {canonicalPayment.priceStatus === 'final' &&
-            canonicalPayment.paymentStatus !== 'paid' &&
-            !paymentQrUrl && (
+          {paymentPresentation.showPaymentQr && !paymentQrUrl && (
               <div className="mb-5 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
                 Payment QR is currently unavailable. Please contact FreshGo for assistance.
               </div>
@@ -722,8 +736,7 @@ useEffect(() => {
             </div>
           )}
 
-          {canonicalPayment.priceStatus === 'final' &&
-            ['pending', 'rejected'].includes(canonicalPayment.paymentStatus) && (
+          {paymentPresentation.allowReceiptUpload && (
               <div className="space-y-4">
                 <div className="flex justify-between items-center border-b border-cream-200 pb-3">
                   <span className="text-sm text-gray-600">
@@ -836,7 +849,11 @@ useEffect(() => {
           {TRACKING_STAGES.map((key, i) => {
             const st = stageState(i);
             const Icon = STAGE_ICONS[key];
-            const title = t(`tracking.live.stage.${key}.title`);
+            const isPaymentSubmittedStage =
+              key === 'awaitingPayment' && paymentPresentation.awaitingVerification;
+            const title = isPaymentSubmittedStage
+              ? 'Payment Submitted'
+              : t(`tracking.live.stage.${key}.title`);
             const timestamp = stageTimestamp(key);
             const isHistoricalPaymentStep =
               key === 'awaitingPayment' &&
@@ -860,7 +877,9 @@ useEffect(() => {
                     {title}
                   </p>
                   <p className={`text-sm mt-0.5 ${st === 'future' ? 'text-gray-400' : 'text-gray-600'}`}>
-                    {isHistoricalPaymentStep
+                    {isPaymentSubmittedStage
+                      ? 'Your receipt has been received and is awaiting admin verification.'
+                      : isHistoricalPaymentStep
                       ? 'Final amount was confirmed before preparation began.'
                       : key === 'supplierDispatch'
                       ? t('tracking.live.stage.supplierDispatch.body', { from, to })
@@ -945,9 +964,9 @@ useEffect(() => {
             <div>
               <p className="text-xs text-gray-400">{t("payment.status")}</p>
               <p className={`text-sm font-semibold ${
-                order.paymentStatus === 'Paid' ? 'text-green-700' : order.paymentStatus === 'Ready To Pay' ? 'text-orange-700' : 'text-amber-700'
+                paymentPresentation.tone === 'green' ? 'text-green-700' : paymentPresentation.tone === 'blue' ? 'text-blue-700' : paymentPresentation.tone === 'orange' ? 'text-orange-700' : 'text-amber-700'
               }`}>
-                {order.paymentStatus}
+                {paymentPresentation.label}
               </p>
             </div>
           </div>
