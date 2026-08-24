@@ -154,6 +154,13 @@ export default function AdminComboFormPage() {
     }))
     .filter((s) => s.product);
 
+  const choiceGroupSummary = [...selectedProducts.reduce((groups, item) => {
+    if (!item.choice_group_key) return groups;
+    const label = item.choice_group_label?.trim() || 'Unlabelled choice';
+    groups.set(label, (groups.get(label) ?? 0) + 1);
+    return groups;
+  }, new Map<string, number>())];
+
   function resolveSellingUnit(item: typeof selectedProducts[number]): string {
     const product = item.product!;
     const mode = getSellingMode(product);
@@ -552,7 +559,25 @@ export default function AdminComboFormPage() {
 
       {/* Combo Items */}
       <section className="bg-white border rounded-lg p-6 space-y-4">
-        <h2 className="text-lg font-semibold text-gray-900">Included Items</h2>
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900">Included Items</h2>
+          <p className="mt-1 text-sm text-gray-500">
+            Add products, then set each one as a fixed item or an option the customer chooses.
+          </p>
+        </div>
+
+        {choiceGroupSummary.length > 0 && (
+          <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
+            <p className="text-sm font-semibold text-emerald-900">Customer Choice groups</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {choiceGroupSummary.map(([label, optionCount]) => (
+                <span key={label} className="rounded-full bg-white px-3 py-1 text-xs font-medium text-emerald-800 ring-1 ring-emerald-200">
+                  {label} · Choose 1 of {optionCount}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Product Search */}
         <div>
@@ -661,32 +686,45 @@ export default function AdminComboFormPage() {
                     </button>
                   </div>
 
-                  <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    <div>
-                      <label className="block text-xs text-gray-500 mb-1">Item type</label>
-                      <select
-                        value={item.choice_group_key ? 'choice' : 'fixed'}
-                        onChange={(e) => updateItem(index, e.target.value === 'choice'
-                          ? { choice_group_key: item.choice_group_key || `choice-${Date.now()}`, choice_group_label: item.choice_group_label || 'Pilih satu' }
-                          : { choice_group_key: undefined, choice_group_label: undefined, price_adjustment: 0 })}
-                        className="border rounded px-2 py-1.5 text-xs w-full"
-                      >
-                        <option value="fixed">Fixed Item</option>
-                        <option value="choice">Customer Choice</option>
-                      </select>
+                  <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-600">Item Type</p>
+                    <div className="mt-2 grid grid-cols-2 gap-2" role="group" aria-label={`Item type for ${product.name}`}>
+                      {(['fixed', 'choice'] as const).map((type) => {
+                        const selected = type === 'choice' ? Boolean(item.choice_group_key) : !item.choice_group_key;
+                        return (
+                          <button
+                            key={type}
+                            type="button"
+                            aria-pressed={selected}
+                            onClick={() => updateItem(index, type === 'choice'
+                              ? { choice_group_key: item.choice_group_key || `choice-${Date.now()}`, choice_group_label: item.choice_group_label || '' }
+                              : { choice_group_key: undefined, choice_group_label: undefined, price_adjustment: 0 })}
+                            className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${selected
+                              ? 'border-forest-600 bg-forest-700 text-white shadow-sm'
+                              : 'border-gray-200 bg-white text-gray-700 hover:border-forest-300 hover:bg-forest-50'}`}
+                          >
+                            {type === 'fixed' ? 'Fixed Item' : 'Customer Choice'}
+                          </button>
+                        );
+                      })}
                     </div>
                     {item.choice_group_key && (
-                      <div className="sm:col-span-2">
-                        <label className="block text-xs text-gray-500 mb-1">Choice label</label>
+                      <div className="mt-3">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Choice Label</label>
                         <input
                           value={item.choice_group_label ?? ''}
                           onChange={(e) => updateItem(index, { choice_group_label: e.target.value })}
                           placeholder="e.g. Pilih ikan anda"
-                          className="border rounded px-2 py-1.5 text-xs w-full"
+                          className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-forest-500 focus:outline-none focus:ring-2 focus:ring-forest-100"
                         />
-                        <p className="text-[11px] text-gray-400 mt-1">Use the same label on 2 or more products to make them options in one Customer Choice.</p>
+                        <p className="mt-1.5 text-xs text-gray-500">
+                          Give 2 or more items the same label to form one <strong>Choose 1</strong> group for customers.
+                        </p>
                       </div>
                     )}
+                  </div>
+
+                  <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
                     {/* Whole / Weight toggle for whole_fish_by_weight products */}
                     {isWholeOrWeight && (
                       <div className="flex items-center gap-2">
