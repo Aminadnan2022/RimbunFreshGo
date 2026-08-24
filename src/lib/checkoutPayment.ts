@@ -1,30 +1,11 @@
-import type { CartItem, OrderingMode } from '../types';
 import { supabase } from './supabase';
-
-const WEIGHED_MODES = new Set<OrderingMode>([
-  'whole_fish_by_weight',
-  'weight_only',
-  'slice',
-]);
+export { isPriceFinalAtCheckout } from './checkoutPricing';
 
 export interface CheckoutPaymentPreview {
   configurationVersionId: string;
   qrStoragePath: string;
   instructions: string | null;
   currencyCode: string;
-}
-
-export function isPriceFinalAtCheckout(items: CartItem[]): boolean {
-  return items.every((item) => {
-    if (item.isCombo) {
-      return Boolean(item.comboItems?.length) && (item.comboItems ?? []).every(
-        (component) => component.pricingType === 'fixed',
-      );
-    }
-
-    if (item.orderingMode && WEIGHED_MODES.has(item.orderingMode)) return false;
-    return item.orderingMode === 'fixed_quantity' || item.pricingType === 'fixed';
-  });
 }
 
 export async function getCheckoutPaymentPreview(): Promise<CheckoutPaymentPreview | null> {
