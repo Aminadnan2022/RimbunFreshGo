@@ -99,6 +99,7 @@ export default function DeliveryPointsManager() {
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<DeliveryPoint | null>(null);
   const [draft, setDraft] = useState<Draft>(emptyDraft());
+  const [formError, setFormError] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ id: number; name: string } | null>(null);
 
   const load = useCallback(async () => {
@@ -140,6 +141,7 @@ export default function DeliveryPointsManager() {
   const openAdd = () => {
     setEditing(null);
     setDraft(emptyDraft());
+    setFormError(null);
     setErrorMsg('');
     setStatus('idle');
     setFormOpen(true);
@@ -158,6 +160,7 @@ export default function DeliveryPointsManager() {
       latitude: p.latitude != null ? String(p.latitude) : '',
       longitude: p.longitude != null ? String(p.longitude) : '',
     });
+    setFormError(null);
     setErrorMsg('');
     setStatus('idle');
     setFormOpen(true);
@@ -182,10 +185,12 @@ export default function DeliveryPointsManager() {
     if (validationError) {
       setStatus('error');
       setErrorMsg(validationError);
+      setFormError(validationError);
       return;
     }
     setSaving(true);
     setStatus('idle');
+    setFormError(null);
     try {
       const fee = Number(draft.delivery_fee);
       const display_order = draft.display_order.trim() !== ''
@@ -208,6 +213,7 @@ export default function DeliveryPointsManager() {
         if (points.some((p) => p.name.toLowerCase() === payload.name.toLowerCase())) {
           setStatus('error');
           setErrorMsg(t("adminDelivery.points.nameExists"));
+          setFormError(t("adminDelivery.points.nameExists"));
           setSaving(false);
           return;
         }
@@ -220,7 +226,9 @@ export default function DeliveryPointsManager() {
     } catch (err) {
       logSupabaseError('save', err);
       setStatus('error');
-      setErrorMsg(describeError(err, t("adminDelivery.points.failedSave")));
+      const message = describeError(err, t("adminDelivery.points.failedSave"));
+      setErrorMsg(message);
+      setFormError(message);
     } finally {
       setSaving(false);
     }
@@ -404,6 +412,13 @@ export default function DeliveryPointsManager() {
               </div>
               <h3 className="font-semibold text-gray-900 text-lg">{editing ? t("adminDelivery.points.editTitle") : t("adminDelivery.points.newTitle")}</h3>
             </div>
+
+            {formError && (
+              <div className="flex items-start gap-2 mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm" role="alert">
+                <AlertCircle size={16} className="mt-0.5 shrink-0" />
+                <span>{formError}</span>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
               <div>
