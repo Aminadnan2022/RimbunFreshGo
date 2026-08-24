@@ -6,6 +6,7 @@ const read = (file) => readFileSync(resolve(root, file), 'utf8');
 const failures = [];
 const migration = read('supabase/migrations/20261026000000_fix_customer_choice_component_unit_projection.sql');
 const physicalUnits = read('supabase/migrations/20260920000000_phase4b2_preparation_physical_units.sql');
+const quantityScaleFix = read('supabase/migrations/20261030000000_restore_weighted_combo_preparation_units.sql');
 const idempotency = read('supabase/migrations/20261016000000_canonical_checkout_idempotency.sql');
 const staging = read('supabase/migrations/20261022000000_checkout_payment_receipt_staging.sql');
 
@@ -33,6 +34,11 @@ for (const token of [
   'phase4b2_has_physical_unit_preparation(v_version.preparation_schema_version_id)',
   'ON CONFLICT (sales_order_line_component_id, unit_number) DO NOTHING',
 ]) if (!migration.includes(token)) failures.push(`physical-unit materializer invariant missing: ${token}`);
+for (const token of [
+  "v_version.ordering_mode <> 'whole_fish_by_weight'",
+  'v_unit_count := (NEW.quantity * v_combo_quantity)::integer',
+  "'source', CASE WHEN v_version.ordering_mode = 'whole_fish_by_weight' THEN 'ordering_mode' ELSE 'preparation_schema' END",
+]) if (!quantityScaleFix.includes(token)) failures.push(`latest component-unit materializer is missing ${token}`);
 
 // Manual regression recipe: fixed Chicken, selected Selar 1kg, fixed Udang
 // 0.5kg, fixed Siakap per piece, plus one unselected Customer Choice option.

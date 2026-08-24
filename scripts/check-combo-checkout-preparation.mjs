@@ -9,7 +9,7 @@ const preparation = read('src/lib/checkoutPreparation.ts');
 const checkout = read('src/lib/canonicalCheckout.ts');
 const checkoutPage = read('src/pages/CheckoutPage.tsx');
 const checkoutReview = read('src/lib/checkoutReview.ts');
-const comboQuantityMigration = read('supabase/migrations/20261029000000_scale_combo_preparation_units_by_ordered_quantity.sql');
+const comboQuantityMigration = read('supabase/migrations/20261030000000_restore_weighted_combo_preparation_units.sql');
 const failures = [];
 
 // Combo Builder no longer exposes or writes an item-level preparation override.
@@ -83,6 +83,8 @@ for (const token of [
 for (const token of [
   'SELECT quantity INTO v_combo_quantity',
   'v_unit_count := (NEW.quantity * v_combo_quantity)::integer',
+  "v_version.ordering_mode <> 'whole_fish_by_weight'",
+  "WHEN v_version.ordering_mode = 'whole_fish_by_weight' AND NEW.estimated_weight_kg IS NOT NULL",
   "'combo_unit_number'",
   "'component_unit_number'",
 ]) {
