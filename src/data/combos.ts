@@ -246,6 +246,18 @@ export async function toggleComboPinned(id: string, isPinned: boolean): Promise<
 export interface ComboBulkLifecycleResult {
   successfulIds: string[];
   failedIds: string[];
+  failedMessages: string[];
+}
+
+export function formatComboLifecycleError(error: unknown, action = 'update combo'): string {
+  if (error && typeof error === 'object') {
+    const value = error as { message?: unknown; details?: unknown; hint?: unknown };
+    const parts = [value.message, value.details, value.hint]
+      .filter((part): part is string => typeof part === 'string' && part.trim().length > 0);
+    if (parts.length > 0) return `Could not ${action}: ${[...new Set(parts)].join(' ')}`;
+  }
+  if (error instanceof Error && error.message) return `Could not ${action}: ${error.message}`;
+  return `Could not ${action}. Please try again.`;
 }
 
 export async function setCombosActive(ids: string[], active: boolean): Promise<ComboBulkLifecycleResult> {
@@ -255,10 +267,13 @@ export async function setCombosActive(ids: string[], active: boolean): Promise<C
   return results.reduce<ComboBulkLifecycleResult>(
     (outcome, result, index) => {
       if (result.status === 'fulfilled') outcome.successfulIds.push(ids[index]);
-      else outcome.failedIds.push(ids[index]);
+      else {
+        outcome.failedIds.push(ids[index]);
+        outcome.failedMessages.push(formatComboLifecycleError(result.reason, active ? 'activate combo' : 'deactivate combo'));
+      }
       return outcome;
     },
-    { successfulIds: [], failedIds: [] }
+    { successfulIds: [], failedIds: [], failedMessages: [] }
   );
 }
 

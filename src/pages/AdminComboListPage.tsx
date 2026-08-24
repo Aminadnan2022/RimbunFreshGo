@@ -11,6 +11,7 @@ import {
   moveCombo,
   setCombosActive,
   setCombosPinned,
+  formatComboLifecycleError,
 } from '../data/combos';
 import SortableList from '../components/admin/SortableList';
 import SortableCard from '../components/admin/sortable/SortableCard';
@@ -143,6 +144,7 @@ export default function AdminComboListPage() {
       setCombos((prev) => prev.map((c) => (c.id === id ? saved : c)));
     } catch (err) {
       console.error('Toggle active failed:', err);
+      alert(formatComboLifecycleError(err, current ? 'deactivate combo' : 'activate combo'));
     } finally {
       lifecyclePendingRef.current.delete(id);
       setLifecyclePendingIds(new Set(lifecyclePendingRef.current));

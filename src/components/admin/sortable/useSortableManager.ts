@@ -12,6 +12,7 @@ export interface SortModeOption<T> {
 export interface BulkMutationResult {
   successfulIds: string[];
   failedIds: string[];
+  failedMessages?: string[];
 }
 
 export interface SortableManagerOptions<T extends { id: string }> {
@@ -250,7 +251,9 @@ export function useSortableManager<T extends { id: string }>(opts: SortableManag
         setSelected(new Set(failedIds));
 
         if (failedIds.length > 0) {
-          alert(bulkPartialFailureMessage?.(failedIds.length, successfulIds.length) ?? undoFailedMessage);
+          const summary = bulkPartialFailureMessage?.(failedIds.length, successfulIds.length) ?? undoFailedMessage;
+          const reasons = result?.failedMessages?.filter(Boolean) ?? [];
+          alert(reasons.length > 0 ? `${summary}\n\n${reasons.join('\n')}` : summary);
         } else {
           showToast({
             message: bulkMessage(active ? 'activated' : 'deactivated', successfulIds.length),

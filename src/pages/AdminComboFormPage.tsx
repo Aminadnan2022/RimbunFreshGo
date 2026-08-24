@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Navigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getProductImage } from '../lib/image';
-import { fetchComboById, createCombo, updateCombo, setComboLifecycle, toggleComboFeatured } from '../data/combos';
+import { fetchComboById, createCombo, updateCombo, setComboLifecycle, toggleComboFeatured, formatComboLifecycleError } from '../data/combos';
 import { fetchProducts } from '../data/products';
 import { getSellingMode, getWeightOptions, computeComboItemSubtotal, formatWeight } from '../lib/sellingOptions';
 import MultiImageUploader from '../components/ui/MultiImageUploader';
@@ -294,7 +294,7 @@ export default function AdminComboFormPage() {
       navigate('/admin?tab=combos');
     } catch (err) {
       console.error('Save failed:', err);
-      alert('Failed to save combo. Check console.');
+      alert(formatComboLifecycleError(err, form.lifecycle_status === 'active' ? 'save and activate combo' : 'save combo'));
     } finally {
       setSaving(false);
     }
