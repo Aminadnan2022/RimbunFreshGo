@@ -454,6 +454,13 @@
     "instructions": "Arahan Pembayaran",
     "cashOnDelivery": "Bayar Semasa Terima",
     "codDescription": "Bayar RM{{total}} secara tunai apabila pesanan anda tiba. Penghantar kami akan mempunyai wang tepat.",
+    "amountToPay": "Jumlah perlu dibayar",
+    "scanDuitNow": "Imbas QR DuitNow",
+    "loadingQr": "Memuatkan QR pembayaran semasa…",
+    "qrUnavailable": "QR pembayaran tidak tersedia buat masa ini. Cuba lagi atau hubungi FreshGo.",
+    "checkoutQrInstructions": "Imbas QR DuitNow di atas dan bayar jumlah tepat. Kemudian buat pesanan; anda boleh terus memuat naik resit di halaman penjejakan.",
+    "placeThenUpload": "Selepas membayar, buat pesanan di bawah. Nombor pesanan akan dicipta dan borang muat naik resit terus tersedia di halaman penjejakan.",
+    "weighedOrderInstructions": "Pesanan ini mengandungi barang yang perlu ditimbang. Buat pesanan sekarang tanpa bayaran; jumlah tepat dan QR DuitNow akan muncul di halaman penjejakan selepas pembekal memuktamadkan harga.",
     "continueToPayment": "Teruskan ke Pembayaran",
     "readyToPayInstructions": "Pesanan anda telah ditimbang dan sedia untuk pembayaran. Sila buat pembayaran menggunakan kod QR yang dihantar melalui WhatsApp. Selepas pembayaran, balas dengan resit pembayaran anda."
   },

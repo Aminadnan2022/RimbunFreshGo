@@ -46,7 +46,7 @@ export async function createHistoricalBusinessDaily(input: HistoricalBusinessDai
     p_business_date: input.business_date, p_order_count: input.order_count,
     p_revenue_amount: input.revenue_amount, p_supplier_cost_amount: input.supplier_cost_amount,
     p_delivery_income_amount: input.delivery_income_amount, p_gross_profit_amount: input.gross_profit_amount,
-    p_notes: input.notes ?? null,
+    p_notes: input.notes ?? undefined,
   });
   throwMutationError(error);
 }
@@ -57,7 +57,7 @@ export async function updateHistoricalBusinessDaily(id: number, input: Historica
     p_id: id, p_business_date: input.business_date, p_order_count: input.order_count,
     p_revenue_amount: input.revenue_amount, p_supplier_cost_amount: input.supplier_cost_amount,
     p_delivery_income_amount: input.delivery_income_amount, p_gross_profit_amount: input.gross_profit_amount,
-    p_notes: input.notes ?? null,
+    p_notes: input.notes ?? undefined,
   });
   throwMutationError(error);
 }

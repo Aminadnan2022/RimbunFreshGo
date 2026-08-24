@@ -454,6 +454,13 @@
     "instructions": "Payment Instructions",
     "cashOnDelivery": "Cash on Delivery",
     "codDescription": "Pay RM{{total}} in cash when your order arrives. Our rider will have exact change.",
+    "amountToPay": "Amount to pay",
+    "scanDuitNow": "Scan DuitNow QR",
+    "loadingQr": "Loading the current payment QR…",
+    "qrUnavailable": "Payment QR is currently unavailable. Please try again or contact FreshGo.",
+    "checkoutQrInstructions": "Scan the DuitNow QR above and pay the exact amount. Then place the order; you can upload your receipt immediately on order tracking.",
+    "placeThenUpload": "After paying, place your order below. Your order number will be created and the receipt-upload form will be available immediately on tracking.",
+    "weighedOrderInstructions": "This order includes an item that must be weighed. Place the order now without payment; the exact amount and DuitNow QR will appear on tracking after supplier finalisation.",
     "continueToPayment": "Continue to Payment",
     "readyToPayInstructions": "Your order has been weighed and is ready for payment. Please make payment using the QR code sent via WhatsApp. After payment, reply with your payment receipt."
   },

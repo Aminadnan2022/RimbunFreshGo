@@ -40,6 +40,8 @@ export interface CanonicalPlaceOrderRequest {
     combo_selections?: Array<{ choice_group_key: string; combo_item_id: string }>;
   }>;
   p_preparation_answers: CanonicalPreparationAnswer[];
+  p_expected_final_total?: number;
+  p_expected_payment_configuration_version_id?: string;
 }
 
 export interface CanonicalPlaceOrderResult {
@@ -53,7 +55,7 @@ export interface CanonicalPlaceOrderResult {
 }
 
 type PlaceOrderRpc = (
-  functionName: 'place_sales_order',
+  functionName: 'place_sales_order' | 'place_sales_order_with_checkout_payment_preview',
   arguments_: CanonicalPlaceOrderRequest,
 ) => Promise<{
   data: CanonicalPlaceOrderResult[] | null;
@@ -204,8 +206,9 @@ export function buildCanonicalPlaceOrderRequest(input: {
 }
 
 export async function placeCanonicalOrder(request: CanonicalPlaceOrderRequest) {
+  const guarded = request.p_expected_final_total !== undefined;
   const { data, error } = await (supabase.rpc as unknown as PlaceOrderRpc)(
-    'place_sales_order',
+    guarded ? 'place_sales_order_with_checkout_payment_preview' : 'place_sales_order',
     request,
   );
   if (error) throw new Error(error.message);

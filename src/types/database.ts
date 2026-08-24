@@ -255,11 +255,11 @@ export type Database = {
       }
       combo_items: {
         Row: {
+          choice_group_key: string | null
+          choice_group_label: string | null
           combo_id: string
           created_at: string
           custom_label: string | null
-          choice_group_key: string | null
-          choice_group_label: string | null
           id: string
           preparation: string | null
           price_adjustment: number
@@ -270,11 +270,11 @@ export type Database = {
           unit: string | null
         }
         Insert: {
+          choice_group_key?: string | null
+          choice_group_label?: string | null
           combo_id: string
           created_at?: string
           custom_label?: string | null
-          choice_group_key?: string | null
-          choice_group_label?: string | null
           id?: string
           preparation?: string | null
           price_adjustment?: number
@@ -285,11 +285,11 @@ export type Database = {
           unit?: string | null
         }
         Update: {
+          choice_group_key?: string | null
+          choice_group_label?: string | null
           combo_id?: string
           created_at?: string
           custom_label?: string | null
-          choice_group_key?: string | null
-          choice_group_label?: string | null
           id?: string
           preparation?: string | null
           price_adjustment?: number
@@ -318,43 +318,43 @@ export type Database = {
       }
       combo_version_items: {
         Row: {
-          combo_version_id: string
           choice_group_key: string | null
           choice_group_label: string | null
+          combo_version_id: string
           created_at: string
           display_order: number
           id: string
+          price_adjustment: number
           product_id: string
           product_version_id: string | null
-          price_adjustment: number
           quantity: number
           source_combo_item_id: string | null
           unit_snapshot: Json
         }
         Insert: {
-          combo_version_id: string
           choice_group_key?: string | null
           choice_group_label?: string | null
+          combo_version_id: string
           created_at?: string
           display_order?: number
           id?: string
+          price_adjustment?: number
           product_id: string
           product_version_id?: string | null
-          price_adjustment?: number
           quantity: number
           source_combo_item_id?: string | null
           unit_snapshot?: Json
         }
         Update: {
-          combo_version_id?: string
           choice_group_key?: string | null
           choice_group_label?: string | null
+          combo_version_id?: string
           created_at?: string
           display_order?: number
           id?: string
+          price_adjustment?: number
           product_id?: string
           product_version_id?: string | null
-          price_adjustment?: number
           quantity?: number
           source_combo_item_id?: string | null
           unit_snapshot?: Json
@@ -2949,35 +2949,6 @@ export type Database = {
       }
     }
     Functions: {
-      admin_create_historical_business_daily: {
-        Args: {
-          p_business_date: string
-          p_delivery_income_amount: number
-          p_gross_profit_amount: number
-          p_notes?: string | null
-          p_order_count: number
-          p_revenue_amount: number
-          p_supplier_cost_amount: number
-        }
-        Returns: number
-      }
-      admin_delete_historical_business_daily: {
-        Args: { p_id: number }
-        Returns: undefined
-      }
-      admin_update_historical_business_daily: {
-        Args: {
-          p_business_date: string
-          p_delivery_income_amount: number
-          p_gross_profit_amount: number
-          p_id: number
-          p_notes?: string | null
-          p_order_count: number
-          p_revenue_amount: number
-          p_supplier_cost_amount: number
-        }
-        Returns: undefined
-      }
       _line_cost: { Args: { item: Json }; Returns: number }
       _line_margin: { Args: { item: Json }; Returns: number }
       _line_profit: { Args: { item: Json }; Returns: number }
@@ -3038,6 +3009,22 @@ export type Database = {
         }
         Returns: string
       }
+      admin_create_historical_business_daily: {
+        Args: {
+          p_business_date: string
+          p_delivery_income_amount: number
+          p_gross_profit_amount: number
+          p_notes?: string
+          p_order_count: number
+          p_revenue_amount: number
+          p_supplier_cost_amount: number
+        }
+        Returns: number
+      }
+      admin_delete_historical_business_daily: {
+        Args: { p_id: number }
+        Returns: undefined
+      }
       admin_dispatch_canonical_supplier_delivery_batch: {
         Args: {
           p_batch_id: string
@@ -3046,6 +3033,14 @@ export type Database = {
           p_transport_provider?: string
         }
         Returns: undefined
+      }
+      admin_duplicate_combo: {
+        Args: { p_source_combo_id: string }
+        Returns: string
+      }
+      admin_duplicate_combo_choice_core: {
+        Args: { p_source_combo_id: string }
+        Returns: string
       }
       admin_mark_order_ready_for_rider: {
         Args: { p_order_id: number }
@@ -3059,8 +3054,41 @@ export type Database = {
         Args: { p_batch_id: string; p_sales_order_id: string }
         Returns: undefined
       }
+      admin_save_combo: {
+        Args: { p_combo: Json; p_combo_id: string; p_items?: Json }
+        Returns: string
+      }
+      admin_save_combo_choice_core: {
+        Args: { p_combo: Json; p_combo_id: string; p_items?: Json }
+        Returns: string
+      }
+      admin_set_combo_lifecycle: {
+        Args: { p_combo_id: string; p_lifecycle_status: string }
+        Returns: undefined
+      }
+      admin_set_combo_presentation: {
+        Args: {
+          p_combo_id: string
+          p_featured?: boolean
+          p_is_pinned?: boolean
+        }
+        Returns: undefined
+      }
       admin_update_canonical_supplier_delivery_batch_tracking_url: {
         Args: { p_batch_id: string; p_tracking_url?: string }
+        Returns: undefined
+      }
+      admin_update_historical_business_daily: {
+        Args: {
+          p_business_date: string
+          p_delivery_income_amount: number
+          p_gross_profit_amount: number
+          p_id: number
+          p_notes?: string
+          p_order_count: number
+          p_revenue_amount: number
+          p_supplier_cost_amount: number
+        }
         Returns: undefined
       }
       can_read_canonical_delivery_proof_object: {
@@ -3081,6 +3109,15 @@ export type Database = {
         Returns: {
           supplier_id: number
           supplier_name: string
+        }[]
+      }
+      get_checkout_payment_configuration: {
+        Args: never
+        Returns: {
+          currency_code: string
+          id: string
+          instructions: string
+          qr_storage_path: string
         }[]
       }
       get_current_payment_configuration: {
@@ -3277,6 +3314,26 @@ export type Database = {
           sales_order_id: string
         }[]
       }
+      place_sales_order_with_checkout_payment_preview: {
+        Args: {
+          p_customer_snapshot: Json
+          p_delivery_request: Json
+          p_expected_final_total: number
+          p_expected_payment_configuration_version_id: string
+          p_idempotency_key: string
+          p_items: Json
+          p_preparation_answers: Json
+        }
+        Returns: {
+          estimated_total: number
+          final_total: number
+          order_number: string
+          payment_status: string
+          price_status: string
+          requires_supplier_finalisation: boolean
+          sales_order_id: string
+        }[]
+      }
       publish_delivery_method_version: {
         Args: { p_version_id: string }
         Returns: undefined
@@ -3345,22 +3402,6 @@ export type Database = {
         Returns: undefined
       }
       reorder_combos: { Args: { p_ids: string[] }; Returns: undefined }
-      admin_set_combo_lifecycle: {
-        Args: { p_combo_id: string; p_lifecycle_status: string }
-        Returns: undefined
-      }
-      admin_duplicate_combo: {
-        Args: { p_source_combo_id: string }
-        Returns: string
-      }
-      admin_save_combo: {
-        Args: { p_combo_id: string; p_combo: Json; p_items?: Json | null }
-        Returns: string
-      }
-      admin_set_combo_presentation: {
-        Args: { p_combo_id: string; p_featured?: boolean | null; p_is_pinned?: boolean | null }
-        Returns: undefined
-      }
       reorder_products: { Args: { p_ids: string[] }; Returns: undefined }
       replace_payment_qr_configuration: {
         Args: { p_instructions?: string; p_qr_storage_path: string }
