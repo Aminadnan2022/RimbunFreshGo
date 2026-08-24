@@ -115,11 +115,15 @@ const [receiptUploading, setReceiptUploading] = useState(false);
     // Canonical payment metadata is intentionally loaded separately.
     // Legacy orders simply return no matching sales_orders row.
     try {
-      const { data: canonicalRow, error: canonicalError } = await supabase
+      const canonicalLookup = supabase
         .from('sales_orders')
-        .select('id, price_status, payment_status, final_subtotal, final_total, delivery_fee')
-        .eq('order_number', ref)
-        .maybeSingle();
+        .select('id, price_status, payment_status, final_subtotal, final_total, delivery_fee');
+      const isCanonicalId = /^[0-9a-f-]{36}$/i.test(ref);
+      const { data: canonicalRow, error: canonicalError } = await (
+        isCanonicalId
+          ? canonicalLookup.eq('id', ref)
+          : canonicalLookup.eq('order_number', ref)
+      ).maybeSingle();
 
       if (canonicalError) throw canonicalError;
 
