@@ -3,6 +3,7 @@ import { deriveSellingUnit } from './products';
 import type { Json } from '../types/database';
 import type { CartItem, Product, SellingUnit } from '../types';
 import type { DbCombo, DbComboItem, ComboWithItems, ComboPayload } from '../types';
+import { selectComboCartItems } from '../lib/comboCartSelection';
 
 // NOTE: discount_percent is intentionally NOT selected. The live Supabase
 // project does not have that column yet, and selecting it fails the whole
@@ -408,4 +409,13 @@ export function buildComboCartItem(
       priceAdjustment: item.priceAdjustment,
     })),
   };
+}
+
+export function buildSelectedComboCartItem(
+  comboWithItems: ComboWithItems,
+  products: Product[],
+  selectedChoiceItemIds: Iterable<string>,
+  quantity = 1,
+): CartItem {
+  return buildComboCartItem(selectComboCartItems(comboWithItems, selectedChoiceItemIds), products, quantity);
 }

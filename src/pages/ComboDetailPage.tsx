@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import {
   CheckCircle2, Star, Clock, ShoppingCart, ChevronRight, Users, TrendingDown, Loader2,
 } from 'lucide-react';
-import { fetchComboBySlug, fetchActiveComboList, buildComboCartItem } from '../data/combos';
+import { fetchComboBySlug, fetchActiveComboList, buildSelectedComboCartItem } from '../data/combos';
 import { useProducts } from '../hooks/useProducts';
 import { getVendorById } from '../data/vendors';
 import { getPrepLabel } from '../lib/preparationOptions';
@@ -101,8 +101,7 @@ export default function ComboDetailPage() {
       setChoiceError(true);
       return;
     }
-    const chosenItems = comboWithItems.items.filter((item) => !item.choice_group_key || selectedChoices[item.choice_group_key] === item.id);
-    addItem(buildComboCartItem({ combo: comboWithItems.combo, items: chosenItems }, comboProducts, qty));
+    addItem(buildSelectedComboCartItem(comboWithItems, comboProducts, Object.values(selectedChoices), qty));
     setChoiceError(false);
     setAdded(true);
     setTimeout(() => setAdded(false), 2000);

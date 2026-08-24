@@ -20,7 +20,7 @@ for (const token of ['Item Type', 'Fixed Item', 'Customer Choice', 'Choice Label
   'Customer Choice groups', 'Choose 1 of', 'at least 2 valid options']) {
   if (!admin.includes(token)) failures.push(`missing admin UX: ${token}`);
 }
-for (const token of ['type="radio"', 'Choose 1', 'Please choose one option from every Customer Choice', 'chosenItems']) if (!detail.includes(token)) failures.push(`missing customer UX: ${token}`);
+for (const token of ['type="radio"', 'Choose 1', 'Please choose one option from every Customer Choice', 'buildSelectedComboCartItem']) if (!detail.includes(token)) failures.push(`missing customer UX: ${token}`);
 if (!checkout.includes('canonicalCheckoutItems(items)') || !checkoutItems.includes('combo_selections') || !checkoutItems.includes('combo_item_id')) failures.push('checkout does not send canonical selections');
 if (!preparation.includes('componentNumber: partIndex + 1')) failures.push('preparation does not use projected component numbering');
 
