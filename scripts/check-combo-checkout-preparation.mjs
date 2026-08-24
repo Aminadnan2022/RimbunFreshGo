@@ -44,6 +44,15 @@ for (const token of [
 ]) {
   if (!preparation.includes(token)) failures.push(`preparation targeting is missing ${token}`);
 }
+for (const token of [
+  'const lineTargets = targets.filter((target) => target.lineKey === `line-${lineIndex}`)',
+  'Array.from({ length: item.quantity }, (_, comboIndex)',
+  '{comboLabel} #{comboIndex + 1}',
+  'const answerUnit = comboIndex * unitsPerCombo + componentUnit',
+  'const destination = answerKey(target, comboIndex * unitsPerCombo + componentUnit)',
+]) {
+  if (!checkoutPage.includes(token)) failures.push(`per-combo preparation layout is missing ${token}`);
+}
 
 // Supplier/order answers use the selected projected component number directly;
 // separate targets therefore map chicken, Selar, and further actual components

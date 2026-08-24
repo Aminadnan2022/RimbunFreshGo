@@ -168,78 +168,83 @@ const Preparation = () => (
       </p>
     )}
 
-    {targets.map((target) => {
-      const physical = target.questionnaire.questions.some(
-        (q) => q.selection_scope === 'physical_unit'
-      );
+    {cart.items.map((item, lineIndex) => {
+      const lineTargets = targets.filter((target) => target.lineKey === `line-${lineIndex}`);
+      if (!lineTargets.length) return null;
 
-      return (
-        <section
-          key={target.key}
-          className="border border-cream-200 rounded-2xl p-4 space-y-4"
-        >
-          <h3 className="font-semibold">{target.name}</h3>
+      if (item.isCombo && item.comboItems?.length) {
+        const comboLabel = language === 'ms' ? 'Kombo' : 'Combo';
+        return (
+          <section key={lineIndex} className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h3 className="font-semibold text-forest-900">{item.name} × {item.quantity}</h3>
+              {item.quantity > 1 && (
+                <button
+                  type="button"
+                  className="text-sm text-forest-700 underline"
+                  onClick={() => setAnswers((current) => {
+                    const copied = { ...current };
+                    lineTargets.forEach((target) => {
+                      const unitsPerCombo = target.unitsPerCombo ?? 1;
+                      for (let comboIndex = 1; comboIndex < item.quantity; comboIndex += 1) {
+                        for (let componentUnit = 0; componentUnit < unitsPerCombo; componentUnit += 1) {
+                          const source = answerKey(target, componentUnit);
+                          const destination = answerKey(target, comboIndex * unitsPerCombo + componentUnit);
+                          copied[destination] = { ...(current[destination] ?? {}), ...(current[source] ?? {}) };
+                        }
+                      }
+                    });
+                    return copied;
+                  })}
+                >
+                  {t('checkout.applySameToAll')}
+                </button>
+              )}
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {Array.from({ length: item.quantity }, (_, comboIndex) => (
+                <div key={comboIndex} className="rounded-2xl border border-cream-200 bg-cream-50/60 p-4 space-y-5">
+                  <h4 className="font-semibold text-gray-900">{comboLabel} #{comboIndex + 1}</h4>
+                  {lineTargets.map((target) => {
+                    const unitsPerCombo = target.unitsPerCombo ?? 1;
+                    return (
+                      <div key={target.key} className="border-t border-cream-200 pt-4 space-y-4 first:border-t-0 first:pt-0">
+                        <h5 className="font-medium text-gray-900">{target.name}</h5>
+                        {comboIndex === 0 && target.questionnaire.questions.filter((q) => q.selection_scope === 'line').map((q) => (
+                          <Question key={q.code} target={target} unit={null} question={q}/>
+                        ))}
+                        {Array.from({ length: unitsPerCombo }, (_, componentUnit) => {
+                          const answerUnit = comboIndex * unitsPerCombo + componentUnit;
+                          return (
+                            <div key={componentUnit} className="space-y-4">
+                              {unitsPerCombo > 1 && <p className="text-sm font-medium text-gray-700">{target.name} #{componentUnit + 1}</p>}
+                              {target.questionnaire.questions.filter((q) => q.selection_scope === 'physical_unit').map((q) => (
+                                <Question key={q.code} target={target} unit={answerUnit} question={q}/>
+                              ))}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
+          </section>
+        );
+      }
 
-          {physical && target.quantity > 1 && (
-            <button
-              type="button"
-              className="text-sm text-forest-700 underline"
-              onClick={() => {
-                const first = answers[answerKey(target, 0)] ?? {};
-
-                setAnswers((current) => ({
-                  ...current,
-                  ...Object.fromEntries(
-                    Array.from({ length: target.quantity }, (_, i) => [
-                      answerKey(target, i),
-                      {
-                        ...(current[answerKey(target, i)] ?? {}),
-                        ...first,
-                      },
-                    ])
-                  ),
-                }));
-              }}
-            >
-              {t('checkout.applySameToAll')}
-            </button>
-          )}
-
-          {target.questionnaire.questions
-            .filter((q) => q.selection_scope === 'line')
-            .map((q) => (
-              <Question
-                key={q.code}
-                target={target}
-                unit={null}
-                question={q}
-              />
-            ))}
-
-          {physical &&
-            Array.from({ length: target.quantity }, (_, unit) => (
-              <div
-                key={unit}
-                className="border-t pt-4 space-y-4"
-              >
-                <h4 className="font-medium">
-                  {conciseReviewLabel(target, unit, language)}
-                </h4>
-
-                {target.questionnaire.questions
-                  .filter((q) => q.selection_scope === 'physical_unit')
-                  .map((q) => (
-                    <Question
-                      key={q.code}
-                      target={target}
-                      unit={unit}
-                      question={q}
-                    />
-                  ))}
-              </div>
-            ))}
-        </section>
-      );
+      return lineTargets.map((target) => {
+        const physical = target.questionnaire.questions.some((q) => q.selection_scope === 'physical_unit');
+        return (
+          <section key={target.key} className="border border-cream-200 rounded-2xl p-4 space-y-4">
+            <h3 className="font-semibold">{target.name}</h3>
+            {physical && target.quantity > 1 && <button type="button" className="text-sm text-forest-700 underline" onClick={() => { const first = answers[answerKey(target, 0)] ?? {}; setAnswers((current) => ({ ...current, ...Object.fromEntries(Array.from({ length: target.quantity }, (_, unit) => [answerKey(target, unit), { ...(current[answerKey(target, unit)] ?? {}), ...first }])) })); }}>{t('checkout.applySameToAll')}</button>}
+            {target.questionnaire.questions.filter((q) => q.selection_scope === 'line').map((q) => <Question key={q.code} target={target} unit={null} question={q}/>)}
+            {physical && Array.from({ length: target.quantity }, (_, unit) => <div key={unit} className="border-t pt-4 space-y-4"><h4 className="font-medium">{conciseReviewLabel(target, unit, language)}</h4>{target.questionnaire.questions.filter((q) => q.selection_scope === 'physical_unit').map((q) => <Question key={q.code} target={target} unit={unit} question={q}/>)}</div>)}
+          </section>
+        );
+      });
     })}
 
     {prepError && (
