@@ -4,7 +4,6 @@ import { useAuth } from '../context/AuthContext';
 import { getProductImage } from '../lib/image';
 import { fetchComboById, createCombo, updateCombo, setComboLifecycle, toggleComboFeatured } from '../data/combos';
 import { fetchProducts } from '../data/products';
-import { getPrepOptionsByCategory } from '../lib/preparationOptions';
 import { getSellingMode, getWeightOptions, computeComboItemSubtotal, formatWeight } from '../lib/sellingOptions';
 import MultiImageUploader from '../components/ui/MultiImageUploader';
 import QuantityStepper from '../components/ui/QuantityStepper';
@@ -17,7 +16,6 @@ type FormItem = {
   selling_unit: string;
   sort_order: number;
   custom_label: string;
-  preparation: string;
   unit: string;
   mode?: 'whole' | 'weight';
   choice_group_key?: string;
@@ -99,7 +97,6 @@ export default function AdminComboFormPage() {
         selling_unit: ci.selling_unit,
         sort_order: ci.sort_order,
         custom_label: ci.custom_label ?? '',
-        preparation: ci.preparation ?? '',
         unit: ci.unit ?? '',
         mode: ci.selling_unit === 'kg' ? 'weight' : 'whole',
         choice_group_key: ci.choice_group_key,
@@ -117,7 +114,6 @@ export default function AdminComboFormPage() {
 
   function addItem(product: Product) {
     const mode = getSellingMode(product);
-    const opts = getPrepOptionsByCategory(product.category);
     const isWeight = mode === 'weight';
     setItems((prev) => [
       ...prev,
@@ -127,7 +123,6 @@ export default function AdminComboFormPage() {
         selling_unit: isWeight ? 'kg' : 'piece',
         sort_order: prev.length,
         custom_label: '',
-        preparation: opts[0] ?? '',
         unit: product.unit,
         mode: mode === 'whole_fish_by_weight' ? 'whole' : undefined,
       },
@@ -274,7 +269,6 @@ export default function AdminComboFormPage() {
         selling_unit: item.selling_unit,
         sort_order: i,
         custom_label: item.custom_label || undefined,
-        preparation: item.preparation || undefined,
         unit: item.unit || undefined,
         choice_group_key: item.choice_group_key ? `choice-${slugify(item.choice_group_label ?? '')}` : undefined,
         choice_group_label: item.choice_group_label || undefined,
@@ -630,7 +624,6 @@ export default function AdminComboFormPage() {
               const su = currentMode === 'weight' ? 'kg' : 'piece';
               const weightGrams = Math.round((item.quantity_value || 0) * 1000);
               const subtotal = computeComboItemSubtotal(product, item.quantity_value, su);
-              const prepOptions = getPrepOptionsByCategory(product.category);
               const weightOptions = getWeightOptions();
 
               console.log('combo-item-product', {
@@ -784,21 +777,6 @@ export default function AdminComboFormPage() {
                         </div>
                       </div>
                     )}
-
-                    {/* Preparation */}
-                    <div>
-                      <label className="block text-xs text-gray-500 mb-1">Preparation</label>
-                      <select
-                        value={item.preparation}
-                        onChange={(e) => updateItem(index, { preparation: e.target.value })}
-                        className="border rounded px-2 py-1.5 text-xs w-full"
-                      >
-                        <option value="">Default</option>
-                        {prepOptions.map((opt) => (
-                          <option key={opt} value={opt}>{opt}</option>
-                        ))}
-                      </select>
-                    </div>
 
                     {/* Subtotal */}
                     <div className="flex items-end justify-between">

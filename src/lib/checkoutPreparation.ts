@@ -32,6 +32,7 @@ export type Questionnaire = {
 export type PreparationTarget = {
   key: string;
   lineKey: string;
+  componentNumber?: number;
   productId: string;
   name: string;
   category?: string;
@@ -105,6 +106,7 @@ export async function loadPreparationTargets(
         candidates.push({
           key: `${lineKey}-combo-${(part.componentNumber ?? partIndex + 1) - 1}`,
           lineKey,
+          componentNumber: part.componentNumber ?? partIndex + 1,
           productId: part.productId,
           name: part.name || part.label,
           category: part.category,

@@ -1,8 +1,7 @@
 import { supabase } from '../lib/supabase';
-import { getPrepOptionsByCategory } from '../lib/preparationOptions';
 import { deriveSellingUnit } from './products';
 import type { Json } from '../types/database';
-import type { CartItem, PreparationOption, Product, SellingUnit } from '../types';
+import type { CartItem, Product, SellingUnit } from '../types';
 import type { DbCombo, DbComboItem, ComboWithItems, ComboPayload } from '../types';
 
 // NOTE: discount_percent is intentionally NOT selected. The live Supabase
@@ -277,10 +276,10 @@ export function buildComboItems(
   image: string;
   price: number;
   unit: string;
+  category?: Product['category'];
   quantity: number;
   quantityValue: number;
   sellingUnit: string;
-  preparation?: PreparationOption;
   pricingType?: 'per_kg' | 'fixed';
   label: string;
   choiceGroupKey?: string;
@@ -291,8 +290,6 @@ export function buildComboItems(
   return comboWithItems.items.map((ci) => {
     const product = products.find((p) => p.id === ci.product_id);
     const category = product?.category;
-    const options = category ? getPrepOptionsByCategory(category) : [];
-    const prep = (ci.preparation as PreparationOption) ?? options[0];
     const sellingUnit = ci.selling_unit || (product ? getSellingUnit(product) : 'piece');
     const isKg = sellingUnit === 'kg';
     return {
@@ -303,10 +300,10 @@ export function buildComboItems(
       image: product?.image ?? comboWithItems.combo.image,
       price: product?.price ?? 0,
       unit: isKg ? 'kg' : product?.unit ?? 'per item',
+      category,
       quantity: Math.round(ci.quantity_value),
       quantityValue: ci.quantity_value,
       sellingUnit,
-      preparation: prep,
       pricingType: isKg ? 'per_kg' : 'fixed',
       label: ci.custom_label ?? (
         isKg
@@ -343,10 +340,10 @@ export function buildComboCartItem(
       image: item.image,
       price: item.price,
       unit: item.unit,
+      category: item.category,
       quantity: item.quantity,
       quantityValue: item.quantityValue,
       sellingUnit: item.sellingUnit,
-      preparation: item.preparation as PreparationOption,
       pricingType: item.pricingType,
       label: item.label,
       choiceGroupKey: item.choiceGroupKey,

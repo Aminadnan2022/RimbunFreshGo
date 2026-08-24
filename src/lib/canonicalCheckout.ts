@@ -100,17 +100,12 @@ function zoneCodeFromDeliveryPoint(value: string): string | undefined {
   return residences.find(([needle]) => normalized.includes(needle))?.[1];
 }
 
-function componentNumber(target: PreparationTarget): number | undefined {
-  const match = target.key.match(/-combo-(\d+)$/);
-  return match ? Number(match[1]) + 1 : undefined;
-}
-
 function preparationAnswerPayload(
   targets: PreparationTarget[],
   answers: PreparationAnswers,
 ): CanonicalPreparationAnswer[] {
   return targets.flatMap((target) => {
-    const component = componentNumber(target);
+    const component = target.componentNumber;
     const units = target.questionnaire.questions.some((question) => question.selection_scope === 'physical_unit')
       ? Array.from({ length: target.quantity }, (_, index) => index + 1)
       : [];

@@ -20,6 +20,7 @@
     "test:combo-builder-mvp": "node scripts/check-combo-builder-mvp.mjs",
     "test:combo-builder-rpc": "node --experimental-strip-types e2e/verify.combo-builder-admin-rpc.ts",
     "test:combo-customer-choice": "node scripts/check-combo-customer-choice.mjs",
+    "test:combo-checkout-preparation": "node scripts/check-combo-checkout-preparation.mjs",
     "test:phase4b1-place-order": "node scripts/check-phase4b1-place-sales-order.mjs",
     "test:checkout-idempotency": "node scripts/check-place-sales-order-idempotency.mjs",
     "test:phase4b2-projection-guard": "node scripts/check-phase4b2-projection-guard.mjs",

@@ -1,0 +1,59 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
+const root = resolve(import.meta.dirname, '..');
+const read = (file) => readFileSync(resolve(root, file), 'utf8');
+const admin = read('src/pages/AdminComboFormPage.tsx');
+const combos = read('src/data/combos.ts');
+const preparation = read('src/lib/checkoutPreparation.ts');
+const checkout = read('src/lib/canonicalCheckout.ts');
+const failures = [];
+
+// Combo Builder no longer exposes or writes an item-level preparation override.
+if (/label[^\n]*Preparation|\{\/\* Preparation \*\/\}/.test(admin)) {
+  failures.push('Combo Builder still renders an item-level Preparation control');
+}
+if (/preparation:\s*item\.preparation/.test(admin)) {
+  failures.push('Combo Builder still sends an item-level preparation override');
+}
+
+// The chosen cart snapshot carries the real product category. This is what lets
+// selected per-kg fish (for example Selar) pass the preparation eligibility rules.
+for (const token of ['category,', 'category: item.category', 'componentNumber: item.componentNumber']) {
+  if (!combos.includes(token)) failures.push(`combo cart snapshot is missing ${token}`);
+}
+if (combos.includes('preparation: item.preparation')) {
+  failures.push('checkout cart snapshot still trusts stale combo-item preparation');
+}
+
+// All actual comboItems are considered independently. ComboDetailPage builds this
+// list from fixed items plus the one selected option, so unselected choices cannot
+// become preparation targets. Standalone items retain their existing path.
+for (const token of [
+  'item.comboItems.forEach((part, partIndex)',
+  'componentNumber: part.componentNumber ?? partIndex + 1',
+  'productId: part.productId',
+  'if (!shouldIncludePreparationItem(item))',
+  'productId: item.productId',
+]) {
+  if (!preparation.includes(token)) failures.push(`preparation targeting is missing ${token}`);
+}
+
+// Supplier/order answers use the immutable selected component number directly;
+// separate targets therefore map chicken, Selar, and further actual components
+// to their own server-resolved component records.
+for (const token of [
+  'const component = target.componentNumber',
+  'component_number: component',
+  'line_number:',
+  'unit_number: unitNumber',
+]) {
+  if (!checkout.includes(token)) failures.push(`canonical answer mapping is missing ${token}`);
+}
+
+if (failures.length) {
+  console.error('Combo checkout preparation checks failed:\n- ' + failures.join('\n- '));
+  process.exit(1);
+}
+
+console.log('Combo checkout preparation checks passed (builder override removed; fixed + selected components targeted independently; unselected choices excluded; standalone path and canonical component mapping preserved).');
