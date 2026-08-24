@@ -1,5 +1,6 @@
 import type { CartItem, CustomerDetails, DeliveryDay } from '../types';
 import type { PreparationAnswers, PreparationTarget } from './checkoutPreparation';
+import { canonicalCheckoutItems, type CanonicalCheckoutItem } from './canonicalCheckoutItems';
 import { supabase } from './supabase';
 
 export type CanonicalDeliveryMethod = 'normal_bulk' | 'instant_customer_lalamove';
@@ -31,14 +32,7 @@ export interface CanonicalPlaceOrderRequest {
     delivery_point_name: string;
     pickup_location: string;
   };
-  p_items: Array<{
-    product_id?: string;
-    combo_id?: string;
-    quantity: number;
-    estimated_weight_kg?: number;
-    component_estimated_weights?: Record<string, number>;
-    combo_selections?: Array<{ choice_group_key: string; combo_item_id: string }>;
-  }>;
+  p_items: CanonicalCheckoutItem[];
   p_preparation_answers: CanonicalPreparationAnswer[];
   p_expected_final_total?: number;
   p_expected_payment_configuration_version_id?: string;
@@ -191,16 +185,7 @@ export function buildCanonicalPlaceOrderRequest(input: {
       delivery_point_name: customer.deliveryPointName.trim(),
       pickup_location: customer.pickupLocation.trim(),
     },
-    p_items: items.map((item) => ({
-      ...(item.isCombo && item.comboId ? { combo_id: item.comboId } : { product_id: item.productId }),
-      quantity: item.quantity,
-      ...(item.estimatedWeight !== undefined && { estimated_weight_kg: item.estimatedWeight }),
-      ...(item.isCombo && item.comboItems ? {
-        combo_selections: item.comboItems
-          .filter((part) => part.choiceGroupKey && part.comboItemId)
-          .map((part) => ({ choice_group_key: part.choiceGroupKey!, combo_item_id: part.comboItemId! })),
-      } : {}),
-    })),
+    p_items: canonicalCheckoutItems(items),
     p_preparation_answers: preparationAnswerPayload(input.preparationTargets, input.preparationAnswers),
   };
 }

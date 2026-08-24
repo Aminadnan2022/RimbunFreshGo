@@ -7,6 +7,7 @@ const migration = read('supabase/migrations/20261020000000_combo_customer_choice
 const admin = read('src/pages/AdminComboFormPage.tsx');
 const detail = read('src/pages/ComboDetailPage.tsx');
 const checkout = read('src/lib/canonicalCheckout.ts');
+const checkoutItems = read('src/lib/canonicalCheckoutItems.ts');
 const preparation = read('src/lib/checkoutPreparation.ts');
 const failures = [];
 
@@ -20,7 +21,7 @@ for (const token of ['Item Type', 'Fixed Item', 'Customer Choice', 'Choice Label
   if (!admin.includes(token)) failures.push(`missing admin UX: ${token}`);
 }
 for (const token of ['type="radio"', 'Choose 1', 'Please choose one option from every Customer Choice', 'chosenItems']) if (!detail.includes(token)) failures.push(`missing customer UX: ${token}`);
-if (!checkout.includes('combo_selections') || !checkout.includes('combo_item_id')) failures.push('checkout does not send canonical selections');
+if (!checkout.includes('canonicalCheckoutItems(items)') || !checkoutItems.includes('combo_selections') || !checkoutItems.includes('combo_item_id')) failures.push('checkout does not send canonical selections');
 if (!preparation.includes('part.componentNumber')) failures.push('preparation does not preserve canonical component numbering');
 
 if (failures.length) {

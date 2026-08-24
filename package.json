@@ -23,6 +23,7 @@
     "test:combo-checkout-preparation": "node scripts/check-combo-checkout-preparation.mjs",
     "test:checkout-review-formatting": "node --experimental-strip-types e2e/verify.checkout-review-formatting.ts",
     "test:checkout-payment-preview": "node --experimental-strip-types scripts/check-checkout-payment-preview.mjs",
+    "test:checkout-customer-choice-staging": "node --experimental-strip-types scripts/check-checkout-customer-choice-staging.mjs",
     "test:phase4b1-place-order": "node scripts/check-phase4b1-place-sales-order.mjs",
     "test:checkout-idempotency": "node scripts/check-place-sales-order-idempotency.mjs",
     "test:phase4b2-projection-guard": "node scripts/check-phase4b2-projection-guard.mjs",
