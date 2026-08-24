@@ -2272,6 +2272,8 @@
     "errors": {
       "load": "Gagal memuatkan data sejarah.",
       "save": "Gagal menyimpan rekod.",
+      "duplicateDate": "Rekod untuk tarikh ini sudah wujud. Edit rekod sedia ada atau pilih tarikh lain.",
+      "invalidValues": "Masukkan bilangan pesanan bulat yang tidak negatif dan amaun yang sah. Hasil, kos pembekal dan pendapatan penghantaran tidak boleh negatif.",
       "delete": "Gagal memadam rekod.",
       "dateRequired": "Tarikh perniagaan diperlukan."
     }

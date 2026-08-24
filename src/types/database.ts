@@ -2928,6 +2928,35 @@ export type Database = {
       }
     }
     Functions: {
+      admin_create_historical_business_daily: {
+        Args: {
+          p_business_date: string
+          p_delivery_income_amount: number
+          p_gross_profit_amount: number
+          p_notes?: string | null
+          p_order_count: number
+          p_revenue_amount: number
+          p_supplier_cost_amount: number
+        }
+        Returns: number
+      }
+      admin_delete_historical_business_daily: {
+        Args: { p_id: number }
+        Returns: undefined
+      }
+      admin_update_historical_business_daily: {
+        Args: {
+          p_business_date: string
+          p_delivery_income_amount: number
+          p_gross_profit_amount: number
+          p_id: number
+          p_notes?: string | null
+          p_order_count: number
+          p_revenue_amount: number
+          p_supplier_cost_amount: number
+        }
+        Returns: undefined
+      }
       _line_cost: { Args: { item: Json }; Returns: number }
       _line_margin: { Args: { item: Json }; Returns: number }
       _line_profit: { Args: { item: Json }; Returns: number }

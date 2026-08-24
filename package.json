@@ -28,6 +28,8 @@
     "test:rider-delivery-proof-autoadvance": "node scripts/check-rider-delivery-proof-autoadvance.mjs",
     "test:admin-canonical-order-history": "node scripts/check-admin-canonical-order-history.mjs",
     "test:admin-report-navigation": "node scripts/check-admin-report-navigation.mjs",
+    "test:admin-historical-data": "node scripts/check-admin-historical-data.mjs",
+    "test:admin-historical-data:rpc": "node --experimental-strip-types e2e/verify.historical-data-admin-rpc.ts",
     "test:supplier-price-repair": "node scripts/check-supplier-price-repair.mjs",
     "test:e2e": "node --experimental-strip-types e2e/run-all.ts",
     "test:e2e:playwright": "playwright test",

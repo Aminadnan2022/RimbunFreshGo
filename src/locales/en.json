@@ -2272,6 +2272,8 @@
     "errors": {
       "load": "Failed to load historical data.",
       "save": "Failed to save the entry.",
+      "duplicateDate": "An entry already exists for this date. Edit the existing entry or choose another date.",
+      "invalidValues": "Enter a whole, non-negative order count and valid amounts. Revenue, supplier cost, and delivery income cannot be negative.",
       "delete": "Failed to delete the entry.",
       "dateRequired": "A business date is required."
     }

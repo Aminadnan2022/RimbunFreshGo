@@ -12,6 +12,7 @@ import {
   createHistoricalBusinessDaily,
   updateHistoricalBusinessDaily,
   deleteHistoricalBusinessDaily,
+  HistoricalBusinessDailyError,
   type HistoricalBusinessDaily,
   type HistoricalBusinessDailyInput,
 } from '../data/historicalBusinessDaily';
@@ -68,6 +69,14 @@ function draftFromRow(r: HistoricalBusinessDaily): Draft {
     gross_profit_amount: String(r.gross_profit_amount),
     notes: r.notes ?? '',
   };
+}
+
+function mutationErrorMessage(err: unknown, t: (key: string) => string): string {
+  if (err instanceof HistoricalBusinessDailyError) {
+    if (err.code === '23505') return t('historicalData.errors.duplicateDate');
+    if (err.code === '23514' || err.code === '22003' || err.code === '22007') return t('historicalData.errors.invalidValues');
+  }
+  return err instanceof Error ? err.message : t('historicalData.errors.save');
 }
 
 const money = (v: number) => `RM${formatCurrency(v)}`;
@@ -138,6 +147,15 @@ export default function AdminHistoricalDataPage() {
       setTimeout(() => setStatus('idle'), 3000);
       return;
     }
+    const numericValues = [input.order_count, input.revenue_amount, input.supplier_cost_amount,
+      input.delivery_income_amount, input.gross_profit_amount];
+    if (!numericValues.every(Number.isFinite) || !Number.isInteger(input.order_count)
+      || input.order_count < 0 || numericValues.slice(1, 4).some((value) => value < 0)) {
+      setStatus('error');
+      setStatusMsg(t('historicalData.errors.invalidValues'));
+      setTimeout(() => setStatus('idle'), 4000);
+      return;
+    }
     setSaving(true);
     try {
       if (editing) {
@@ -151,7 +169,7 @@ export default function AdminHistoricalDataPage() {
       await load();
     } catch (err) {
       setStatus('error');
-      setStatusMsg(err instanceof Error ? err.message : t('historicalData.errors.save'));
+      setStatusMsg(mutationErrorMessage(err, t));
       setTimeout(() => setStatus('idle'), 4000);
     } finally {
       setSaving(false);
