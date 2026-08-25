@@ -4,13 +4,14 @@ import { Link, Navigate } from 'react-router-dom';
 import { User, Mail, Lock, LogOut, Eye, EyeOff, CheckCircle2, AlertCircle, Calendar, ShieldCheck, Package, ChevronRight } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
+import { getUserDisplayName } from '../lib/authProfile';
 
 export default function ProfilePage() {
   const { user, signOut } = useAuth();
 
   if (!user) return <Navigate to="/" replace />;
 
-  const displayName: string = user.user_metadata?.full_name ?? '';
+  const displayName = getUserDisplayName(user);
   const email: string = user.email ?? '';
   const initial: string = (displayName || email).charAt(0).toUpperCase();
   const memberSince: string = new Date(user.created_at).toLocaleDateString('en-MY', {

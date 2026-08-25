@@ -2,12 +2,17 @@ import { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { hasCurrentPrivacyConsent } from '../lib/privacyConsent';
 
 export default function AuthRedirectPage() {
   const { loading, isAdmin, isSupplier, isRider, role } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const returnTo = (location.state as { returnTo?: string } | null)?.returnTo;
+  const stateReturnTo = (location.state as { returnTo?: string } | null)?.returnTo;
+  const queryReturnTo = new URLSearchParams(location.search).get('returnTo');
+  const returnTo = [stateReturnTo, queryReturnTo].find((target): target is string =>
+    typeof target === 'string' && target.startsWith('/') && !target.startsWith('//'),
+  );
 
   useEffect(() => {
     if (loading || role === null) return;
@@ -18,7 +23,12 @@ export default function AuthRedirectPage() {
     } else if (isRider) {
       navigate('/delivery', { replace: true });
     } else {
-      navigate(returnTo ?? '/', { replace: true });
+      void hasCurrentPrivacyConsent()
+        .then((complete) => {
+          if (complete) navigate(returnTo ?? '/', { replace: true });
+          else navigate('/privacy-consent', { replace: true, state: { returnTo: returnTo ?? '/' } });
+        })
+        .catch(() => navigate('/privacy-consent', { replace: true, state: { returnTo: returnTo ?? '/' } }));
     }
   }, [loading, role, isAdmin, isSupplier, isRider, navigate, returnTo]);
 

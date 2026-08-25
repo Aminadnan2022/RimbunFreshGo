@@ -3338,6 +3338,7 @@ export type Database = {
         }[]
       }
       is_admin: { Args: never; Returns: boolean }
+      has_current_customer_privacy_consent: { Args: never; Returns: boolean }
       is_delivery_rider: { Args: never; Returns: boolean }
       is_supplier: { Args: never; Returns: boolean }
       is_supplier_for_sales_order: {
@@ -3396,6 +3397,15 @@ export type Database = {
       phase4c7_generate_supplier_batch_code: {
         Args: { p_delivery_date: string }
         Returns: string
+      }
+      record_customer_privacy_consents: {
+        Args: {
+          p_marketing_opt_in?: boolean | null
+          p_policy_version?: string
+          p_privacy_notice_accepted: boolean
+          p_source?: string
+        }
+        Returns: undefined
       }
       place_sales_order: {
         Args: {

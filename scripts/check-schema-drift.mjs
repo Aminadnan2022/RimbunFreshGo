@@ -19,6 +19,10 @@ const migration = readFileSync(
   resolve(migrationsDir, '20260902000000_add_customer_profile_checkout_fields.sql'),
   'utf8',
 );
+const savedCheckoutPreferencesMigration = readFileSync(
+  resolve(migrationsDir, '20261111000000_customer_saved_checkout_preferences.sql'),
+  'utf8',
+);
 const databaseTypes = readFileSync(databaseTypesPath, 'utf8');
 const checkout = readFileSync(checkoutPath, 'utf8');
 const failures = [];
@@ -34,7 +38,13 @@ for (const column of ['email_address', 'notes']) {
     failures.push(`Database type does not expose customer_profiles.${column}.`);
   }
 }
-if (!checkout.includes(".select('full_name, phone, apartment, house_unit, pickup_location, notes')")) {
+if (!/ADD COLUMN IF NOT EXISTS last_delivery_method text/i.test(savedCheckoutPreferencesMigration)) {
+  failures.push('Saved checkout preferences migration does not add customer_profiles.last_delivery_method.');
+}
+if (!/\blast_delivery_method: string \| null\b/.test(databaseTypes)) {
+  failures.push('Database type does not expose customer_profiles.last_delivery_method.');
+}
+if (!checkout.includes(".select('full_name, phone, apartment, house_unit, pickup_location, last_delivery_method')")) {
   failures.push('Checkout customer_profiles select is not the single valid Supabase select shape.');
 }
 

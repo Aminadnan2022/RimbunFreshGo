@@ -12,14 +12,24 @@ import { isPageEnabled, type PublicPage } from '../../lib/websiteVisibility';
 import LanguageSwitcher from './LanguageSwitcher';
 import BrandLogo from '../branding/BrandLogo';
 import NotificationBell from '../notifications/NotificationBell';
+import { getUserDisplayName, isUnverifiedEmailError } from '../../lib/authProfile';
+
+function authRedirectUrl(returnTo?: string | null): string {
+  const url = new URL('/auth/redirect', window.location.origin);
+  if (returnTo?.startsWith('/') && !returnTo.startsWith('//')) {
+    url.searchParams.set('returnTo', returnTo);
+  }
+  return url.toString();
+}
 
 // ---------------------------------------------------------------------------
 // Sign In Modal
 // ---------------------------------------------------------------------------
-function SignInModal({ onClose, onSwitchToCreate, onSuccess }: {
+function SignInModal({ onClose, onSwitchToCreate, onSuccess, redirectTo }: {
   onClose: () => void;
   onSwitchToCreate: () => void;
   onSuccess: () => void;
+  redirectTo: string;
 }) {
   const [form, setForm] = useState({ email: '', password: '' });
   const [showPassword, setShowPassword] = useState(false);
@@ -37,10 +47,23 @@ function SignInModal({ onClose, onSwitchToCreate, onSuccess }: {
     });
     setLoading(false);
     if (authError) {
-      setError(authError.message);
+      setError(isUnverifiedEmailError(authError) ? t('header.signIn.emailNotVerified') : authError.message);
     } else {
       onClose();
       onSuccess();
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setError(null);
+    setLoading(true);
+    const { error: authError } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo },
+    });
+    if (authError) {
+      setLoading(false);
+      setError(authError.message);
     }
   };
 
@@ -70,6 +93,22 @@ function SignInModal({ onClose, onSwitchToCreate, onSuccess }: {
             </h2>
             <p className="text-sm text-gray-500">{t("header.signIn.subtitle")}</p>
           </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleGoogleSignIn}
+          className="w-full flex items-center justify-center gap-3 rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={loading}
+        >
+          <span className="text-base font-bold text-[#4285F4]" aria-hidden="true">G</span>
+          {t('header.signIn.continueWithGoogle')}
+        </button>
+
+        <div className="flex items-center gap-3 text-xs text-gray-400" aria-hidden="true">
+          <span className="h-px flex-1 bg-gray-200" />
+          {t('header.signIn.orEmail')}
+          <span className="h-px flex-1 bg-gray-200" />
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -154,23 +193,26 @@ function SignInModal({ onClose, onSwitchToCreate, onSuccess }: {
 // ---------------------------------------------------------------------------
 // Create Account Modal
 // ---------------------------------------------------------------------------
-function CreateAccountModal({ onClose, onSwitchToSignIn }: { onClose: () => void; onSwitchToSignIn: () => void }) {
+function CreateAccountModal({ onClose, onSwitchToSignIn, redirectTo }: { onClose: () => void; onSwitchToSignIn: () => void; redirectTo: string }) {
   const [form, setForm] = useState({ name: '', email: '', password: '' });
   const [privacyAccepted, setPrivacyAccepted] = useState(false);
   const [marketingOptIn, setMarketingOptIn] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmationSent, setConfirmationSent] = useState(false);
   const { t } = useLanguage();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setConfirmationSent(false);
     setLoading(true);
     const { error: authError } = await supabase.auth.signUp({
       email: form.email,
       password: form.password,
       options: {
+        emailRedirectTo: redirectTo,
         data: {
           full_name: form.name,
           privacy_notice_accepted: privacyAccepted,
@@ -183,7 +225,20 @@ function CreateAccountModal({ onClose, onSwitchToSignIn }: { onClose: () => void
     if (authError) {
       setError(authError.message);
     } else {
-      onClose();
+      setConfirmationSent(true);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setError(null);
+    setLoading(true);
+    const { error: authError } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo },
+    });
+    if (authError) {
+      setLoading(false);
+      setError(authError.message);
     }
   };
 
@@ -213,6 +268,22 @@ function CreateAccountModal({ onClose, onSwitchToSignIn }: { onClose: () => void
             </h2>
             <p className="text-sm text-gray-500">{t("header.createAccount.subtitle")}</p>
           </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={handleGoogleSignIn}
+          className="w-full flex items-center justify-center gap-3 rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+          disabled={loading || !privacyAccepted}
+        >
+          <span className="text-base font-bold text-[#4285F4]" aria-hidden="true">G</span>
+          {t('header.createAccount.continueWithGoogle')}
+        </button>
+
+        <div className="flex items-center gap-3 text-xs text-gray-400" aria-hidden="true">
+          <span className="h-px flex-1 bg-gray-200" />
+          {t('header.createAccount.orEmail')}
+          <span className="h-px flex-1 bg-gray-200" />
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -309,6 +380,12 @@ function CreateAccountModal({ onClose, onSwitchToSignIn }: { onClose: () => void
             </p>
           )}
 
+          {confirmationSent && (
+            <p className="text-sm text-forest-800 bg-forest-50 border border-forest-100 rounded-xl px-4 py-2.5">
+              {t('header.createAccount.verificationSent')}
+            </p>
+          )}
+
           <button type="submit" className="btn-primary w-full mt-2" disabled={loading || !privacyAccepted}>
             {loading ? t("header.createAccount.creating") : t("header.createAccount.createAccount")}
           </button>
@@ -367,7 +444,7 @@ export default function Header() {
     }
   };
 
-  const displayName: string = user?.user_metadata?.full_name ?? user?.email ?? '';
+  const displayName = getUserDisplayName(user);
   const initial: string = displayName.charAt(0).toUpperCase();
 
   const siteNameParts = (settings.site_name || 'Rimbun FreshGo').split(/\s+/);
@@ -679,12 +756,14 @@ export default function Header() {
             closeSignIn();
             navigate('/auth/redirect', { state: { returnTo: authModalState.returnTo } });
           }}
+          redirectTo={authRedirectUrl(authModalState.returnTo)}
         />
       )}
       {showCreateModal && (
         <CreateAccountModal
           onClose={() => setShowCreateModal(false)}
           onSwitchToSignIn={() => { setShowCreateModal(false); openSignIn(); }}
+          redirectTo={authRedirectUrl()}
         />
       )}
     </header>
