@@ -16,8 +16,9 @@ for (const token of ['choice_group_key', 'choice_group_label', 'price_adjustment
   'source_combo_item_id', 'admin_duplicate_combo_choice_core', 'REVOKE INSERT, UPDATE, DELETE']) {
   if (!migration.includes(token)) failures.push(`missing schema/security/snapshot safeguard: ${token}`);
 }
-for (const token of ['Item Type', 'Fixed Item', 'Customer Choice', 'Choice Label', 'Give 2 or more items the same label',
-  'Customer Choice groups', 'Choose 1 of', 'at least 2 valid options']) {
+for (const token of ['Item Type', 'Fixed Item', 'Customer Choice', 'Choice Label', 'Customer Choice group',
+  'Customer Choice groups', 'Add Customer Choice group', 'Remove group', 'choice_group_key',
+  'Each group needs at least 2 options before saving']) {
   if (!admin.includes(token)) failures.push(`missing admin UX: ${token}`);
 }
 for (const token of ['type="radio"', 'Choose 1', 'Please choose one option from every Customer Choice', 'buildSelectedComboCartItem']) if (!detail.includes(token)) failures.push(`missing customer UX: ${token}`);

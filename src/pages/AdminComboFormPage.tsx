@@ -23,6 +23,11 @@ type FormItem = {
   price_adjustment?: number;
 };
 
+type ChoiceGroup = {
+  key: string;
+  label: string;
+};
+
 function slugify(text: string) {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
@@ -60,6 +65,7 @@ export default function AdminComboFormPage() {
   });
 
   const [items, setItems] = useState<FormItem[]>([]);
+  const [choiceGroups, setChoiceGroups] = useState<ChoiceGroup[]>([]);
 
   useEffect(() => {
     fetchProducts().then((data) => setProducts(data)).catch(() => setProducts([]));
@@ -91,7 +97,7 @@ export default function AdminComboFormPage() {
         featured: c.featured,
         lifecycle_status: c.lifecycle_status as ComboLifecycleStatus,
       });
-      setItems(result.items.map((ci) => ({
+      const nextItems = result.items.map((ci) => ({
         product_id: ci.product_id,
         quantity_value: ci.quantity_value,
         selling_unit: ci.selling_unit,
@@ -102,7 +108,16 @@ export default function AdminComboFormPage() {
         choice_group_key: ci.choice_group_key,
         choice_group_label: ci.choice_group_label,
         price_adjustment: ci.price_adjustment,
-      })));
+      }));
+      setItems(nextItems);
+      setChoiceGroups([...new Map(
+        nextItems
+          .filter((item) => item.choice_group_key)
+          .map((item) => [item.choice_group_key!, {
+            key: item.choice_group_key!,
+            label: item.choice_group_label ?? 'Customer Choice',
+          }]),
+      ).values()]);
     }).finally(() => setLoading(false));
   }, [id]);
 
@@ -138,6 +153,41 @@ export default function AdminComboFormPage() {
     setItems((prev) => prev.map((item, i) => (i === index ? { ...item, ...patch } : item)));
   }
 
+  function makeChoiceGroup(): ChoiceGroup {
+    return {
+      // The key, rather than the displayed name, defines membership. This lets
+      // two independently-required groups intentionally use the same label.
+      key: `choice-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      label: 'New Customer Choice',
+    };
+  }
+
+  function addChoiceGroup() {
+    const group = makeChoiceGroup();
+    setChoiceGroups((current) => [...current, group]);
+  }
+
+  function assignNewChoiceGroup(index: number) {
+    const group = makeChoiceGroup();
+    setChoiceGroups((current) => [...current, group]);
+    updateItem(index, {
+      choice_group_key: group.key,
+      choice_group_label: group.label,
+    });
+  }
+
+  function renameChoiceGroup(key: string, label: string) {
+    setChoiceGroups((current) => current.map((group) => group.key === key ? { ...group, label } : group));
+    setItems((current) => current.map((item) => item.choice_group_key === key ? { ...item, choice_group_label: label } : item));
+  }
+
+  function removeChoiceGroup(key: string) {
+    setChoiceGroups((current) => current.filter((group) => group.key !== key));
+    setItems((current) => current.map((item) => item.choice_group_key === key
+      ? { ...item, choice_group_key: undefined, choice_group_label: undefined, price_adjustment: 0 }
+      : item));
+  }
+
   function getSelectedProductIds() {
     return new Set(items.map((i) => i.product_id));
   }
@@ -149,12 +199,10 @@ export default function AdminComboFormPage() {
     }))
     .filter((s) => s.product);
 
-  const choiceGroupSummary = [...selectedProducts.reduce((groups, item) => {
-    if (!item.choice_group_key) return groups;
-    const label = item.choice_group_label?.trim() || 'Unlabelled choice';
-    groups.set(label, (groups.get(label) ?? 0) + 1);
-    return groups;
-  }, new Map<string, number>())];
+  const choiceGroupSummary = choiceGroups.map((group) => ({
+    ...group,
+    optionCount: selectedProducts.filter((item) => item.choice_group_key === group.key).length,
+  }));
 
   function resolveSellingUnit(item: typeof selectedProducts[number]): string {
     const product = item.product!;
@@ -170,7 +218,7 @@ export default function AdminComboFormPage() {
   }, 0);
   const choiceValues = new Map<string, number[]>();
   selectedProducts.filter((item) => item.choice_group_key).forEach((s) => {
-    const key = slugify(s.choice_group_label ?? '');
+    const key = s.choice_group_key!;
     const value = computeComboItemSubtotal(s.product!, s.quantity_value, resolveSellingUnit(s));
     choiceValues.set(key, [...(choiceValues.get(key) ?? []), value]);
   });
@@ -224,15 +272,10 @@ export default function AdminComboFormPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.name.trim()) { alert('Name is required.'); return; }
-    const groups = new Map<string, FormItem[]>();
-    items.forEach((item) => {
-      if (!item.choice_group_key) return;
-      const groupKey = slugify(item.choice_group_label ?? '');
-      groups.set(groupKey, [...(groups.get(groupKey) ?? []), item]);
-    });
-    for (const options of groups.values()) {
-      if (options.length < 2 || options.some((option) => !option.product_id || !option.choice_group_label?.trim())) {
-        alert('Each Customer Choice needs a label and at least 2 valid options.');
+    for (const group of choiceGroups) {
+      const options = items.filter((item) => item.choice_group_key === group.key);
+      if (!group.label.trim() || options.length < 2 || options.some((option) => !option.product_id)) {
+        alert('Each Customer Choice needs a name and at least 2 valid options.');
         return;
       }
     }
@@ -270,8 +313,10 @@ export default function AdminComboFormPage() {
         sort_order: i,
         custom_label: item.custom_label || undefined,
         unit: item.unit || undefined,
-        choice_group_key: item.choice_group_key ? `choice-${slugify(item.choice_group_label ?? '')}` : undefined,
-        choice_group_label: item.choice_group_label || undefined,
+        choice_group_key: item.choice_group_key || undefined,
+        choice_group_label: item.choice_group_key
+          ? choiceGroups.find((group) => group.key === item.choice_group_key)?.label.trim() || undefined
+          : undefined,
         price_adjustment: item.price_adjustment ?? 0,
       })),
     };
@@ -564,14 +609,55 @@ export default function AdminComboFormPage() {
           <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
             <p className="text-sm font-semibold text-emerald-900">Customer Choice groups</p>
             <div className="mt-2 flex flex-wrap gap-2">
-              {choiceGroupSummary.map(([label, optionCount]) => (
-                <span key={label} className="rounded-full bg-white px-3 py-1 text-xs font-medium text-emerald-800 ring-1 ring-emerald-200">
-                  {label} · Choose 1 of {optionCount}
+              {choiceGroupSummary.map((group) => (
+                <span key={group.key} className="rounded-full bg-white px-3 py-1 text-xs font-medium text-emerald-800 ring-1 ring-emerald-200">
+                  {group.label || 'Unlabelled choice'} · Choose 1 of {group.optionCount}
                 </span>
               ))}
             </div>
           </div>
         )}
+
+        <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-gray-900">Customer Choice groups</p>
+              <p className="mt-1 text-xs text-gray-500">Each group requires customers to choose exactly one option.</p>
+            </div>
+            <button
+              type="button"
+              onClick={addChoiceGroup}
+              className="rounded-lg border border-forest-600 bg-white px-3 py-2 text-sm font-medium text-forest-700 hover:bg-forest-50"
+            >
+              Add Customer Choice group
+            </button>
+          </div>
+          {choiceGroups.length > 0 && (
+            <div className="mt-4 space-y-3">
+              {choiceGroupSummary.map((group) => (
+                <div key={group.key} className="flex flex-wrap items-end gap-3 rounded-lg border border-gray-200 bg-white p-3">
+                  <label className="min-w-[14rem] flex-1 text-sm font-medium text-gray-700">
+                    Choice Label
+                    <input
+                      value={group.label}
+                      onChange={(e) => renameChoiceGroup(group.key, e.target.value)}
+                      placeholder="e.g. Pilih ikan anda"
+                      className="mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-forest-500 focus:outline-none focus:ring-2 focus:ring-forest-100"
+                    />
+                  </label>
+                  <p className="pb-2 text-xs text-gray-500">{group.optionCount} option{group.optionCount === 1 ? '' : 's'} · Choose 1</p>
+                  <button
+                    type="button"
+                    onClick={() => removeChoiceGroup(group.key)}
+                    className="rounded-lg px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50"
+                  >
+                    Remove group
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* Product Search */}
         <div>
@@ -626,16 +712,6 @@ export default function AdminComboFormPage() {
               const subtotal = computeComboItemSubtotal(product, item.quantity_value, su);
               const weightOptions = getWeightOptions();
 
-              console.log('combo-item-product', {
-                id: product.id,
-                name: product.name,
-                category: product.category,
-                orderingMode: product.orderingMode,
-                selling_unit: product.selling_unit,
-                raw: (product as unknown as Record<string, unknown>).ordering_mode,
-                getSellingMode: mode,
-              });
-
               function setMode(next: 'whole' | 'weight') {
                 if (next === 'weight') {
                   updateItem(index, {
@@ -689,9 +765,9 @@ export default function AdminComboFormPage() {
                             key={type}
                             type="button"
                             aria-pressed={selected}
-                            onClick={() => updateItem(index, type === 'choice'
-                              ? { choice_group_key: item.choice_group_key || `choice-${Date.now()}`, choice_group_label: item.choice_group_label || '' }
-                              : { choice_group_key: undefined, choice_group_label: undefined, price_adjustment: 0 })}
+                            onClick={() => type === 'choice'
+                              ? (item.choice_group_key ? undefined : assignNewChoiceGroup(index))
+                              : updateItem(index, { choice_group_key: undefined, choice_group_label: undefined, price_adjustment: 0 })}
                             className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${selected
                               ? 'border-forest-600 bg-forest-700 text-white shadow-sm'
                               : 'border-gray-200 bg-white text-gray-700 hover:border-forest-300 hover:bg-forest-50'}`}
@@ -703,15 +779,19 @@ export default function AdminComboFormPage() {
                     </div>
                     {item.choice_group_key && (
                       <div className="mt-3">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Choice Label</label>
-                        <input
-                          value={item.choice_group_label ?? ''}
-                          onChange={(e) => updateItem(index, { choice_group_label: e.target.value })}
-                          placeholder="e.g. Pilih ikan anda"
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Customer Choice group</label>
+                        <select
+                          value={item.choice_group_key}
+                          onChange={(e) => updateItem(index, {
+                            choice_group_key: e.target.value,
+                            choice_group_label: choiceGroups.find((group) => group.key === e.target.value)?.label ?? '',
+                          })}
                           className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-forest-500 focus:outline-none focus:ring-2 focus:ring-forest-100"
-                        />
+                        >
+                          {choiceGroups.map((group) => <option key={group.key} value={group.key}>{group.label || 'Unlabelled choice'}</option>)}
+                        </select>
                         <p className="mt-1.5 text-xs text-gray-500">
-                          Give 2 or more items the same label to form one <strong>Choose 1</strong> group for customers.
+                          Move options between groups here. Each group needs at least 2 options before saving.
                         </p>
                       </div>
                     )}
