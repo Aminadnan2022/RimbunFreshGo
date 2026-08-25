@@ -1,0 +1,13 @@
+import { readFile } from 'node:fs/promises';
+const read = (path) => readFile(path, 'utf8');
+const [migration, worker, client, sender, control, envExample, packageJson] = await Promise.all([read('supabase/migrations/20261113000000_web_push_foundation.sql'), read('public/sw.js'), read('src/pwa/webPush.ts'), read('supabase/functions/web-push-dispatch/index.ts'), read('src/components/notifications/PushNotificationControl.tsx'), read('.env.example'), read('package.json')]);
+const failures = [];
+for (const marker of ['CREATE TABLE public.push_subscriptions', 'p256dh text NOT NULL', 'auth text NOT NULL', 'disabled_at timestamptz', 'ENABLE ROW LEVEL SECURITY', 'push_subscriptions_owner_select', 'upsert_own_push_subscription', 'CREATE TABLE public.web_push_delivery_jobs', 'CREATE TABLE public.web_push_delivery_attempts', 'trg_notifications_enqueue_web_push', 'claim_web_push_delivery_jobs', 'FOR UPDATE SKIP LOCKED']) if (!migration.includes(marker)) failures.push(`Migration missing ${marker}.`);
+for (const marker of ["self.addEventListener('push'", "self.addEventListener('notificationclick'", 'safeActionRoute', 'notificationId']) if (!worker.includes(marker)) failures.push(`Service worker missing ${marker}.`);
+for (const marker of ['Notification.requestPermission()', 'PushManager', 'applicationServerKey', "rpc('upsert_own_push_subscription'", 'disableWebPush']) if (!client.includes(marker)) failures.push(`Client subscription flow missing ${marker}.`);
+if (client.includes('VITE_WEB_PUSH_VAPID_PRIVATE_KEY') || envExample.includes('VITE_WEB_PUSH_VAPID_PRIVATE_KEY')) failures.push('A private VAPID key must never be a VITE variable.');
+for (const marker of ['WEB_PUSH_VAPID_PRIVATE_KEY', 'WEB_PUSH_DISPATCH_SECRET', 'dispatchSecretMatches', 'status === 404 || status === 410', 'transient_failure', "from(\"web_push_delivery_attempts\")", "from(\"push_subscriptions\").update", "from(\"web_push_delivery_jobs\").update"]) if (!sender.includes(marker)) failures.push(`Sender missing ${marker}.`);
+if (!control.includes('onClick') || !control.includes('enableWebPush')) failures.push('Permission UX must be an explicit user action.');
+if (!JSON.parse(packageJson).scripts['check:web-push']) failures.push('Missing web-push check script.');
+if (failures.length) throw new Error(`Web Push foundation checks failed:\n- ${failures.join('\n- ')}`);
+console.log('Web Push foundation structural checks passed.');

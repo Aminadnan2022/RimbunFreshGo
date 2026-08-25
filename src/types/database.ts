@@ -1079,6 +1079,54 @@ export type Database = {
           },
         ]
       }
+      push_subscriptions: {
+        Row: {
+          auth: string
+          created_at: string
+          disabled_at: string | null
+          endpoint: string
+          failure_count: number
+          id: string
+          last_failure_at: string | null
+          last_failure_reason: string | null
+          last_seen_at: string
+          last_success_at: string | null
+          p256dh: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          auth: string
+          created_at?: string
+          disabled_at?: string | null
+          endpoint: string
+          failure_count?: number
+          id?: string
+          last_failure_at?: string | null
+          last_failure_reason?: string | null
+          last_seen_at?: string
+          last_success_at?: string | null
+          p256dh: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          auth?: string
+          created_at?: string
+          disabled_at?: string | null
+          endpoint?: string
+          failure_count?: number
+          id?: string
+          last_failure_at?: string | null
+          last_failure_reason?: string | null
+          last_seen_at?: string
+          last_success_at?: string | null
+          p256dh?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       order_preparation_snapshots: {
         Row: {
           created_at: string
@@ -3027,11 +3075,19 @@ export type Database = {
       }
     }
     Functions: {
+      disable_own_push_subscription: {
+        Args: { p_endpoint: string }
+        Returns: undefined
+      }
       _line_cost: { Args: { item: Json }; Returns: number }
       _line_margin: { Args: { item: Json }; Returns: number }
       _line_profit: { Args: { item: Json }; Returns: number }
       _line_qty: { Args: { item: Json }; Returns: number }
       _line_selling: { Args: { item: Json }; Returns: number }
+      upsert_own_push_subscription: {
+        Args: { p_auth: string; p_endpoint: string; p_p256dh: string }
+        Returns: string
+      }
       _pricing_set_selling: {
         Args: {
           p_effective_at: string

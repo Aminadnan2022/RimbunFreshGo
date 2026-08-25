@@ -13,12 +13,21 @@ stored in this repository.
    `https://your-live-domain.example`.
 5. Add these exact redirect URLs under **Redirect URLs**:
    - `http://localhost:5173/auth/redirect`
-   - `https://your-live-domain.example/auth/redirect`
+   - `https://<your-cloudflare-pages-domain>/auth/redirect`
 6. Before launch, configure a production mail sender at **Authentication →
    Email Templates / SMTP** so verification messages are reliably delivered.
    Keep the confirmation email link as `{{ .ConfirmationURL }}`. If the
    template was customised to build a link from `{{ .SiteURL }}`, update it to
    use `{{ .RedirectTo }}` so the app's `/auth/redirect` route is retained.
+
+For the initial Cloudflare Pages deployment, replace `<your-cloudflare-pages-domain>`
+with the exact HTTPS URL shown by Pages (for example,
+`https://freshgo.pages.dev`). Keep the localhost redirect URL for development.
+Set Supabase **Site URL** to this production Cloudflare Pages URL. In Google
+Cloud Console, add that same production URL (without `/auth/redirect`) under
+**Authorized JavaScript origins**, while retaining `http://localhost:5173`.
+The Google **Authorized redirect URI** remains Supabase's callback URL; do not
+replace it with a Cloudflare Pages URL.
 
 Replace `your-live-domain.example` with the actual production domain. Add an
 additional `/auth/redirect` URL for every preview or staging domain used by the

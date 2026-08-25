@@ -21,7 +21,10 @@ for (const [key, expected] of Object.entries({ name: 'FreshGo', short_name: 'Fre
 if (!manifest.icons?.some((icon) => icon.sizes === '192x192') || !manifest.icons?.some((icon) => icon.sizes === '512x512' && icon.purpose === 'maskable')) failures.push('Manifest must provide 192px and maskable 512px icons.');
 for (const marker of ['rel="manifest"', 'apple-touch-icon', 'theme-color', 'viewport-fit=cover']) if (!indexHtml.includes(marker)) failures.push(`index.html missing ${marker}.`);
 for (const marker of ["const OFFLINE_URL = '/offline.html'", "request.mode !== 'navigate'", 'fetch(request).catch(() => caches.match(OFFLINE_URL))']) if (!serviceWorker.includes(marker)) failures.push(`Service worker missing safe offline marker: ${marker}`);
-for (const unsafePattern of ['cache.put(', 'caches.match(request)', 'supabase.co']) if (serviceWorker.includes(unsafePattern)) failures.push(`Service worker must not cache dynamic or Supabase data (${unsafePattern}).`);
+// Cache Storage is used only for the static shell and a fixed-key, metadata-only
+// push diagnostic record. It must never cache requests or Supabase responses.
+for (const unsafePattern of ['caches.match(request)', 'supabase.co']) if (serviceWorker.includes(unsafePattern)) failures.push(`Service worker must not cache dynamic or Supabase data (${unsafePattern}).`);
+if (!serviceWorker.includes("cache.put(PUSH_DIAGNOSTIC_KEY")) failures.push('Service worker diagnostics must use only the fixed metadata cache key.');
 if (!registration.includes("register('/sw.js', { scope: '/' })")) failures.push('Service worker registration must use the app root scope.');
 for (const marker of ['beforeinstallprompt', 'isIosSafari', 'DISMISS_FOR_MS', 'Add to Home Screen']) if (!installPrompt.includes(marker)) failures.push(`Install UX missing ${marker}.`);
 if (failures.length) throw new Error(`PWA installability checks failed:\n- ${failures.join('\n- ')}`);
