@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Navigate, Link } from 'react-router-dom';
-import { ArrowLeft, Save, Loader2, CheckCircle2, AlertCircle, Info, Plus, TrendingUp } from 'lucide-react';
-import { getPrepOptionsByCategory, getPrepLabel } from '../lib/preparationOptions';
+import { ArrowLeft, Save, Loader2, CheckCircle2, AlertCircle, Plus, TrendingUp } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { supabase } from '../lib/supabase';
@@ -19,7 +18,7 @@ import type {
   SupplierPriceHistoryRow,
   SellingPriceHistoryRow,
 } from '../data/products';
-import type { Category, PreparationOption, SellingUnit } from '../types';
+import type { Category, SellingUnit } from '../types';
 import MultiImageUploader from '../components/ui/MultiImageUploader';
 
 const CATEGORIES: { value: Category; labelKey: string }[] = [
@@ -67,9 +66,7 @@ type FormData = {
   image: string;
   images: string[];
   freshness: 'available' | 'limited' | 'sold-out';
-  preparation_options: PreparationOption[];
   vendor_id: string;
-  vendor_name: string;
   tags: string;
   is_popular: boolean;
   ordering_mode: string;
@@ -98,9 +95,7 @@ const EMPTY_FORM: FormData = {
   image: '',
   images: [],
   freshness: 'available',
-  preparation_options: getPrepOptionsByCategory('fish'),
   vendor_id: '',
-  vendor_name: '',
   tags: '',
   is_popular: false,
   ordering_mode: 'weight_only',
@@ -243,9 +238,7 @@ export default function AdminProductFormPage() {
           image: product.image,
           images: product.images,
           freshness: product.freshness,
-          preparation_options: getPrepOptionsByCategory(product.category),
           vendor_id: product.vendorId,
-          vendor_name: '',
           tags: product.tags.join(', '),
           is_popular: product.isPopular ?? false,
           ordering_mode: product.orderingMode,
@@ -267,11 +260,6 @@ export default function AdminProductFormPage() {
       }
     })();
   }, [id, isEdit, navigate]);
-
-  // Recompute preparation options whenever category changes
-  useEffect(() => {
-    setForm((prev) => ({ ...prev, preparation_options: getPrepOptionsByCategory(prev.category) }));
-  }, [form.category]);
 
   if (authLoading || loadingProduct) {
     return (
@@ -309,9 +297,10 @@ export default function AdminProductFormPage() {
       image: form.images[0] || '',
       images: form.images,
       freshness: form.freshness,
-      preparation_options: getPrepOptionsByCategory(form.category),
       vendor_id: form.vendor_id.trim(),
-      vendor_name: form.vendor_name.trim(),
+      // Legacy column retained for database compatibility. The live supplier
+      // and preparation flows no longer consume this free-text display name.
+      vendor_name: form.vendor_id.trim(),
       tags: form.tags.split(',').map((s) => s.trim()).filter(Boolean),
       is_popular: form.is_popular,
       ordering_mode: form.ordering_mode,
@@ -728,31 +717,6 @@ export default function AdminProductFormPage() {
           />
         </section>
 
-        {/* Preparation options — auto-determined by category */}
-        <section className="bg-white rounded-2xl border border-cream-200 shadow-soft p-6">
-          <h2 className="font-semibold text-forest-900 text-base mb-1">{t("adminProducts.form.preparation")}</h2>
-          <p className="text-xs text-gray-400 mb-4">
-            {t("adminProducts.form.preparationHelper")}
-          </p>
-          {form.preparation_options.length > 0 ? (
-            <div className="flex flex-wrap gap-2">
-              {form.preparation_options.map((opt) => (
-                <span
-                  key={opt}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium bg-forest-700 text-white border border-forest-700"
-                >
-                  {getPrepLabel(opt)}
-                </span>
-              ))}
-            </div>
-          ) : (
-            <div className="flex items-start gap-3 p-3 bg-cream-50 border border-cream-200 rounded-xl text-sm text-gray-500">
-              <Info size={16} className="flex-shrink-0 mt-0.5 text-gray-400" />
-              <p>{t("adminProducts.form.noPrepOptions")}</p>
-            </div>
-          )}
-        </section>
-
         {/* Vendor & metadata */}
         <section className="bg-white rounded-2xl border border-cream-200 shadow-soft p-6">
           <h2 className="font-semibold text-forest-900 text-base mb-4">{t("adminProducts.form.vendor")}</h2>
@@ -760,10 +724,6 @@ export default function AdminProductFormPage() {
             <div>
               <label htmlFor="vendor_id" className="block text-sm font-medium text-gray-700 mb-1.5">{t("adminProducts.form.vendorId")}</label>
               <input id="vendor_id" type="text" required value={form.vendor_id} onChange={(e) => set('vendor_id', e.target.value)} className="input-field" placeholder={t("adminProducts.form.vendorIdPlaceholder")} />
-            </div>
-            <div>
-              <label htmlFor="vendor_name" className="block text-sm font-medium text-gray-700 mb-1.5">{t("adminProducts.form.vendorName")}</label>
-              <input id="vendor_name" type="text" required value={form.vendor_name} onChange={(e) => set('vendor_name', e.target.value)} className="input-field" placeholder={t("adminProducts.form.vendorNamePlaceholder")} />
             </div>
             <div>
               <label htmlFor="tags" className="block text-sm font-medium text-gray-700 mb-1.5">{t("adminProducts.form.tags")}</label>

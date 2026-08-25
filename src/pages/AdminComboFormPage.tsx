@@ -97,7 +97,7 @@ export default function AdminComboFormPage() {
         featured: c.featured,
         lifecycle_status: c.lifecycle_status as ComboLifecycleStatus,
       });
-      const nextItems = result.items.map((ci) => ({
+      const nextItems: FormItem[] = result.items.map((ci) => ({
         product_id: ci.product_id,
         quantity_value: ci.quantity_value,
         selling_unit: ci.selling_unit,
