@@ -16,6 +16,13 @@ import { concisePreparationText, conciseReviewLabel, estimatedWholeFishDetails, 
 import { getCheckoutPaymentPreview, isPriceFinalAtCheckout, paymentQrPublicUrl, type CheckoutPaymentPreview } from '../lib/checkoutPayment';
 import type { CustomerDetails, DeliveryDay } from '../types';
 
+const jsonRecord = (value: unknown): Record<string, unknown> =>
+  value !== null && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
+
+const jsonText = (value: unknown): string =>
+  typeof value === 'string' ? value.trim() : '';
 const blank: CustomerDetails = { name: '', phone: '', email: '', apartment: '', houseUnit: '', pickupLocation: '', deliveryPointName: '', deliveryMethod: '', notes: '' };
 const days: Record<string, number> = { sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6 };
 const nextDate = (day: DeliveryDay) => { const d = new Date(); let offset = (days[day.toLowerCase()] ?? 3) - d.getDay(); if (offset < 0) offset += 7; d.setDate(d.getDate() + offset); return d.toLocaleDateString('en-MY', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }); };
@@ -46,7 +53,102 @@ export default function CheckoutPage() {
   const fee = selectedPoint?.delivery_fee ?? 0; const total = subtotal + fee; const input = (e?: string) => `w-full bg-cream-50 border rounded-2xl px-4 py-3 text-sm ${e ? 'border-red-300 bg-red-50' : 'border-cream-300'}`;
   const priceFinalAtCheckout = isPriceFinalAtCheckout(cart.items);
   useEffect(() => { fetchActiveDeliveryPoints().then(setPoints).catch(() => {}); }, []);
-  useEffect(() => { if (!user) return; setDetails((x) => ({ ...x, email: user.email ?? '' })); supabase.from('customer_profiles').select('full_name, phone, apartment, house_unit, pickup_location, notes').eq('id', user.id).maybeSingle().then(({ data }) => { if (data) setDetails((x) => ({ ...x, name: data.full_name || x.name, phone: data.phone || x.phone, apartment: data.apartment || x.apartment, houseUnit: data.house_unit || x.houseUnit, pickupLocation: data.pickup_location || x.pickupLocation, deliveryPointName: data.pickup_location || x.deliveryPointName, notes: data.notes || x.notes })); }); }, [user]);
+useEffect(() => {
+  if (!user) return;
+
+  let cancelled = false;
+
+  const registrationName =
+    typeof user.user_metadata?.full_name === 'string'
+      ? user.user_metadata.full_name.trim()
+      : '';
+
+  const loadSavedCheckoutDetails = async () => {
+    setDetails((current) => ({
+      ...current,
+      email: user.email ?? '',
+      name: current.name || registrationName,
+    }));
+
+    const [{ data: profile }, { data: latestOrder }] = await Promise.all([
+      supabase
+        .from('customer_profiles')
+        .select('full_name, phone, apartment, house_unit, pickup_location, last_delivery_method')
+        .eq('id', user.id)
+        .maybeSingle(),
+
+      supabase
+        .from('sales_orders')
+        .select('customer_snapshot, delivery_snapshot')
+        .eq('customer_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ]);
+
+    if (cancelled) return;
+
+    const customerSnapshot = jsonRecord(latestOrder?.customer_snapshot);
+    const deliverySnapshot = jsonRecord(latestOrder?.delivery_snapshot);
+
+    const previousName = jsonText(customerSnapshot.name);
+    const previousPhone = jsonText(customerSnapshot.phone);
+    const previousApartment = jsonText(deliverySnapshot.apartment);
+    const previousHouseUnit = jsonText(deliverySnapshot.house_unit);
+    const previousDeliveryPoint =
+      jsonText(deliverySnapshot.delivery_point_name) ||
+      jsonText(deliverySnapshot.pickup_location);
+
+    const previousDeliveryMethod = jsonText(deliverySnapshot.method_code);
+
+    const savedDeliveryMethod =
+      profile?.last_delivery_method ||
+      previousDeliveryMethod;
+
+    if (
+      savedDeliveryMethod === 'normal_bulk' ||
+      savedDeliveryMethod === 'instant_customer_lalamove'
+    ) {
+      setDeliveryMethod(savedDeliveryMethod);
+    }
+
+    setDetails((current) => ({
+      ...current,
+      name:
+        profile?.full_name ||
+        previousName ||
+        registrationName ||
+        current.name,
+      phone:
+        profile?.phone ||
+        previousPhone ||
+        current.phone,
+      apartment:
+        profile?.apartment ||
+        previousApartment ||
+        current.apartment,
+      houseUnit:
+        profile?.house_unit ||
+        previousHouseUnit ||
+        current.houseUnit,
+      pickupLocation:
+        profile?.pickup_location ||
+        previousDeliveryPoint ||
+        current.pickupLocation,
+      deliveryPointName:
+        profile?.pickup_location ||
+        previousDeliveryPoint ||
+        current.deliveryPointName,
+    }));
+  };
+
+  void loadSavedCheckoutDetails();
+
+  return () => {
+    cancelled = true;
+  };
+}, [user]);
+
 useEffect(() => {
   let mounted = true;
 
@@ -145,7 +247,24 @@ useEffect(() => {
       const request = buildCanonicalPlaceOrderRequest({ idempotencyKey, customer: details, items: cart.items, deliveryMethod, deliveryDay, instantDate, instantTime, preparationTargets: targets, preparationAnswers: answers });
       if (priceFinalAtCheckout && paymentPreview) { request.p_expected_final_total = total; request.p_expected_payment_configuration_version_id = paymentPreview.configurationVersionId; }
       const order = await placeCanonicalOrder(request); checkoutAttemptKey.current = null;
-      await supabase.from('customer_profiles').upsert({ id: user!.id, email_address: user!.email, full_name: details.name, phone: details.phone, apartment: details.apartment, house_unit: details.houseUnit, pickup_location: details.pickupLocation, notes: details.notes || null, updated_at: new Date().toISOString() }, { onConflict: 'id' });
+const { error: profileSaveError } = await supabase
+  .from('customer_profiles')
+  .upsert({
+    id: user!.id,
+    email_address: user!.email,
+    full_name: details.name,
+    phone: details.phone,
+    apartment: details.apartment,
+    house_unit: details.houseUnit,
+    pickup_location: details.pickupLocation,
+    last_delivery_method: deliveryMethod,
+    notes: details.notes || null,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: 'id' });
+
+if (profileSaveError) {
+  console.warn('Unable to save checkout preferences:', profileSaveError);
+}
       placementSucceeded.current = true;
       navigate(`/order/${order.order_number}`, { replace: true });
       clearCart();

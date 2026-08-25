@@ -589,6 +589,7 @@ export type Database = {
           full_name: string
           house_unit: string
           id: string
+          last_delivery_method: string | null
           notes: string | null
           phone: string
           pickup_location: string
@@ -604,6 +605,7 @@ export type Database = {
           full_name?: string
           house_unit?: string
           id: string
+          last_delivery_method?: string | null
           notes?: string | null
           phone?: string
           pickup_location?: string
@@ -619,6 +621,7 @@ export type Database = {
           full_name?: string
           house_unit?: string
           id?: string
+          last_delivery_method?: string | null
           notes?: string | null
           phone?: string
           pickup_location?: string
