@@ -53,6 +53,9 @@
       "showPassword": "Tunjuk kata laluan",
       "creating": "Sedang buat akaun\u2026",
       "createAccount": "Buat Akaun",
+      "privacyAcceptBefore": "Saya telah membaca dan memahami",
+      "privacyAcceptAfter": "serta bersetuju FreshGo memproses data peribadi saya untuk mewujudkan dan mengurus akaun.",
+      "marketingOptIn": "Saya ingin menerima promosi dan kemas kini FreshGo melalui WhatsApp, SMS atau e-mel. Saya boleh berhenti langgan pada bila-bila masa.",
       "hasAccount": "Sudah ada akaun?",
       "signIn": "Daftar Masuk"
     },

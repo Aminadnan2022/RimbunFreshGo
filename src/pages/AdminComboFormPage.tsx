@@ -42,7 +42,12 @@ export default function AdminComboFormPage() {
   const [saving, setSaving] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState('');
-  const [autoPrice, setAutoPrice] = useState(true);
+  // Combo pricing is intentionally manual by default. Item values are a
+  // reference for the admin, not an implicit instruction to overwrite the
+  // advertised combo price while creating or editing a recipe.
+  const [autoPrice, setAutoPrice] = useState(false);
+  const [autoDiscountMode, setAutoDiscountMode] = useState<'percent' | 'amount'>('percent');
+  const [discountAmount, setDiscountAmount] = useState(0);
 
   const [form, setForm] = useState({
     id: '',
@@ -216,27 +221,34 @@ export default function AdminComboFormPage() {
     const p = s.product!;
     return sum + computeComboItemSubtotal(p, s.quantity_value, resolveSellingUnit(s));
   }, 0);
-  const choiceValues = new Map<string, number[]>();
-  selectedProducts.filter((item) => item.choice_group_key).forEach((s) => {
-    const key = s.choice_group_key!;
-    const value = computeComboItemSubtotal(s.product!, s.quantity_value, resolveSellingUnit(s));
-    choiceValues.set(key, [...(choiceValues.get(key) ?? []), value]);
-  });
-  const totalManualValue = fixedValue + [...choiceValues.values()].reduce((sum, values) => sum + Math.max(...values), 0);
+  // The admin's item value is the sum of every configured component. A
+  // customer-choice group is a presentation/selection rule, not a discount:
+  // each listed option must remain visible in the total reference value.
+  const choiceValue = selectedProducts
+    .filter((item) => item.choice_group_key)
+    .reduce((sum, s) => sum + computeComboItemSubtotal(s.product!, s.quantity_value, resolveSellingUnit(s)), 0);
+  const totalManualValue = fixedValue + choiceValue;
 
   // ── Pricing ────────────────────────────────────────────────────────────
   const clampDiscount = (v: number) => Math.min(90, Math.max(0, v));
   const round2 = (v: number) => Math.round(v * 100) / 100;
 
-  // Auto mode: combo price = total × (100 − discount%) / 100, original = total
-  const autoComboPrice = round2((totalManualValue * (100 - clampDiscount(form.discount_percent))) / 100);
+  // Keep the fixed-amount option aligned with the existing 90% discount limit.
+  const clampDiscountAmount = (v: number) => Math.min(totalManualValue * 0.9, Math.max(0, v));
+  const autoDiscountAmount = autoDiscountMode === 'amount'
+    ? clampDiscountAmount(discountAmount)
+    : round2((totalManualValue * clampDiscount(form.discount_percent)) / 100);
+  // Auto mode: combo price = total minus a percentage or a fixed RM amount.
+  const autoComboPrice = round2(Math.max(0, totalManualValue - autoDiscountAmount));
 
   // Manual mode: discount is derived from combo price / original price
   const manualDiscount = form.original_value > 0
     ? clampDiscount(round2((1 - form.price / form.original_value) * 100))
     : 0;
 
-  const effectiveDiscount = autoPrice ? clampDiscount(form.discount_percent) : manualDiscount;
+  const effectiveDiscount = autoPrice
+    ? (totalManualValue > 0 ? clampDiscount(round2((autoDiscountAmount / totalManualValue) * 100)) : 0)
+    : manualDiscount;
   const comboPrice = autoPrice ? autoComboPrice : form.price;
   const originalPrice = autoPrice ? totalManualValue : form.original_value;
   const savings = Math.max(0, originalPrice - comboPrice);
@@ -248,6 +260,10 @@ export default function AdminComboFormPage() {
       const orig = form.original_value > 0 ? form.original_value : totalManualValue;
       setForm((f) => ({ ...f, price: round2((orig * (100 - clampDiscount(value))) / 100) }));
     }
+  }
+
+  function handleDiscountAmountChange(value: number) {
+    setDiscountAmount(clampDiscountAmount(value));
   }
 
   function handleManualPriceChange(value: string) {
@@ -299,7 +315,7 @@ export default function AdminComboFormPage() {
       tagline: form.tagline,
       price: autoPrice ? comboPrice : form.price,
       original_value: autoPrice ? originalPrice : form.original_value,
-      discount_percent: autoPrice ? clampDiscount(form.discount_percent) : manualDiscount,
+      discount_percent: autoPrice ? effectiveDiscount : manualDiscount,
       image: form.image,
       images: form.images.length > 0 ? form.images : undefined,
       servings: form.servings,
@@ -515,18 +531,42 @@ export default function AdminComboFormPage() {
               </div>
               <div className="flex items-center justify-between gap-4">
                 <label className="text-sm text-gray-600 flex items-center gap-2">
-                  Discount (%)
+                  Discount by
+                  <select
+                    value={autoDiscountMode}
+                    onChange={(e) => {
+                      const next = e.target.value as 'percent' | 'amount';
+                      if (next === 'amount') {
+                        setDiscountAmount(round2((totalManualValue * clampDiscount(form.discount_percent)) / 100));
+                      } else if (totalManualValue > 0) {
+                        setForm((f) => ({ ...f, discount_percent: clampDiscount(round2((discountAmount / totalManualValue) * 100)) }));
+                      }
+                      setAutoDiscountMode(next);
+                    }}
+                    className="border rounded-lg px-2 py-1.5 text-sm"
+                    aria-label="Discount type"
+                  >
+                    <option value="percent">Percent (%)</option>
+                    <option value="amount">Amount (RM)</option>
+                  </select>
+                </label>
+                <label className="text-sm text-gray-600 flex items-center gap-2">
+                  {autoDiscountMode === 'amount' ? 'Discount (RM)' : 'Discount (%)'}
                   <input
                     type="number"
                     min={0}
-                    max={90}
-                    step="0.5"
-                    value={form.discount_percent}
-                    onChange={(e) => handleDiscountChange(Number(e.target.value))}
+                    max={autoDiscountMode === 'amount' ? totalManualValue * 0.9 : 90}
+                    step={autoDiscountMode === 'amount' ? '0.01' : '0.5'}
+                    value={autoDiscountMode === 'amount' ? discountAmount : form.discount_percent}
+                    onChange={(e) => autoDiscountMode === 'amount'
+                      ? handleDiscountAmountChange(Number(e.target.value))
+                      : handleDiscountChange(Number(e.target.value))}
                     className="w-20 border rounded-lg px-2 py-1.5 text-sm text-right"
                   />
                 </label>
-                <span className="text-xs text-gray-400">0–90%</span>
+                <span className="text-xs text-gray-400">
+                  {autoDiscountMode === 'amount' ? `0–RM ${formatCurrency(totalManualValue * 0.9)}` : '0–90%'}
+                </span>
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span className="text-gray-600">Calculated Combo Price</span>
@@ -538,7 +578,7 @@ export default function AdminComboFormPage() {
               </div>
               <div className="flex items-center justify-between text-sm">
                 <span className="text-gray-600">Savings</span>
-                <span className="font-semibold text-jade-600">RM {formatCurrency(savings)} ({effectiveDiscount.toFixed(0)}%)</span>
+                <span className="font-semibold text-jade-600">RM {formatCurrency(savings)} ({effectiveDiscount.toFixed(1)}%)</span>
               </div>
             </div>
           </>

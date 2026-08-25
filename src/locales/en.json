@@ -53,6 +53,9 @@
       "showPassword": "Show password",
       "creating": "Creating account\u2026",
       "createAccount": "Create Account",
+      "privacyAcceptBefore": "I have read and understood the",
+      "privacyAcceptAfter": "and agree that FreshGo may process my personal data to create and manage my account.",
+      "marketingOptIn": "I would like to receive FreshGo promotions and updates by WhatsApp, SMS or email. I can unsubscribe at any time.",
       "hasAccount": "Already have an account?",
       "signIn": "Sign in"
     },

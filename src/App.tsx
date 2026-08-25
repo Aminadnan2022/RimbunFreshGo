@@ -37,6 +37,7 @@ import MaintenancePage from './pages/MaintenancePage';
 import FeatureRoute from './components/system/FeatureRoute';
 import FullScreenLoader from './components/system/FullScreenLoader';
 import NotificationsPage from './pages/NotificationsPage';
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 
 function AppRoutes() {
   const { loading, isAdmin, isSupplier, isRider } = useAuth();
@@ -107,6 +108,7 @@ function AppRoutes() {
           } />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/notifications" element={<NotificationsPage />} />
+          <Route path="/privacy" element={<PrivacyPolicyPage />} />
           <Route path="/admin" element={<AdminProductsPage />} />
           <Route path="/admin/products" element={<AdminProductsPage />} />
           <Route path="/admin/reports" element={<BusinessReportsPage />} />

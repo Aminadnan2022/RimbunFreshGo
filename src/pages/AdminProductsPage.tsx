@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- legacy admin rows remain outside generated schema types. */
 import { useState, useEffect, useCallback } from 'react';
 import { Link, Navigate, useSearchParams, useLocation } from 'react-router-dom';
-import { Plus, Pencil, X, AlertTriangle, Package, Loader2, Settings, ShoppingBag, Truck, CheckCircle2, AlertCircle, PenLine, ShieldAlert, Clock, Calendar, Users, ClipboardList, Phone, Gift, Sparkles, Navigation, FileText, Share2, LayoutDashboard, ListOrdered, Boxes } from 'lucide-react';
+import { Plus, Pencil, X, AlertTriangle, Package, Loader2, Settings, ShoppingBag, Truck, CheckCircle2, AlertCircle, PenLine, ShieldAlert, Clock, Calendar, Users, ClipboardList, Phone, Gift, Sparkles, Navigation, FileText, Share2, LayoutDashboard, ListOrdered, Boxes, Images } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { useProducts } from '../hooks/useProducts';
@@ -22,6 +22,7 @@ import WebsiteVisibilityCard from '../components/admin/WebsiteVisibilityCard';
 import FooterSettingsCard from '../components/admin/FooterSettingsCard';
 import GeneralSettingsCard from '../components/admin/settings/GeneralSettingsCard';
 import BrandingSettingsCard from '../components/admin/settings/BrandingSettingsCard';
+import CategoryImagesSettingsCard from '../components/admin/settings/CategoryImagesSettingsCard';
 import NavigationSettingsCard from '../components/admin/settings/NavigationSettingsCard';
 import ContactSettingsCard from '../components/admin/settings/ContactSettingsCard';
 import SocialMediaSettingsCard from '../components/admin/settings/SocialMediaSettingsCard';
@@ -800,6 +801,7 @@ function SettingsTab() {
   const navSections = [
     { id: 'general', icon: Settings, labelKey: 'adminSettings.nav.general' },
     { id: 'branding', icon: Sparkles, labelKey: 'adminSettings.nav.branding' },
+    { id: 'category-images', icon: Images, label: 'Category Images' },
     { id: 'navigation', icon: Navigation, labelKey: 'adminSettings.nav.navigation' },
     { id: 'footer', icon: FileText, labelKey: 'adminSettings.nav.footer' },
     { id: 'contact', icon: Phone, labelKey: 'adminSettings.nav.contact' },
@@ -815,14 +817,14 @@ function SettingsTab() {
       <div className="grid grid-cols-1 lg:grid-cols-[220px_1fr] gap-6">
         <aside className="hidden lg:block">
           <nav className="sticky top-24 space-y-1">
-            {navSections.map(({ id, icon: Icon, labelKey }) => (
+            {navSections.map(({ id, icon: Icon, labelKey, label }) => (
               <a
                 key={id}
                 href={`#settings-${id}`}
                 className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium text-gray-600 hover:text-forest-700 hover:bg-forest-50 transition-all"
               >
                 <Icon size={16} className="text-gray-400" />
-                {t(labelKey)}
+                {label ?? t(labelKey!)}
               </a>
             ))}
           </nav>
@@ -830,6 +832,7 @@ function SettingsTab() {
         <div className="space-y-6 min-w-0">
           <section id="settings-general" className="scroll-mt-28"><GeneralSettingsCard /></section>
           <section id="settings-branding" className="scroll-mt-28"><BrandingSettingsCard /></section>
+          <section id="settings-category-images" className="scroll-mt-28"><CategoryImagesSettingsCard /></section>
           <section id="settings-navigation" className="scroll-mt-28"><NavigationSettingsCard /></section>
           <section id="settings-footer" className="scroll-mt-28"><FooterSettingsCard /></section>
           <section id="settings-contact" className="scroll-mt-28"><ContactSettingsCard /></section>

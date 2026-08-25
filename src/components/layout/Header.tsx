@@ -156,6 +156,8 @@ function SignInModal({ onClose, onSwitchToCreate, onSuccess }: {
 // ---------------------------------------------------------------------------
 function CreateAccountModal({ onClose, onSwitchToSignIn }: { onClose: () => void; onSwitchToSignIn: () => void }) {
   const [form, setForm] = useState({ name: '', email: '', password: '' });
+  const [privacyAccepted, setPrivacyAccepted] = useState(false);
+  const [marketingOptIn, setMarketingOptIn] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -168,7 +170,14 @@ function CreateAccountModal({ onClose, onSwitchToSignIn }: { onClose: () => void
     const { error: authError } = await supabase.auth.signUp({
       email: form.email,
       password: form.password,
-      options: { data: { full_name: form.name } },
+      options: {
+        data: {
+          full_name: form.name,
+          privacy_notice_accepted: privacyAccepted,
+          marketing_opt_in: marketingOptIn,
+          privacy_policy_version: '2026-08-25',
+        },
+      },
     });
     setLoading(false);
     if (authError) {
@@ -267,13 +276,40 @@ function CreateAccountModal({ onClose, onSwitchToSignIn }: { onClose: () => void
             </div>
           </div>
 
+          <label className="flex items-start gap-3 rounded-xl border border-cream-200 bg-cream-50 p-3 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              required
+              checked={privacyAccepted}
+              onChange={(event) => setPrivacyAccepted(event.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-forest-700"
+            />
+            <span>
+              {t('header.createAccount.privacyAcceptBefore')}{' '}
+              <Link to="/privacy" onClick={onClose} className="font-semibold text-forest-700 underline underline-offset-2">
+                {t('footer.privacy')}
+              </Link>
+              {t('header.createAccount.privacyAcceptAfter')}
+            </span>
+          </label>
+
+          <label className="flex items-start gap-3 text-sm text-gray-600">
+            <input
+              type="checkbox"
+              checked={marketingOptIn}
+              onChange={(event) => setMarketingOptIn(event.target.checked)}
+              className="mt-0.5 h-4 w-4 accent-forest-700"
+            />
+            <span>{t('header.createAccount.marketingOptIn')}</span>
+          </label>
+
           {error && (
             <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-2.5">
               {error}
             </p>
           )}
 
-          <button type="submit" className="btn-primary w-full mt-2" disabled={loading}>
+          <button type="submit" className="btn-primary w-full mt-2" disabled={loading || !privacyAccepted}>
             {loading ? t("header.createAccount.creating") : t("header.createAccount.createAccount")}
           </button>
         </form>

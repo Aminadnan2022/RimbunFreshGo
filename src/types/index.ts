@@ -296,6 +296,11 @@ export interface WebsiteSettings {
   site_name: string;
   /** Storage path of the site logo (e.g. `branding/logo.webp`), not a public URL. */
   site_logo: string;
+  /** Storage paths for the Shop by Category images on the homepage. */
+  home_category_chicken_image: string;
+  home_category_fish_image: string;
+  home_category_prawns_image: string;
+  home_category_squid_image: string;
 
   show_shop: boolean;
   show_family_combo: boolean;
@@ -323,6 +328,10 @@ export interface WebsiteSettings {
 export const WEBSITE_SETTINGS_DEFAULTS: WebsiteSettings = {
   site_name: 'Rimbun FreshGo',
   site_logo: '',
+  home_category_chicken_image: '',
+  home_category_fish_image: '',
+  home_category_prawns_image: '',
+  home_category_squid_image: '',
 
   show_shop: true,
   show_family_combo: true,
@@ -364,6 +373,10 @@ export const WEBSITE_BOOLEAN_KEYS: (keyof WebsiteSettings)[] = [
 export const WEBSITE_SETTINGS_KEYS: (keyof WebsiteSettings)[] = [
   'site_name',
   'site_logo',
+  'home_category_chicken_image',
+  'home_category_fish_image',
+  'home_category_prawns_image',
+  'home_category_squid_image',
   ...WEBSITE_BOOLEAN_KEYS,
   'default_product_sort',
   'default_combo_sort',

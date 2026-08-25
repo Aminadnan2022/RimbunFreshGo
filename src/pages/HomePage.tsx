@@ -59,6 +59,12 @@ export default function HomePage() {
   const [combos, setCombos] = useState<ComboWithItems[]>([]);
   const [comboLoading, setComboLoading] = useState(true);
   const popularProducts = products.filter((p) => p.isPopular).slice(0, 4);
+  const categoryImages: Record<string, string> = {
+    chicken: settings.home_category_chicken_image,
+    fish: settings.home_category_fish_image,
+    prawns: settings.home_category_prawns_image,
+    squid: settings.home_category_squid_image,
+  };
 
   useEffect(() => {
     (async () => {
@@ -175,7 +181,7 @@ export default function HomePage() {
               className="relative rounded-3xl overflow-hidden aspect-square group shadow-card hover:shadow-card-hover transition-all duration-300 hover:-translate-y-1"
             >
               <ProductImage
-                src={cat.image}
+                src={categoryImages[cat.id] || cat.image}
                 alt={t("homepage.categories." + cat.id)}
                 className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
               />

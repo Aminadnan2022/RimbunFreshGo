@@ -193,7 +193,7 @@ export default function FooterContent({
           <p>{copyright}</p>
           {(footer.footer_show_privacy || footer.footer_show_terms) && (
             <div className="flex gap-4">
-              {footer.footer_show_privacy && <a href="#" className="hover:text-jade-400 transition-colors">{t('footer.privacy')}</a>}
+              {footer.footer_show_privacy && <Link to="/privacy" className="hover:text-jade-400 transition-colors">{t('footer.privacy')}</Link>}
               {footer.footer_show_terms && <a href="#" className="hover:text-jade-400 transition-colors">{t('footer.terms')}</a>}
             </div>
           )}
