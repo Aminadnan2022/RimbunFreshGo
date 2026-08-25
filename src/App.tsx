@@ -39,6 +39,7 @@ import FullScreenLoader from './components/system/FullScreenLoader';
 import NotificationsPage from './pages/NotificationsPage';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import PrivacyConsentPage from './pages/PrivacyConsentPage';
+import InstallPrompt from './components/pwa/InstallPrompt';
 
 function AppRoutes() {
   const { loading, isAdmin, isSupplier, isRider } = useAuth();
@@ -152,6 +153,7 @@ export default function App() {
                     <BasketProvider>
                       <LanguageProvider>
                         <AppRoutes />
+                        <InstallPrompt />
                       </LanguageProvider>
                     </BasketProvider>
                   </OrderProvider>

@@ -10,6 +10,7 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "check:schema-drift": "node scripts/check-schema-drift.mjs",
+    "check:pwa-installability": "node scripts/check-pwa-installability.mjs",
     "check:phase1-schema": "node scripts/check-phase1-schema.mjs",
     "test:phase2-preparation": "node scripts/check-phase2-preparation.mjs",
     "test:phase3-preparation": "node scripts/check-phase3-preparation.mjs",
