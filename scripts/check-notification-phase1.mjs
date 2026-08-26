@@ -13,6 +13,6 @@ for (const item of required) {
   if (!migration.includes(item)) throw new Error(`Notification regression guard missing: ${item}`);
 }
 if (!migration.includes("NEW.payment_status = 'paid'")) throw new Error('Payment confirmation must be driven by paid state.');
-if (!migration.includes("NEW.price_status = 'final'\n     AND NEW.requires_supplier_finalisation")) throw new Error('Deferred finalisation guard missing.');
+if (!/NEW\.price_status = 'final'\r?\n     AND NEW\.requires_supplier_finalisation/.test(migration)) throw new Error('Deferred finalisation guard missing.');
 if (!client.includes(".is('read_at', null)")) throw new Error('Read marking must only update unread rows.');
 console.log('Notification Phase 1 structural regressions passed.');
