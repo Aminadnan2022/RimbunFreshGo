@@ -1,0 +1,5 @@
+[functions.web-push-dispatch]
+verify_jwt = false
+
+[functions.transactional-email-dispatcher]
+verify_jwt = false

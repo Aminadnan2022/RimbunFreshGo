@@ -1,0 +1,20 @@
+import assert from 'node:assert/strict';
+import { isTransientProviderStatus, renderTransactionalEmail, retryAt } from '../supabase/functions/transactional-email-dispatcher/email.ts';
+
+const email = renderTransactionalEmail({ id: 'notification-1', notification_type: 'payment_confirmed', title: 'Payment <confirmed>', message: 'Your payment & order are confirmed.', action_url: '/order/abc' });
+assert.equal(email.subject, 'Payment <confirmed>');
+assert.match(email.html, /Payment &lt;confirmed&gt;/);
+assert.match(email.html, /payment &amp; order/);
+assert.doesNotMatch(email.html, /\/order\/abc/);
+assert.match(email.text, /\/order\/abc/);
+assert.equal(isTransientProviderStatus(408), true);
+assert.equal(isTransientProviderStatus(429), true);
+assert.equal(isTransientProviderStatus(503), true);
+assert.equal(isTransientProviderStatus(400), false);
+assert.equal(isTransientProviderStatus(422), false);
+const originalNow = Date.now;
+Date.now = () => 0;
+assert.equal(retryAt(1), '1970-01-01T00:00:30.000Z');
+assert.equal(retryAt(5), '1970-01-01T00:08:00.000Z');
+Date.now = originalNow;
+console.log('Transactional email dispatcher tests passed.');

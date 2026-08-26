@@ -26,6 +26,7 @@ for (const marker of ["const OFFLINE_URL = '/offline.html'", "request.mode !== '
 for (const unsafePattern of ['caches.match(request)', 'supabase.co']) if (serviceWorker.includes(unsafePattern)) failures.push(`Service worker must not cache dynamic or Supabase data (${unsafePattern}).`);
 if (!serviceWorker.includes("cache.put(PUSH_DIAGNOSTIC_KEY")) failures.push('Service worker diagnostics must use only the fixed metadata cache key.');
 if (!registration.includes("register('/sw.js', { scope: '/' })")) failures.push('Service worker registration must use the app root scope.');
+if (registration.includes('app.freshgo.my') || serviceWorker.includes('app.freshgo.my')) failures.push('PWA worker and registration must remain origin-relative so previews work.');
 for (const marker of ['beforeinstallprompt', 'isIosSafari', 'DISMISS_FOR_MS', 'Add to Home Screen']) if (!installPrompt.includes(marker)) failures.push(`Install UX missing ${marker}.`);
 if (failures.length) throw new Error(`PWA installability checks failed:\n- ${failures.join('\n- ')}`);
 console.log('PWA installability structural checks passed.');

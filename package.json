@@ -15,6 +15,7 @@
     "test:web-push-regressions": "node scripts/check-web-push-regressions.mjs",
     "test:web-push-worker-diagnostic": "node scripts/test-web-push-worker-diagnostic.mjs",
     "test:web-push-dispatch-finalization": "node --experimental-strip-types scripts/test-web-push-dispatch-finalization.mjs",
+    "test:transactional-email": "node --experimental-strip-types scripts/test-transactional-email-dispatcher.mjs",
     "check:phase1-schema": "node scripts/check-phase1-schema.mjs",
     "test:phase2-preparation": "node scripts/check-phase2-preparation.mjs",
     "test:phase3-preparation": "node scripts/check-phase3-preparation.mjs",
