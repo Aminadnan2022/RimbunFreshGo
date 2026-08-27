@@ -359,7 +359,7 @@ function CreateAccountModal({ onClose, onSwitchToSignIn, redirectTo }: { onClose
               {t('header.createAccount.privacyAcceptBefore')}{' '}
               <Link to="/privacy" onClick={onClose} className="font-semibold text-forest-700 underline underline-offset-2">
                 {t('footer.privacy')}
-              </Link>
+              </Link>{' '}
               {t('header.createAccount.privacyAcceptAfter')}
             </span>
           </label>
