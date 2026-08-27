@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any -- legacy admin rows remain outside generated schema types. */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link, Navigate, useSearchParams, useLocation } from 'react-router-dom';
 import { Plus, Pencil, X, AlertTriangle, Package, Loader2, Settings, ShoppingBag, Truck, CheckCircle2, AlertCircle, PenLine, ShieldAlert, Clock, Calendar, Users, ClipboardList, Phone, Gift, Sparkles, Navigation, FileText, Share2, LayoutDashboard, ListOrdered, Boxes, Images } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
@@ -46,6 +46,7 @@ export default function AdminProductsPage() {
   const tabParam = searchParams.get('tab') as Tab | null;
   const pathTab: Tab = location.pathname.startsWith('/admin/combos') ? 'combos' : location.pathname.startsWith('/admin/products') ? 'products' : 'orders';
   const [activeTab, setActiveTab] = useState<Tab>(tabParam && ['products', 'combos', 'settings', 'users', 'orders', 'delivery', 'batches'].includes(tabParam) ? tabParam : pathTab);
+  const tabStripRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const valid: Tab[] = ['products', 'combos', 'settings', 'users', 'orders', 'delivery', 'batches'];
@@ -53,6 +54,14 @@ export default function AdminProductsPage() {
       setActiveTab(tabParam);
     }
   }, [tabParam]);
+
+  useEffect(() => {
+    tabStripRef.current?.querySelector<HTMLElement>('[aria-selected="true"]')?.scrollIntoView({
+      behavior: 'smooth',
+      block: 'nearest',
+      inline: 'center',
+    });
+  }, [activeTab]);
 
   function handleTabChange(tab: Tab) {
     setActiveTab(tab);
@@ -70,7 +79,7 @@ export default function AdminProductsPage() {
   if (!isAdmin) return <Navigate to="/" replace />;
 
   return (
-    <main className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
+    <main className="w-full min-w-0 max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
       <div className="mb-6 flex items-center gap-3">
         <BrandLogo size="w-10 h-10" iconSize={20} rounded="rounded-2xl" />
         <div className="flex-1">
@@ -79,9 +88,10 @@ export default function AdminProductsPage() {
         </div>
       </div>
 
-      <div className="flex gap-1 border-b border-cream-200 mb-6 overflow-x-auto">
+      <div ref={tabStripRef} role="tablist" aria-label={t("adminDashboard.title")} className="flex max-w-full snap-x snap-mandatory gap-1 overflow-x-auto overscroll-x-contain border-b border-cream-200 mb-6 touch-pan-x">
         <button
           onClick={() => handleTabChange('orders')}
+          role="tab" aria-selected={activeTab === 'orders'}
           className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 transition-all -mb-px whitespace-nowrap ${
             activeTab === 'orders'
               ? 'border-forest-700 text-forest-700'
@@ -93,6 +103,7 @@ export default function AdminProductsPage() {
         </button>
         <button
           onClick={() => handleTabChange('products')}
+          role="tab" aria-selected={activeTab === 'products'}
           className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 transition-all -mb-px whitespace-nowrap ${
             activeTab === 'products'
               ? 'border-forest-700 text-forest-700'
@@ -104,6 +115,7 @@ export default function AdminProductsPage() {
         </button>
         <button
           onClick={() => handleTabChange('combos')}
+          role="tab" aria-selected={activeTab === 'combos'}
           className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 transition-all -mb-px whitespace-nowrap ${
             activeTab === 'combos'
               ? 'border-forest-700 text-forest-700'
@@ -115,6 +127,7 @@ export default function AdminProductsPage() {
         </button>
         <button
           onClick={() => handleTabChange('users')}
+          role="tab" aria-selected={activeTab === 'users'}
           className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 transition-all -mb-px whitespace-nowrap ${
             activeTab === 'users'
               ? 'border-forest-700 text-forest-700'
@@ -126,6 +139,7 @@ export default function AdminProductsPage() {
         </button>
         <button
           onClick={() => handleTabChange('settings')}
+          role="tab" aria-selected={activeTab === 'settings'}
           className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 transition-all -mb-px whitespace-nowrap ${
             activeTab === 'settings'
               ? 'border-forest-700 text-forest-700'
@@ -137,6 +151,7 @@ export default function AdminProductsPage() {
         </button>
         <button
           onClick={() => handleTabChange('delivery')}
+          role="tab" aria-selected={activeTab === 'delivery'}
           className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 transition-all -mb-px whitespace-nowrap ${
             activeTab === 'delivery'
               ? 'border-forest-700 text-forest-700'
@@ -148,6 +163,7 @@ export default function AdminProductsPage() {
         </button>
         <button
           onClick={() => handleTabChange('batches')}
+          role="tab" aria-selected={activeTab === 'batches'}
           className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 transition-all -mb-px whitespace-nowrap ${
             activeTab === 'batches'
               ? 'border-forest-700 text-forest-700'
@@ -1160,8 +1176,8 @@ function UsersTab() {
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-cream-200 shadow-soft overflow-hidden">
-      <div className="overflow-x-auto">
+    <div className="min-w-0">
+      <div className="hidden overflow-x-auto rounded-2xl border border-cream-200 bg-white shadow-soft md:block">
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-cream-50 border-b border-cream-200">
@@ -1239,6 +1255,34 @@ function UsersTab() {
             })}
           </tbody>
         </table>
+      </div>
+      <div className="space-y-3 md:hidden">
+        {users.map((u) => {
+          const isSelf = u.id === currentUser?.id;
+          const isLoading = mutating === u.id;
+          const actions: { label: string; to: UserRoleValue; danger?: boolean }[] = u.role === 'customer'
+            ? [{ label: t("adminUsers.buttons.promoteToSupplier"), to: 'supplier' }, { label: t("adminUsers.buttons.promoteToRider"), to: 'delivery_rider' }, { label: t("adminUsers.buttons.promoteToAdmin"), to: 'admin' }]
+            : u.role === 'supplier'
+              ? [{ label: t("adminUsers.buttons.makeCustomer"), to: 'customer', danger: true }, { label: t("adminUsers.buttons.makeRider"), to: 'delivery_rider' }, { label: t("adminUsers.buttons.promoteToAdmin"), to: 'admin' }]
+              : u.role === 'delivery_rider'
+                ? [{ label: t("adminUsers.buttons.makeCustomer"), to: 'customer', danger: true }, { label: t("adminUsers.buttons.makeSupplier"), to: 'supplier' }, { label: t("adminUsers.buttons.makeAdmin"), to: 'admin' }]
+                : [{ label: t("adminUsers.buttons.makeSupplier"), to: 'supplier' }, { label: t("adminUsers.buttons.makeRider"), to: 'delivery_rider' }, { label: t("adminUsers.buttons.makeCustomer"), to: 'customer', danger: true }];
+          return (
+            <article key={u.id} className="min-w-0 rounded-2xl border border-cream-200 bg-white p-4 shadow-soft">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">{t("adminUsers.labels.email")}</p>
+              <p className="mt-1 break-all text-sm font-medium text-gray-900">{u.email} {isSelf && <span className="text-xs font-normal text-gray-400">{t("adminUsers.labels.you")}</span>}</p>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <span className="text-xs font-semibold text-gray-500">{t("adminUsers.labels.role")}</span>
+                <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${roleBadgeClass[u.role]}`}>{t("adminUsers.roles." + u.role)}</span>
+              </div>
+              <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {isLoading ? <Loader2 size={18} className="animate-spin text-forest-500" /> : actions.map((action) => (
+                  <button key={action.to} onClick={() => changeRole(u, action.to)} disabled={isSelf} title={isSelf ? t("adminUsers.messages.cannotChangeOwnRole") : undefined} className={`min-h-11 rounded-xl px-3 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-30 ${action.danger ? 'border border-red-200 text-red-600 hover:bg-red-50' : 'border border-forest-200 text-forest-700 hover:bg-forest-50'}`}>{action.label}</button>
+                ))}
+              </div>
+            </article>
+          );
+        })}
       </div>
     </div>
   );

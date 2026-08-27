@@ -292,18 +292,18 @@ export default function BusinessReportsPage() {
   if (!isAdmin) return <Navigate to="/" replace />;
 
   return (
-    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 print:p-0">
+    <main className="w-full min-w-0 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 print:p-0">
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3 print:hidden">
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 items-start gap-2 sm:items-center sm:gap-3">
           <Link to="/admin/products" className="p-2 rounded-xl text-gray-500 hover:text-forest-700 hover:bg-forest-50 transition-all" aria-label="Back">
             <ArrowLeft size={20} />
           </Link>
-          <div>
-            <h1 className="font-display font-bold text-forest-900 text-2xl">{t('businessReports.title')}</h1>
+          <div className="min-w-0">
+            <h1 className="break-words font-display font-bold text-forest-900 text-2xl">{t('businessReports.title')}</h1>
             <p className="text-sm text-gray-500 mt-1">{t('businessReports.subtitle')}</p>
           </div>
         </div>
-        <div className="flex gap-2 items-center">
+        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:items-center">
           <button onClick={exportDaily} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white bg-forest-700 hover:bg-forest-800 transition-all">
             <Download size={15} /> {t('businessReports.export.csv')}
           </button>
@@ -316,10 +316,10 @@ export default function BusinessReportsPage() {
       <ReportsNavigation />
 
       {/* Filters */}
-      <div className="bg-white rounded-2xl border border-cream-200 shadow-soft p-4 mb-6 flex flex-wrap items-end gap-3 print:hidden">
-        <div>
+      <div className="grid min-w-0 grid-cols-1 gap-3 rounded-2xl border border-cream-200 bg-white p-4 shadow-soft mb-6 sm:grid-cols-2 lg:flex lg:flex-wrap lg:items-end print:hidden">
+        <div className="min-w-0 sm:col-span-2 lg:col-span-1">
           <label className="block text-xs font-semibold text-gray-400 mb-1">{t('businessReports.filters.period')}</label>
-          <div className="flex flex-wrap gap-1 bg-cream-50 rounded-xl p-1">
+          <div className="grid grid-cols-2 gap-1 rounded-xl bg-cream-50 p-1 sm:grid-cols-3 lg:flex lg:flex-wrap">
             {PERIOD_KEYS.map((p) => (
               <button key={p} onClick={() => setPeriod(p)} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${period === p ? 'bg-forest-700 text-white' : 'text-gray-500 hover:text-forest-700'}`}>
                 {t(`businessReports.periods.${p}`)}
@@ -331,24 +331,24 @@ export default function BusinessReportsPage() {
           <>
             <div>
               <label className="block text-xs font-semibold text-gray-400 mb-1">{t('businessReports.filters.from')}</label>
-              <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="input-field !py-2" />
+              <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="input-field w-full min-w-0 !py-2" />
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-400 mb-1">{t('businessReports.filters.to')}</label>
-              <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="input-field !py-2" />
+              <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="input-field w-full min-w-0 !py-2" />
             </div>
           </>
         )}
-        <div>
+        <div className="min-w-0">
           <label className="block text-xs font-semibold text-gray-400 mb-1">{t('businessReports.filters.category')}</label>
-          <select value={category} onChange={(e) => setCategory(e.target.value as 'all' | Category)} className="input-field !py-2">
+          <select value={category} onChange={(e) => setCategory(e.target.value as 'all' | Category)} className="input-field w-full min-w-0 !py-2">
             <option value="all">{t('businessReports.filters.all')}</option>
             {CATEGORIES.map((c) => <option key={c} value={c}>{t(`adminProducts.labels.${c}`)}</option>)}
           </select>
         </div>
-        <div>
+        <div className="min-w-0">
           <label className="block text-xs font-semibold text-gray-400 mb-1">{t('businessReports.filters.supplier')}</label>
-          <select value={supplier} onChange={(e) => setSupplier(e.target.value)} className="input-field !py-2">
+          <select value={supplier} onChange={(e) => setSupplier(e.target.value)} className="input-field w-full min-w-0 !py-2">
             <option value="all">{t('businessReports.filters.all')}</option>
             {suppliers.map((s) => <option key={s} value={s}>{s}</option>)}
           </select>
@@ -447,26 +447,26 @@ export default function BusinessReportsPage() {
 
 function SummaryCards({ totals, t }: { totals: { orders: number; revenue: number; cost: number; profit: number; delivery: number; margin: number }; t: (k: string, p?: Record<string, string | number>) => string }) {
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+    <div className="grid min-w-0 grid-cols-1 gap-3 mb-6 min-[375px]:grid-cols-2 md:grid-cols-4 md:gap-4">
       <div className="bg-white rounded-2xl border border-cream-200 shadow-soft p-5">
         <p className="text-xs text-gray-400 font-medium">{t('businessReports.summary.orders')}</p>
         <p className="text-2xl font-bold text-forest-800 mt-1">{totals.orders}</p>
       </div>
       <div className="bg-white rounded-2xl border border-cream-200 shadow-soft p-5">
         <p className="text-xs text-gray-400 font-medium">{t('businessReports.summary.revenue')}</p>
-        <p className="text-2xl font-bold text-forest-800 mt-1">{money(totals.revenue)}</p>
+        <p className="break-all text-xl sm:text-2xl font-bold text-forest-800 mt-1">{money(totals.revenue)}</p>
       </div>
       <div className="bg-white rounded-2xl border border-cream-200 shadow-soft p-5">
         <p className="text-xs text-gray-400 font-medium">{t('businessReports.summary.delivery')}</p>
-        <p className="text-2xl font-bold text-sky-700 mt-1">{money(totals.delivery)}</p>
+        <p className="break-all text-xl sm:text-2xl font-bold text-sky-700 mt-1">{money(totals.delivery)}</p>
       </div>
       <div className="bg-white rounded-2xl border border-cream-200 shadow-soft p-5">
         <p className="text-xs text-gray-400 font-medium">{t('businessReports.summary.cost')}</p>
-        <p className="text-2xl font-bold text-amber-700 mt-1">{money(totals.cost)}</p>
+        <p className="break-all text-xl sm:text-2xl font-bold text-amber-700 mt-1">{money(totals.cost)}</p>
       </div>
       <div className="bg-white rounded-2xl border border-cream-200 shadow-soft p-5">
         <p className="text-xs text-gray-400 font-medium">{t('businessReports.summary.profit')}</p>
-        <p className="text-2xl font-bold text-green-700 mt-1">{money(totals.profit)}</p>
+        <p className="break-all text-xl sm:text-2xl font-bold text-green-700 mt-1">{money(totals.profit)}</p>
         <p className="text-xs text-gray-400 mt-0.5">{t('businessReports.summary.margin')}: {totals.margin.toFixed(1)}%</p>
       </div>
     </div>

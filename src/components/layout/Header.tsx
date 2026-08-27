@@ -454,10 +454,13 @@ export default function Header() {
   return (
     <header className="sticky top-0 z-40 safe-area-top bg-white/95 backdrop-blur-sm border-b border-cream-200 shadow-soft">
       <div className="max-w-7xl mx-auto safe-area-x sm:px-6 lg:px-8">
-        <div className="flex min-w-0 items-center justify-between gap-2 h-16">
+        <div className="flex min-w-0 items-center justify-between gap-1 sm:gap-2 h-16">
           {/* Wordmark */}
-          <Link to="/" className="flex min-w-0 items-center gap-2 group flex-shrink-0">
-            <BrandLogo size="w-8 h-8" iconSize={16} className="group-hover:scale-105 transition-transform" />
+          <Link to="/" className="group flex min-w-0 shrink-0 items-center gap-1 sm:gap-2">
+            <BrandLogo size="w-7 h-7 sm:w-8 sm:h-8" iconSize={16} className="group-hover:scale-105 transition-transform" />
+            <span className="whitespace-nowrap font-display text-sm font-bold leading-none tracking-tight text-jade-600 sm:hidden">
+              FreshGo
+            </span>
             <div className="hidden leading-none sm:block">
               <span className="font-display font-bold text-forest-800 text-lg tracking-tight">{firstName}</span>
               {restName && <span className="font-display font-bold text-jade-600 text-lg tracking-tight"> {restName}</span>}
@@ -530,7 +533,7 @@ export default function Header() {
           </nav>
 
           {/* Actions */}
-          <div className="flex min-w-0 shrink-0 items-center gap-1">
+          <div className="flex min-w-0 shrink-0 items-center gap-0 sm:gap-1">
             {/* Search toggle */}
             {!isSupplier && !isRider && (
               <button
@@ -593,12 +596,12 @@ export default function Header() {
             {user && !isSupplier && !isRider && (
               <Link
                 to="/cart"
-                className="touch-target relative flex items-center gap-2 px-3 py-2 rounded-xl bg-forest-700 text-white hover:bg-forest-800 transition-all ml-1"
+                className="touch-target relative flex items-center justify-center gap-2 px-2 sm:px-3 py-2 rounded-xl bg-forest-700 text-white hover:bg-forest-800 transition-all sm:ml-1"
                 aria-label={`${t("header.cart")}, ${itemCount} items`}
               >
                 <ShoppingCart size={18} />
                 {itemCount > 0 && (
-                  <span className="text-sm font-semibold">{itemCount}</span>
+                  <span className="absolute -right-0.5 -top-0.5 min-w-4 rounded-full bg-jade-500 px-1 text-center text-[10px] font-bold leading-4 sm:static sm:min-w-0 sm:bg-transparent sm:p-0 sm:text-sm sm:font-semibold sm:leading-normal">{itemCount}</span>
                 )}
                 {itemCount === 0 && (
                   <span className="hidden sm:block text-sm font-medium">{t("header.cart")}</span>

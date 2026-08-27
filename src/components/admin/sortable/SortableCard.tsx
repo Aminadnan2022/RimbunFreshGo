@@ -45,7 +45,7 @@ export default function SortableCard({
     <div
       ref={setNodeRef}
       style={style}
-      className={`relative flex items-stretch rounded-2xl transition-colors ${
+      className={`relative flex min-w-0 flex-col rounded-2xl transition-colors sm:flex-row sm:items-stretch ${
         isDragging ? 'z-20 opacity-90 shadow-card-hover ring-2 ring-forest-400' : ''
       } ${isOver ? 'ring-2 ring-forest-300' : ''} ${className}`}
     >
@@ -55,7 +55,7 @@ export default function SortableCard({
           {...attributes}
           {...listeners}
           disabled={disabled}
-          className="flex items-center justify-center px-1.5 text-gray-400 hover:text-forest-700 transition-colors cursor-grab active:cursor-grabbing touch-none"
+          className="hidden items-center justify-center px-1.5 text-gray-400 hover:text-forest-700 transition-colors cursor-grab active:cursor-grabbing touch-none sm:flex"
           aria-label="Drag to reorder"
           title="Drag to reorder"
         >
@@ -64,7 +64,7 @@ export default function SortableCard({
       )}
 
       {showCheckbox && (
-        <label className="flex items-center pl-3 pr-1 cursor-pointer">
+        <label className="absolute left-3 top-3 z-10 flex min-h-9 min-w-9 cursor-pointer items-center justify-center rounded-lg bg-white/95 shadow-sm sm:static sm:min-h-0 sm:min-w-0 sm:bg-transparent sm:pl-3 sm:pr-1 sm:shadow-none">
           <input
             type="checkbox"
             checked={!!selected}
@@ -74,9 +74,9 @@ export default function SortableCard({
         </label>
       )}
 
-      <div className="flex-1 min-w-0">{children}</div>
+      <div className="min-w-0 flex-1">{children}</div>
 
-      <div className="flex items-center gap-0.5 pr-2 pl-1 shrink-0">
+      <div className="order-first flex min-h-12 shrink-0 items-center justify-end gap-0.5 pl-12 pr-2 sm:order-none sm:min-h-0 sm:justify-start sm:pl-1">
         {canReorder && onMoveUp && (
           <button onClick={onMoveUp} className="p-1.5 rounded-lg text-gray-400 hover:text-forest-700 hover:bg-forest-50 transition-all" title="Move up">
             <ChevronUp size={15} />

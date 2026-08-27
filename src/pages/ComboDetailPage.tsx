@@ -131,20 +131,20 @@ export default function ComboDetailPage() {
   const savingsPct = Number(combo.discount_percent) || (Number(combo.original_value) > 0 ? Math.round((savings / Number(combo.original_value)) * 100) : 0);
 
   return (
-    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+    <main className="w-full min-w-0 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10">
       {/* Breadcrumb */}
-      <nav className="flex items-center gap-2 text-xs text-gray-400 mb-8">
+      <nav className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-400 mb-6 sm:mb-8">
         <Link to="/" className="hover:text-forest-600">{t("comboDetail.breadcrumbHome")}</Link>
         <ChevronRight size={12} />
         <Link to="/combos" className="hover:text-forest-600">{t("comboDetail.breadcrumbCombos")}</Link>
         <ChevronRight size={12} />
-        <span className="text-gray-600">{combo.name}</span>
+        <span className="min-w-0 break-words text-gray-600">{combo.name}</span>
       </nav>
 
       {/* Hero section */}
-      <div className="grid lg:grid-cols-2 gap-10 mb-14">
+      <div className="grid min-w-0 grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-10 mb-10 sm:mb-14">
         {/* Gallery */}
-        <div>
+        <div className="min-w-0">
           <div className="rounded-3xl overflow-hidden shadow-card mb-3 aspect-[4/3] relative">
             <ProductImage
               src={(combo.images ?? [])[activeImg] || combo.image}
@@ -157,7 +157,7 @@ export default function ComboDetailPage() {
               </span>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex max-w-full gap-2 overflow-x-auto pb-1">
             {(combo.images ?? []).length > 0 ? (combo.images ?? []).map((img, i) => (
               <button
                 key={i}
@@ -177,18 +177,18 @@ export default function ComboDetailPage() {
         </div>
 
         {/* Details */}
-        <div>
+        <div className="min-w-0">
           {combo.category_label && (
             <span className="inline-block bg-jade-100 text-jade-700 text-xs font-semibold px-3 py-1.5 rounded-full mb-3">
               {combo.category_label}
             </span>
           )}
-          <h1 className="font-display text-4xl font-bold text-forest-950 mb-1">{combo.name}</h1>
+          <h1 className="break-words font-display text-3xl sm:text-4xl font-bold text-forest-950 mb-1">{combo.name}</h1>
           {combo.tagline && <p className="text-lg text-gray-500 mb-4">{combo.tagline}</p>}
 
           {/* Price */}
-          <div className="flex items-center gap-3 mb-6">
-            <span className="text-5xl font-bold text-forest-800">RM{formatCurrency(Number(combo.price))}</span>
+          <div className="flex min-w-0 flex-wrap items-end gap-x-3 gap-y-1 mb-6">
+            <span className="min-w-0 break-all text-4xl sm:text-5xl font-bold text-forest-800">RM{formatCurrency(Number(combo.price))}</span>
             {Number(combo.original_value) > 0 && (
               <div>
                 <p className="text-gray-400 line-through text-xl">RM{formatCurrency(Number(combo.original_value))}</p>
@@ -225,7 +225,7 @@ export default function ComboDetailPage() {
                       </div>
                     </div>
                     {product && (
-                      <span className="text-xs text-gray-400 flex-shrink-0">RM{formatCurrency(formatComboItemPrice(ci, product))}</span>
+                      <span className="text-xs text-gray-400 flex-shrink-0 self-start">RM{formatCurrency(formatComboItemPrice(ci, product))}</span>
                     )}
                   </li>
                 );
@@ -240,7 +240,7 @@ export default function ComboDetailPage() {
                   {options.map((option) => {
                     const product = productMap.get(option.product_id);
                     return (
-                      <label key={option.id} className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 ${selectedChoices[key] === option.id ? 'border-forest-600 bg-forest-50' : 'border-cream-200'}`}>
+                      <label key={option.id} className={`flex min-w-0 cursor-pointer flex-wrap items-center gap-3 rounded-xl border p-3 ${selectedChoices[key] === option.id ? 'border-forest-600 bg-forest-50' : 'border-cream-200'}`}>
                         <input
                           type="radio"
                           name={`choice-${key}`}
@@ -249,7 +249,7 @@ export default function ComboDetailPage() {
                           onChange={() => { setSelectedChoices((current) => ({ ...current, [key]: option.id })); setChoiceError(false); }}
                         />
                         <ProductImage src={product?.image} alt="" className="h-10 w-10 rounded-lg object-cover" />
-                        <span className="flex-1 text-sm font-medium text-gray-900">{product?.name ?? option.custom_label ?? option.product_id}</span>
+                        <span className="min-w-0 flex-1 break-words text-sm font-medium text-gray-900">{product?.name ?? option.custom_label ?? option.product_id}</span>
                         <span className="text-xs text-gray-500">{itemQtyLabel(option)}</span>
                       </label>
                     );
@@ -285,7 +285,7 @@ export default function ComboDetailPage() {
           </div>
 
           {/* Add to cart */}
-          <div className="flex items-center gap-4">
+          <div className="flex min-w-0 flex-col items-stretch gap-3 sm:flex-row sm:items-center sm:gap-4">
             <div className="flex items-center gap-2 bg-cream-100 rounded-2xl px-3 py-2">
               <button
                 onClick={() => setQty(Math.max(1, qty - 1))}
@@ -305,7 +305,7 @@ export default function ComboDetailPage() {
             </div>
             <button
               onClick={handleAdd}
-              className={`flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl font-bold text-base transition-all duration-200 ${
+              className={`flex min-w-0 flex-1 items-center justify-center gap-2 break-words px-3 py-3.5 rounded-2xl font-bold text-base transition-all duration-200 ${
                 added
                   ? 'bg-jade-500 text-white'
                   : 'bg-forest-700 hover:bg-forest-800 text-white shadow-green hover:shadow-lg active:scale-95'
@@ -319,7 +319,7 @@ export default function ComboDetailPage() {
       </div>
 
       {/* Why the combo */}
-      <section className="bg-forest-950 rounded-4xl p-8 sm:p-12 mb-14">
+      <section className="min-w-0 bg-forest-950 rounded-4xl p-5 sm:p-12 mb-14">
         <div className="text-center mb-10">
           <h2 className="font-display text-3xl font-bold text-white mb-2">{t("comboDetail.whyTitle")}</h2>
           <p className="text-forest-300">{t("comboDetail.whySubtitle")}</p>

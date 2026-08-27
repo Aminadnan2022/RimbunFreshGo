@@ -184,12 +184,12 @@ export default function AdminComboListPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6 gap-4">
+      <div className="flex min-w-0 flex-col items-stretch justify-between mb-6 gap-3 sm:flex-row sm:items-center sm:gap-4">
         <h2 className="text-xl font-semibold text-gray-900">
           {t('adminCombos.title')}
           {savingOrder && <span className="ml-3 text-sm text-emerald-600 font-medium">{t('adminProducts.messages.savingOrder')}</span>}
         </h2>
-        <div className="flex items-center gap-2">
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
           <button onClick={confirmReset} className="px-4 py-2 rounded-xl text-sm font-medium text-gray-600 border border-cream-300 hover:border-forest-400 hover:text-forest-700 transition-all">
             {t('adminCombos.sort.reset')}
           </button>
@@ -262,15 +262,16 @@ export default function AdminComboListPage() {
                   showCheckbox
                   className="bg-white border border-cream-200 shadow-soft"
                 >
-                  <div className="p-4 flex items-center gap-4">
+                  <div className="flex min-w-0 flex-col gap-3 p-3 sm:flex-row sm:items-center sm:gap-4 sm:p-4">
+                    <div className="flex min-w-0 gap-3 sm:contents">
                     <ProductImage
                       src={combo.image}
                       alt={combo.name}
-                      className="w-20 h-20 rounded-lg object-cover flex-shrink-0"
+                      className="h-20 w-20 flex-shrink-0 rounded-lg object-cover"
                     />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <h3 className="font-medium text-gray-900 truncate">{combo.name}</h3>
+                        <h3 className="min-w-0 break-words font-medium text-gray-900 sm:truncate">{combo.name}</h3>
                         {combo.featured && (
                           <span className="text-xs bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded font-medium">{t('adminCombos.badges.featured')}</span>
                         )}
@@ -281,8 +282,8 @@ export default function AdminComboListPage() {
                           {combo.lifecycle_status === 'active' ? t('adminCombos.badges.active') : combo.lifecycle_status === 'draft' ? 'Draft' : t('adminCombos.badges.inactive')}
                         </span>
                       </div>
-                      <p className="text-sm text-gray-500 truncate">{combo.tagline}</p>
-                      <div className="flex items-center gap-4 mt-1 text-sm text-gray-600">
+                      <p className="break-words text-sm text-gray-500 sm:truncate">{combo.tagline}</p>
+                      <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-sm text-gray-600 sm:flex sm:items-center sm:gap-4">
                         <span>RM {formatCurrency(Number(combo.price))}</span>
                         {Number(combo.original_value) > 0 && (
                           <span className="line-through text-gray-400">RM {formatCurrency(Number(combo.original_value))}</span>
@@ -291,7 +292,8 @@ export default function AdminComboListPage() {
                         <span>{t('adminCombos.buttons.items', { count: itemCounts[combo.id] ?? '...' })}</span>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 border-t border-cream-100 pt-3 sm:flex sm:shrink-0 sm:items-center sm:border-0 sm:pt-0">
                       <button
                         onClick={() => handleToggleFeatured(combo.id, combo.featured)}
                         disabled={combo.lifecycle_status !== 'active'}
@@ -315,7 +317,7 @@ export default function AdminComboListPage() {
                       </button>
                       <Link
                         to={`/admin/combos/edit/${combo.id}`}
-                        className="p-2 rounded-lg text-gray-500 hover:text-forest-700 hover:bg-forest-50 transition-all"
+                        className="flex min-h-10 items-center justify-center rounded-lg p-2 text-gray-500 hover:text-forest-700 hover:bg-forest-50 transition-all"
                         title={t('adminCombos.buttons.edit')}
                       >
                         <Pencil size={16} />

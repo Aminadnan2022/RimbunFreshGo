@@ -17,14 +17,13 @@ function LanguageSwitcher() {
     <div className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className="touch-target flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium text-forest-700 bg-forest-50 border border-forest-200 hover:bg-forest-100 transition-all"
+        className="touch-target flex items-center justify-center gap-0 px-2 py-2 rounded-xl text-sm font-medium text-forest-700 bg-forest-50 border border-forest-200 hover:bg-forest-100 transition-all sm:gap-1.5 sm:px-3"
         aria-label={t('language.select') || 'Select language'}
         aria-expanded={open}
         aria-haspopup="listbox"
       >
         <Globe size={16} />
         <span className="hidden sm:inline">{current.flag} {current.code.toUpperCase()}</span>
-        <span className="sm:hidden">{current.flag}</span>
       </button>
 
       {open && (
