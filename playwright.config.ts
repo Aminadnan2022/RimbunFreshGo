@@ -43,7 +43,7 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
-      testIgnore: '**/mobile.spec.ts',
+      testIgnore: ['**/mobile.spec.ts', '**/pwa-install-prompt.spec.ts'],
     },
     {
       name: 'mobile-320',
@@ -59,6 +59,16 @@ export default defineConfig({
       name: 'mobile-412',
       testMatch: '**/mobile.spec.ts',
       use: { viewport: { width: 412, height: 915 }, isMobile: true, hasTouch: true },
+    },
+    {
+      name: 'pwa-desktop',
+      testMatch: '**/pwa-install-prompt.spec.ts',
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'pwa-mobile',
+      testMatch: '**/pwa-install-prompt.spec.ts',
+      use: { ...devices['Pixel 7'] },
     },
   ],
   webServer: isLocal

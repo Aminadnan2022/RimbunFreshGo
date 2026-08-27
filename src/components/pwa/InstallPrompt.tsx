@@ -16,6 +16,21 @@ declare global {
 const DISMISS_KEY = 'freshgo-pwa-install-dismissed-at';
 const DISMISS_FOR_MS = 30 * 24 * 60 * 60 * 1000;
 
+function isEligibleMobileBrowser(): boolean {
+  const { userAgent, maxTouchPoints } = window.navigator;
+  const isIosDevice = /iPad|iPhone|iPod/i.test(userAgent)
+    || (navigator.platform === 'MacIntel' && maxTouchPoints > 1);
+  const isAndroidDevice = /Android/i.test(userAgent);
+  const isMobileUserAgent = /Mobile|IEMobile|Opera Mini/i.test(userAgent);
+  const hasMobileInput = window.matchMedia('(pointer: coarse)').matches && maxTouchPoints > 0;
+  const isCompactScreen = window.matchMedia('(max-width: 1024px)').matches;
+
+  // Android tablets often omit "Mobile" from their UA, while iPads can report
+  // themselves as Macs. Keep the input/screen check as a conservative fallback
+  // instead of treating a narrow desktop window as a phone.
+  return isIosDevice || (isAndroidDevice && (isMobileUserAgent || (hasMobileInput && isCompactScreen)));
+}
+
 function isStandalone(): boolean {
   return window.matchMedia('(display-mode: standalone)').matches
     || (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
@@ -51,7 +66,9 @@ export default function InstallPrompt() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    if (isStandalone() || recentlyDismissed()) return;
+    // The in-app guidance belongs only on devices where adding to the home
+    // screen is useful. Do not suppress a desktop browser's native install UI.
+    if (!isEligibleMobileBrowser() || isStandalone() || recentlyDismissed()) return;
 
     if (isIosSafari()) {
       setVisible(true);
@@ -59,13 +76,23 @@ export default function InstallPrompt() {
     }
 
     const onBeforeInstallPrompt = (event: BeforeInstallPromptEvent) => {
+      if (isStandalone() || recentlyDismissed()) return;
       event.preventDefault();
       setDeferredPrompt(event);
       setVisible(true);
     };
 
     window.addEventListener('beforeinstallprompt', onBeforeInstallPrompt);
-    return () => window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt);
+    const onAppInstalled = () => {
+      setDeferredPrompt(null);
+      setShowIosGuide(false);
+      setVisible(false);
+    };
+    window.addEventListener('appinstalled', onAppInstalled);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt);
+      window.removeEventListener('appinstalled', onAppInstalled);
+    };
   }, []);
 
   const dismiss = () => {
