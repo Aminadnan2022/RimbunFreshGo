@@ -454,11 +454,11 @@ export default function Header() {
   return (
     <header className="sticky top-0 z-40 safe-area-top bg-white/95 backdrop-blur-sm border-b border-cream-200 shadow-soft">
       <div className="max-w-7xl mx-auto safe-area-x sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex min-w-0 items-center justify-between gap-2 h-16">
           {/* Wordmark */}
-          <Link to="/" className="flex items-center gap-2 group flex-shrink-0">
+          <Link to="/" className="flex min-w-0 items-center gap-2 group flex-shrink-0">
             <BrandLogo size="w-8 h-8" iconSize={16} className="group-hover:scale-105 transition-transform" />
-            <div className="leading-none">
+            <div className="hidden leading-none sm:block">
               <span className="font-display font-bold text-forest-800 text-lg tracking-tight">{firstName}</span>
               {restName && <span className="font-display font-bold text-jade-600 text-lg tracking-tight"> {restName}</span>}
             </div>
@@ -530,7 +530,7 @@ export default function Header() {
           </nav>
 
           {/* Actions */}
-          <div className="flex items-center gap-1">
+          <div className="flex min-w-0 shrink-0 items-center gap-1">
             {/* Search toggle */}
             {!isSupplier && !isRider && (
               <button
@@ -622,13 +622,13 @@ export default function Header() {
         {/* Inline search bar */}
         {searchOpen && (
           <div className="py-3 border-t border-cream-200">
-            <form onSubmit={handleSearch} className="flex gap-2">
+            <form onSubmit={handleSearch} className="flex min-w-0 gap-2">
               <input
                 type="search"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={t("header.searchPlaceholder")}
-                className="flex-1 bg-cream-50 border border-cream-300 rounded-2xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-forest-500 focus:border-transparent"
+                className="min-w-0 flex-1 bg-cream-50 border border-cream-300 rounded-2xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-forest-500 focus:border-transparent"
                 autoFocus
               />
               <button type="submit" className="btn-primary py-2.5 px-5 text-sm">

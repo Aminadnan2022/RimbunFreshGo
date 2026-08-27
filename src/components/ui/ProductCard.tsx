@@ -116,7 +116,7 @@ export default function ProductCard({ product }: Props) {
       : (lang === 'ms' ? 'ekor' : 'pieces');
 
   return (
-    <article className="card card-hover flex flex-col h-full">
+    <article className="card card-hover flex min-w-0 max-w-full flex-col h-full">
       <Link to={`/product/${product.id}`} className="block relative overflow-hidden rounded-t-3xl">
         <ProductImage
           src={product.image}
@@ -150,12 +150,12 @@ export default function ProductCard({ product }: Props) {
           </p>
         </div>
 
-        <div className="flex items-end justify-between mt-auto pt-1">
-          <div>
+        <div className="flex min-w-0 items-end justify-between gap-2 mt-auto pt-1">
+          <div className="min-w-0">
             <p className="text-xl font-bold text-forest-800">RM{formatCurrency(product.price)}</p>
             <p className="text-xs text-gray-400">{productUnitLabel}</p>
           </div>
-          <div className="flex flex-col items-end gap-1">
+          <div className="min-w-0 shrink-0 flex flex-col items-end gap-1">
             {renderStepper()}
           </div>
         </div>

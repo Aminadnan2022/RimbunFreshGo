@@ -100,7 +100,7 @@ export default function ShopPage() {
   }
 
   return (
-    <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+    <main className="w-full min-w-0 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
       {/* Page title */}
       <div className="mb-8">
         <nav className="text-xs text-gray-400 mb-2">
@@ -115,8 +115,8 @@ export default function ShopPage() {
       </div>
 
       {/* Search bar */}
-      <form onSubmit={handleSearch} className="flex gap-2 mb-6">
-        <div className="relative flex-1">
+      <form onSubmit={handleSearch} className="flex min-w-0 gap-2 mb-6">
+        <div className="relative min-w-0 flex-1">
           <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
             type="search"
@@ -208,7 +208,7 @@ export default function ShopPage() {
           <button onClick={clearFilters} className="btn-primary text-sm">{t("shop.empty.clearButton")}</button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+        <div className="grid min-w-0 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
           {filtered.map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}
