@@ -50,6 +50,7 @@
     "test:phase4b2-preparation-physical-units": "node scripts/check-phase4b2-preparation-physical-units.mjs",
     "test:auto-supplier-finalisation": "node scripts/check-auto-supplier-finalisation.mjs",
     "test:canonical-supplier-tracking-update": "node scripts/check-canonical-supplier-tracking-update.mjs",
+    "test:supplier-financial-privacy": "node scripts/check-supplier-financial-privacy.mjs",
     "test:rider-delivery-proof-autoadvance": "node scripts/check-rider-delivery-proof-autoadvance.mjs",
     "test:admin-canonical-order-history": "node scripts/check-admin-canonical-order-history.mjs",
     "test:admin-report-navigation": "node scripts/check-admin-report-navigation.mjs",

@@ -3730,6 +3730,44 @@ export type Database = {
         Args: { p_order_id: number }
         Returns: undefined
       }
+      supplier_list_legacy_orders: {
+        Args: never
+        Returns: {
+          apartment: string | null
+          booking_reference: string | null
+          created_at: string
+          full_name: string
+          house_unit: string | null
+          id: number
+          lalamove_booked_at: string | null
+          lalamove_tracking_url: string | null
+          order_items: Json
+          order_notes: string | null
+          order_summary: Json
+          packing_completed_at: string | null
+          packing_started_at: string | null
+          paid_at: string | null
+          payment_status: string | null
+          phone_number: string | null
+          pickup_location: string | null
+          ready_for_rider_at: string | null
+          supplier_dispatch_completed_at: string | null
+          supplier_dispatch_started_at: string | null
+          supplier_weights: Json
+        }[]
+      }
+      supplier_mark_legacy_order_ready: {
+        Args: { p_order_id: number }
+        Returns: undefined
+      }
+      supplier_record_legacy_order_weight: {
+        Args: {
+          p_actual_weight_kg: number
+          p_item_index: number
+          p_order_id: number
+        }
+        Returns: Json
+      }
       supplier_start_canonical_packing: {
         Args: { p_sales_order_id: string }
         Returns: undefined

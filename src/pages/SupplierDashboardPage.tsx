@@ -5,9 +5,6 @@ import { Loader2, ChevronLeft, ChevronDown, ChevronRight, AlertCircle, CheckCirc
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { supabase } from '../lib/supabase';
-import { formatCurrency } from '../lib/currency';
-import { orderGrossProfit, orderCost, marginPercent } from '../lib/profit';
-import type { Json } from '../types/database';
 import { formatLocalDate } from '../data/delivery';
 import SupplierDispatchSection from '../components/supplier/SupplierDispatchSection';
 import {
@@ -137,7 +134,7 @@ interface OrderItem {
   canonicalLineId?: string;
   canonicalUnits?: CanonicalLineUnit[];
   name: string;
-  price: number;
+  price?: number;
   unit: string;
   quantity: number;
   preparation?: string;
@@ -147,10 +144,6 @@ interface OrderItem {
   sliceQuantity?: number;
   sliceUnit?: string;
   orderingMode?: string;
-  /** Supplier unit cost snapshot (RM per kg / per piece) frozen at checkout. */
-  costPrice?: number;
-  /** Supplier name snapshot for profit reports. */
-  supplierName?: string;
 }
 
 interface OrderSummary {
@@ -174,7 +167,6 @@ interface SupplierOrder {
   items: OrderItem[];
   summary: OrderSummary;
   supplierWeights: Record<string, number>;
-  deliveryFee: number;
   paymentStatus: PaymentStatus;
   canonicalPriceStatus: 'estimated' | 'final' | null;
   orderNotes: string;
@@ -292,7 +284,7 @@ function getOrderDeliveryDate(order: SupplierOrder): string {
 
 export default function SupplierDashboardPage() {
   const { t } = useLanguage();
-  const { isSupplier, loading: authLoading, user } = useAuth();
+  const { isSupplier, loading: authLoading } = useAuth();
   const [searchParams] = useSearchParams();
   const dateParam = searchParams.get('date');
   const [view, setView] = useState<'working' | 'schedule'>('working');
@@ -338,19 +330,16 @@ export default function SupplierDashboardPage() {
         canonicalAnswerRes,
         canonicalFulfilmentRes,
       ] = await Promise.all([
-        supabase
-          .from('Orders')
-          .select('id, full_name, phone_number, apartment, house_unit, pickup_location, order_notes, order_items, order_summary, supplier_weights, delivery_fee, payment_status, paid_at, packing_started_at, packing_completed_at, supplier_dispatch_started_at, supplier_dispatch_completed_at, ready_for_rider_at, lalamove_tracking_url, booking_reference, lalamove_booked_at, created_at')
-          .order('created_at', { ascending: false }),
+        supabase.rpc('supplier_list_legacy_orders'),
 
         supabase
           .from('sales_orders')
-          .select('id, order_number, customer_snapshot, delivery_snapshot, delivery_fee, payment_status, price_status, paid_at, created_at')
+          .select('id, order_number, customer_snapshot, delivery_snapshot, payment_status, price_status, paid_at, created_at')
           .order('created_at', { ascending: false }),
 
         supabase
           .from('sales_order_lines')
-          .select('id, sales_order_id, line_number, product_id, product_snapshot, quantity, selling_unit, unit_selling_price, unit_cost_price, supplier_snapshot, ordering_mode, actual_weight_kg, item_kind')
+          .select('id, sales_order_id, line_number, product_id, product_snapshot, quantity, selling_unit, ordering_mode, actual_weight_kg, item_kind')
           .order('line_number', { ascending: true }),
 
         supabase
@@ -394,7 +383,6 @@ export default function SupplierDashboardPage() {
           items: (r.order_items as OrderItem[]) ?? [],
           summary,
           supplierWeights: (r.supplier_weights as Record<string, number>) ?? {},
-          deliveryFee: Number(r.delivery_fee ?? 0),
           paymentStatus: (r.payment_status as PaymentStatus) ?? 'Pending',
           canonicalPriceStatus: null,
           orderNotes: r.order_notes ?? '',
@@ -538,7 +526,6 @@ export default function SupplierDashboardPage() {
                 canonicalLineId: String(line.id),
                 canonicalUnits,
                 name: String(snapshot.name ?? line.product_id ?? 'Product'),
-                price: Number(line.unit_selling_price ?? 0),
                 unit:
                   line.ordering_mode === 'fixed_quantity'
                     ? (snapshot.category === 'chicken' ? 'per bird' : String(line.selling_unit ?? 'piece'))
@@ -547,7 +534,6 @@ export default function SupplierDashboardPage() {
                 preparation: answersByLine.get(String(line.id)),
                 pricingType: canonicalPricingType(line.ordering_mode),
                 orderingMode: String(line.ordering_mode ?? ''),
-                costPrice: Number(line.unit_cost_price ?? 0),
               };
             });
 
@@ -576,7 +562,6 @@ export default function SupplierDashboardPage() {
             items,
             summary,
             supplierWeights,
-            deliveryFee: Number(row.delivery_fee ?? delivery.fee_amount ?? 0),
             paymentStatus: canonicalPaymentStatus(row.payment_status),
             canonicalPriceStatus: row.price_status === 'final' ? ('final' as const) : ('estimated' as const),
             orderNotes: String(customer.notes ?? ''),
@@ -627,14 +612,10 @@ export default function SupplierDashboardPage() {
     if (!orderRequiresWeighing(order)) {
       // Order has only fixed-price items - no weighing needed
       // Immediately update payment_status to 'Ready To Pay'
-      const { error: updateError } = await supabase
-        .from("Orders")
-        .update({
-          payment_status: "Ready To Pay",
-          updated_at: new Date().toISOString(),
-          updated_by: user?.id ?? null,
-        }, { count: "exact" })
-        .eq("id", Number(order.dbId));
+      const { error: updateError } = await supabase.rpc(
+        'supplier_mark_legacy_order_ready',
+        { p_order_id: Number(order.dbId) },
+      );
 
       if (updateError) {
         alert(t("weightEntry.messages.saveFailed"));
@@ -1042,16 +1023,6 @@ function ReadyToPrepare({ orders, onPrepare, onViewDetails }: {
   });
 
   const productCount = (o: SupplierOrder) => o.items.reduce((sum, item) => sum + item.quantity, 0);
-  const orderTotal = (o: SupplierOrder): number => {
-    const itemsTotal = o.items.reduce((sum, item, i) => {
-      if (!needsWeighing(item)) return sum + item.price * item.quantity;
-      const kg = o.supplierWeights[String(i)];
-      if (!kg || kg <= 0) return sum;
-      return sum + kg * item.price;
-    }, 0);
-    return itemsTotal + o.deliveryFee;
-  };
-
   return (
     <div className="mb-10">
       <div className="flex items-center gap-3 mb-1">
@@ -1080,7 +1051,6 @@ function ReadyToPrepare({ orders, onPrepare, onViewDetails }: {
                 <span>📍 {order.pickupLocation || '—'}</span>
                 {order.houseUnit && <span>🏠 {t("supplierCard.unit")} {order.houseUnit}</span>}
                 <span>📦 {productCount(order)} {t("supplierCard.products")}</span>
-                <span className="font-semibold text-green-700">RM{formatCurrency(orderTotal(order))}</span>
               </div>
               <div className="flex gap-3">
                 <button onClick={() => onPrepare(order)} className="flex-1 bg-forest-700 hover:bg-forest-800 text-white rounded-xl py-3 text-[16px] font-bold min-h-[56px] transition-all active:scale-[0.97]">
@@ -1722,16 +1692,6 @@ function OrderFilterModal({ orders, filterStatus, selectedDate, onClose, onOpenO
     } catch { return '—'; }
   };
 
-  const calcTotal = (order: SupplierOrder): number => {
-    const itemsTotal = order.items.reduce((sum, item, i) => {
-      if (!needsWeighing(item)) return sum + item.price * item.quantity;
-      const kg = order.supplierWeights[String(i)];
-      if (!kg || kg <= 0) return sum;
-      return sum + kg * item.price;
-    }, 0);
-    return itemsTotal + order.deliveryFee;
-  };
-
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-start justify-center pt-6 pb-12 overflow-y-auto" onClick={onClose}>
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-2xl mx-4 overflow-hidden" onClick={(e) => e.stopPropagation()}>
@@ -1752,7 +1712,6 @@ function OrderFilterModal({ orders, filterStatus, selectedDate, onClose, onOpenO
           ) : (
             filteredOrders.map((order) => {
               const open = expandedIds.has(order.dbId);
-              const actualTotal = calcTotal(order);
               return (
                 <div key={order.dbId} className="bg-cream-50 rounded-2xl border border-cream-200 overflow-hidden transition-all">
                   {/* Collapsed header */}
@@ -1789,9 +1748,6 @@ function OrderFilterModal({ orders, filterStatus, selectedDate, onClose, onOpenO
                           {order.items.map((item, i) => {
                             const perKg = needsWeighing(item);
                             const weight = order.supplierWeights[String(i)];
-                            const subtotal = perKg
-                              ? (weight ? weight * item.price : item.price * item.quantity)
-                              : item.price * item.quantity;
                             const hasComboItems = item.comboItems && item.comboItems.length > 0;
 
                             return (
@@ -1812,7 +1768,6 @@ function OrderFilterModal({ orders, filterStatus, selectedDate, onClose, onOpenO
                                       <p className="text-[13px] text-amber-600 mt-0.5">{t("deliverySchedule.messages.weightNotEntered")}</p>
                                     )}
                                   </div>
-                                  <p className="text-[16px] font-bold text-gray-900 whitespace-nowrap ml-4">RM{formatCurrency(subtotal)}</p>
                                 </div>
 
                                 {/* Combo items */}
@@ -1832,18 +1787,6 @@ function OrderFilterModal({ orders, filterStatus, selectedDate, onClose, onOpenO
                               </div>
                             );
                           })}
-                        </div>
-                      </div>
-
-                      {/* Totals */}
-                      <div className="bg-white rounded-xl border border-cream-200 p-4 space-y-1.5">
-                        <div className="flex justify-between text-[14px] text-gray-600">
-                          <span>{t("deliverySchedule.labels.deliveryFee")}</span>
-                          <span className="font-semibold">{order.deliveryFee === 0 ? t("deliverySchedule.messages.free") : `RM${formatCurrency(order.deliveryFee)}`}</span>
-                        </div>
-                        <div className="flex justify-between text-[18px] font-bold">
-                          <span>{t("deliverySchedule.labels.actualTotal")}</span>
-                          <span className="text-forest-800">RM{formatCurrency(actualTotal)}</span>
                         </div>
                       </div>
 
@@ -1888,7 +1831,6 @@ function WeightEntryView({
   onWeightsSaved?: (dbId: string, weights: Record<string, number>) => void;
 }) {
   const { t } = useLanguage();
-  const { user } = useAuth();
   const isLocked = order.paymentStatus === 'Paid';
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -1954,54 +1896,6 @@ function WeightEntryView({
       setCompleted(false);
     }
   }, [editMode]);
-
-  const lineTotal = (item: OrderItem, index: number): number => {
-    if (!needsWeighing(item)) return item.price * item.quantity;
-
-    if (
-      order.source === 'canonical' &&
-      item.orderingMode === 'whole_fish_by_weight'
-    ) {
-      const totalKg = (item.canonicalUnits ?? []).reduce((sum, unit) => {
-        const value = parseFloat(unitWeights[unit.id] ?? '');
-        return sum + (Number.isFinite(value) && value > 0 ? value : 0);
-      }, 0);
-
-      return totalKg * item.price;
-    }
-
-    const kg = parseFloat(weights[String(index)]);
-    if (!kg || kg <= 0) return 0;
-    return kg * item.price;
-  };
-
-  const orderTotal =
-    order.items.reduce((sum, item, i) => sum + lineTotal(item, i), 0) + order.deliveryFee;
-
-  // Live weights -> money for the accounting rows below (auto recompute).
-  const liveWeights = order.items.reduce((acc, item, i) => {
-    if (!needsWeighing(item)) return acc;
-
-    if (
-      order.source === 'canonical' &&
-      item.orderingMode === 'whole_fish_by_weight'
-    ) {
-      const totalKg = (item.canonicalUnits ?? []).reduce((sum, unit) => {
-        const value = parseFloat(unitWeights[unit.id] ?? '');
-        return sum + (Number.isFinite(value) && value > 0 ? value : 0);
-      }, 0);
-
-      acc[String(i)] = totalKg;
-      return acc;
-    }
-
-    const v = weights[String(i)];
-    const n = v != null && v.trim() !== '' ? parseFloat(v) : (order.supplierWeights[String(i)] ?? 0);
-    acc[String(i)] = Number.isFinite(n) && n > 0 ? n : 0;
-    return acc;
-  }, {} as Record<string, number>);
-  const costTotal = orderCost(order.items, liveWeights);
-  const grossProfit = orderGrossProfit(order.items, liveWeights);
 
   const handleWeightChange = (index: number, raw: string) => {
     if (raw.startsWith('-')) return;
@@ -2130,9 +2024,16 @@ function WeightEntryView({
         }
       }
     } catch (err) {
+      console.error('[SupplierDashboard:saveCanonicalUnitWeight]', err);
+
+      const databaseMessage =
+        err && typeof err === 'object' && 'message' in err
+          ? String((err as { message?: unknown }).message ?? '')
+          : '';
+
       setError(
-        err instanceof Error
-          ? err.message
+        databaseMessage.includes('already finalised')
+          ? t("weightEntry.messages.orderLocked")
           : t("weightEntry.messages.saveFailed"),
       );
     } finally {
@@ -2230,65 +2131,29 @@ function WeightEntryView({
 
         return;
       }
-      const allWeights: Record<string, number> = {};
-      order.items.forEach((item, i) => {
-        if (!needsWeighing(item)) return;
-        if (i === index) {
-          allWeights[String(i)] = n;
-        } else if (savedProducts.has(i)) {
-          const w = parseFloat(weights[String(i)]);
-          allWeights[String(i)] = !isNaN(w) && w > 0 ? w : (order.supplierWeights[String(i)] ?? 0);
-        } else if (order.supplierWeights[String(i)] != null) {
-          allWeights[String(i)] = order.supplierWeights[String(i)];
-        }
-      });
-
-      const newTotal =
-        order.items.reduce((sum, item, i) => {
-          if (!needsWeighing(item)) return sum + item.price * item.quantity;
-          return sum + (allWeights[String(i)] ?? 0) * item.price;
-        }, 0) + order.deliveryFee;
-
-      const allSaved = order.items.every((item, i) => {
-        if (!needsWeighing(item)) return true;
-        return savedProducts.has(i) || i === index;
-      });
-
-      // Stamp each item's gross profit (selling - supplier cost, scaled by the
-      // actual weight) back into the order snapshot, plus the order total cost
-      // and gross profit. Historical orders are never rewritten at checkout —
-      // this only corrects the current in-progress order once goods are weighed.
-      const updatedItems = order.items.map((item, i) => ({
-        ...item,
-        grossProfit: Math.round(
-          ((item.price - (item.costPrice ?? 0)) *
-            (needsWeighing(item)
-              ? (allWeights[String(i)] ?? 0)
-              : item.quantity ?? 0)) *
-            100,
-        ) / 100,
-      }));
-      const grossProfit = order.items.reduce((sum, item, i) => {
-        if (!needsWeighing(item)) return sum + (updatedItems[i].grossProfit ?? 0);
-        const w = allWeights[String(i)];
-        if (!w || w <= 0) return sum;
-        return sum + (item.price - (item.costPrice ?? 0)) * w;
-      }, 0);
-
-      const { error: updateError } = await supabase
-        .from('Orders')
-        .update({
-          supplier_weights: allWeights,
-          total: Math.round(newTotal * 100) / 100,
-          order_items: JSON.parse(JSON.stringify(updatedItems)) as Json,
-          gross_profit: Math.round(grossProfit * 100) / 100,
-          ...(editMode ? {} : { payment_status: allSaved ? 'Ready To Pay' : 'Pending' }),
-          updated_at: new Date().toISOString(),
-          updated_by: user?.id ?? null,
-        })
-        .eq('id', Number(order.dbId));
+      const { data: saveResult, error: updateError } = await supabase.rpc(
+        'supplier_record_legacy_order_weight',
+        {
+          p_order_id: Number(order.dbId),
+          p_item_index: index,
+          p_actual_weight_kg: n,
+        },
+      );
 
       if (updateError) throw updateError;
+
+      const result = saveResult as unknown as {
+        supplier_weights?: Record<string, number>;
+        all_weights_submitted?: boolean;
+      } | null;
+      const allWeights = result?.supplier_weights ?? {
+        ...order.supplierWeights,
+        [String(index)]: n,
+      };
+      const allSaved = result?.all_weights_submitted ?? order.items.every(
+        (candidate, candidateIndex) =>
+          !needsWeighing(candidate) || allWeights[String(candidateIndex)] != null,
+      );
 
       onWeightsSaved?.(order.dbId, allWeights);
 
@@ -2315,7 +2180,18 @@ function WeightEntryView({
         }
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("weightEntry.messages.saveFailed"));
+      console.error('[SupplierDashboard:saveWeight]', err);
+
+      const databaseMessage =
+        err && typeof err === 'object' && 'message' in err
+          ? String((err as { message?: unknown }).message ?? '')
+          : '';
+
+      setError(
+        databaseMessage.includes('already finalised')
+          ? t("weightEntry.messages.orderLocked")
+          : t("weightEntry.messages.saveFailed"),
+      );
     } finally {
       setSaving(false);
     }
@@ -2416,7 +2292,6 @@ function WeightEntryView({
           const isActive = currentIndex === i;
           const isDone = savedProducts.has(i);
           const hasComboItems = item.comboItems && item.comboItems.length > 0;
-          const total = lineTotal(item, i);
           const weight = weights[String(i)];
         const isWholeFishByWeight =
           order.source === 'canonical' &&
@@ -2462,9 +2337,6 @@ function WeightEntryView({
 
               <div className="flex items-center gap-4 flex-wrap">
                 <span className="text-[16px] text-gray-600">x{item.quantity}</span>
-                <span className="text-[16px] text-gray-600">
-                  RM{formatCurrency(item.price)}{perKgFlag ? '/kg' : ''}
-                </span>
 
                 {isWholeFishByWeight ? (
                   <div className="w-full mt-4 space-y-3">
@@ -2500,9 +2372,8 @@ function WeightEntryView({
                       )}
                     </div>
                   ))}
-                  <div className="flex justify-between pt-2 text-[16px] font-semibold">
+                  <div className="pt-2 text-[16px] font-semibold">
                     <span>Jumlah berat: {wholeFishTotalWeight.toFixed(2)} kg</span>
-                    <span className="text-green-700">RM{formatCurrency(total)}</span>
                   </div>
                 </div>
               ) : perKgFlag && !hasComboItems ? (
@@ -2534,19 +2405,11 @@ function WeightEntryView({
                         {lastSavedIndex === i && (
                           <span className="text-[16px] text-green-600 font-semibold animate-[fadeSlideUp_0.3s_ease-out]">{t("weightEntry.messages.saved")}</span>
                         )}
-                        <span className="text-[18px] font-bold text-green-700">
-                          RM{formatCurrency(total)}
-                        </span>
                       </div>
                     )}
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2 ml-auto">
-                    <span className="text-[16px] font-semibold text-green-600 whitespace-nowrap">{t("weightEntry.helper.fixedPrice")}</span>
-                    <span className="text-[18px] font-bold text-green-700">
-                      RM{formatCurrency(total)}
-                    </span>
-                  </div>
+                  <span className="text-[16px] font-semibold text-gray-600 ml-auto">Tak perlu timbang</span>
                 )}
               </div>
 
@@ -2556,26 +2419,6 @@ function WeightEntryView({
             </div>
           );
         })}
-      </div>
-
-      {/* Totals */}
-      <div className="bg-white rounded-2xl border-2 border-cream-200 p-5 mb-6 space-y-2">
-        <div className="flex justify-between text-[18px] text-amber-700">
-          <span>{t("weightEntry.labels.supplierCost")}</span>
-          <span className="font-semibold">RM{formatCurrency(costTotal)}</span>
-        </div>
-        <div className="flex justify-between text-[18px] text-green-700">
-          <span>{t("weightEntry.labels.grossProfit")} <span className="text-[13px] text-gray-400">({marginPercent(orderTotal - order.deliveryFee, costTotal).toFixed(1)}%)</span></span>
-          <span className="font-semibold">+RM{formatCurrency(grossProfit)}</span>
-        </div>
-        <div className="flex justify-between text-[18px] text-gray-600">
-          <span>{t("weightEntry.labels.deliveryFee")}</span>
-          <span className="font-semibold">{order.deliveryFee === 0 ? t("weightEntry.labels.free") : `RM${formatCurrency(order.deliveryFee)}`}</span>
-        </div>
-        <div className="flex justify-between text-[22px] font-bold">
-          <span>{t("weightEntry.labels.grandTotal")}</span>
-          <span className="text-forest-800">RM{formatCurrency(orderTotal)}</span>
-        </div>
       </div>
 
       {error && (
@@ -2591,17 +2434,6 @@ function WeightEntryView({
 
 function OrderDetailsView({ order, completionTimes, onClose }: { order: SupplierOrder; completionTimes: Record<string, string>; onClose: () => void }) {
   const { t } = useLanguage();
-  const lineTotal = (item: OrderItem, weights: Record<string, number>): number => {
-    if (item.pricingType === 'fixed' || item.unit === 'per bird' || item.comboId) {
-      return item.price * item.quantity;
-    }
-    const kg = weights[String(order.items.indexOf(item))];
-    if (!kg || kg <= 0) return 0;
-    return kg * item.price;
-  };
-
-  const orderTotal = order.items.reduce((sum, item) => sum + lineTotal(item, order.supplierWeights), 0) + order.deliveryFee;
-
   const completionTime = completionTimes[order.dbId];
 
   return (
@@ -2659,10 +2491,6 @@ function OrderDetailsView({ order, completionTimes, onClose }: { order: Supplier
               {order.items.map((item, i) => {
                 const perKg = needsWeighing(item);
                 const weight = order.supplierWeights[String(i)];
-                const total = perKg
-                  ? (weight ? weight * item.price : 0)
-                  : item.price * item.quantity;
-
                 return (
                   <div key={`${item.productId}-${i}`} className="bg-cream-50 rounded-2xl p-4 border border-cream-200">
                     <div className="flex items-start justify-between">
@@ -2673,9 +2501,8 @@ function OrderDetailsView({ order, completionTimes, onClose }: { order: Supplier
                             {t("supplierOrder.labels.slices", { count: item.sliceQuantity ?? item.quantity })}
                           </p>
                         )}
-                        <p className="text-[14px] text-gray-500">{t("supplierOrder.labels.qtyLine", { qty: item.quantity, price: formatCurrency(item.price), suffix: perKg ? t("supplierOrder.labels.perKg") : '' })}</p>
+                        <p className="text-[14px] text-gray-500">{t("supplierOrder.labels.quantity")}: {item.quantity}</p>
                       </div>
-                      <p className="text-[18px] font-bold text-gray-900">RM{formatCurrency(total)}</p>
                     </div>
                     {item.preparation && (
                       <p className="text-[14px] text-gray-500 mt-1">{t("supplierOrder.labels.preparation", { prep: t("cartItem.preparation." + item.preparation) })}</p>
@@ -2685,32 +2512,9 @@ function OrderDetailsView({ order, completionTimes, onClose }: { order: Supplier
                         {t("supplierOrder.labels.actualWeight", { weight: weight != null ? `${weight.toFixed(2)} kg` : '—' })}
                       </p>
                     )}
-                    {!perKg && (
-                      <p className="text-[14px] text-green-600 mt-1">{t("supplierOrder.labels.fixedPrice")}</p>
-                    )}
                   </div>
                 );
               })}
-            </div>
-          </div>
-
-          {/* Totals & Payment */}
-          <div className="bg-white rounded-2xl border-2 border-cream-200 p-5 space-y-2">
-            <div className="flex justify-between text-[16px] text-amber-700">
-              <span>{t("supplierOrder.labels.supplierCost")}</span>
-              <span className="font-semibold">RM{formatCurrency(orderCost(order.items, order.supplierWeights))}</span>
-            </div>
-            <div className="flex justify-between text-[16px] text-green-700">
-              <span>{t("supplierOrder.labels.grossProfit")}</span>
-              <span className="font-semibold">+RM{formatCurrency(orderGrossProfit(order.items, order.supplierWeights))}</span>
-            </div>
-            <div className="flex justify-between text-[16px] text-gray-600">
-            <span>{t("supplierOrder.labels.deliveryFee")}</span>
-            <span>{order.deliveryFee === 0 ? t("supplierOrder.messages.free") : `RM${formatCurrency(order.deliveryFee)}`}</span>
-          </div>
-          <div className="flex justify-between text-[22px] font-bold">
-            <span>{t("supplierOrder.labels.grandTotal")}</span>
-              <span className="text-forest-800">RM{formatCurrency(orderTotal)}</span>
             </div>
           </div>
 
