@@ -450,6 +450,11 @@ export default function Header() {
   const siteNameParts = (settings.site_name || 'Rimbun FreshGo').split(/\s+/);
   const firstName = siteNameParts[0];
   const restName = siteNameParts.slice(1).join(' ');
+  const FreshGoWordmark = ({ className = '' }: { className?: string }) => (
+    <span className={`whitespace-nowrap font-display font-bold leading-none tracking-tight ${className}`}>
+      <span className="text-[#00422E]">Fresh</span><span className="text-[#0089DC]">Go</span>
+    </span>
+  );
 
   return (
     <header className="sticky top-0 z-40 safe-area-top bg-white/95 backdrop-blur-sm border-b border-cream-200 shadow-soft">
@@ -458,12 +463,10 @@ export default function Header() {
           {/* Wordmark */}
           <Link to="/" className="group flex min-w-0 shrink-0 items-center gap-1 sm:gap-2">
             <BrandLogo size="w-7 h-7 sm:w-8 sm:h-8" iconSize={16} className="group-hover:scale-105 transition-transform" />
-            <span className="whitespace-nowrap font-display text-sm font-bold leading-none tracking-tight text-jade-600 sm:hidden">
-              FreshGo
-            </span>
+            <FreshGoWordmark className="text-sm sm:hidden" />
             <div className="hidden leading-none sm:block">
               <span className="font-display font-bold text-forest-800 text-lg tracking-tight">{firstName}</span>
-              {restName && <span className="font-display font-bold text-jade-600 text-lg tracking-tight"> {restName}</span>}
+              {restName === 'FreshGo' ? <FreshGoWordmark className="ml-1 text-lg" /> : restName && <span className="font-display font-bold text-jade-600 text-lg tracking-tight"> {restName}</span>}
             </div>
           </Link>
 
