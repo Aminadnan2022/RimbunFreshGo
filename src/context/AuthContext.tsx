@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react';
 import type { Session, User } from '@supabase/supabase-js';
-import { supabase } from '../lib/supabase';
+import { signOutWithRecovery } from '../lib/authSignOut';
+import { clearSupabaseAuthStorage, supabase } from '../lib/supabase';
 
 type UserRole = 'admin' | 'supplier' | 'delivery_rider' | 'customer' | null;
 
@@ -66,7 +67,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    const outcome = await signOutWithRecovery(supabase.auth, clearSupabaseAuthStorage);
+
+    // auth-js emits SIGNED_OUT for its normal paths. Its stale-session
+    // fallback cannot emit that internal event, so clear React's auth and role
+    // state directly to prevent any protected UI from remaining visible.
+    if (outcome === 'recovered-stale-session') {
+      setSession(null);
+      setRole(null);
+      setLoading(false);
+    }
   };
 
   const isAdmin = role === 'admin';

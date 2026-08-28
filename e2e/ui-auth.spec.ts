@@ -98,3 +98,28 @@ test('guest without a session is redirected from checkout to home', async ({ pag
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole('heading', { name: 'Freshly prepared.' })).toBeVisible();
 });
+
+test('admin logout clears a browser session when the remote session is already missing', async ({ page }) => {
+  const user = users.admin;
+  await signInViaHeader(page, user.email, user.password, '/admin/products');
+
+  await page.route('**/auth/v1/logout?scope=*', async (route) => {
+    await route.fulfill({
+      status: 400,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        code: 'session_not_found',
+        message: 'Session from session_id claim in JWT does not exist',
+      }),
+    });
+  });
+
+  await page.getByRole('button', { name: 'Log Out' }).click();
+  await expect(page.getByRole('button', { name: 'Login' })).toBeVisible();
+  await expect(page).toHaveURL(/\/$/);
+  await expect.poll(() => page.evaluate(() => Object.keys(localStorage).filter((key) => key.startsWith('sb-') && key.endsWith('-auth-token')))).toEqual([]);
+
+  await page.goto('/admin/products');
+  await expect(page).toHaveURL(/\/$/);
+  await expect(page.getByRole('button', { name: 'Login' })).toBeVisible();
+});

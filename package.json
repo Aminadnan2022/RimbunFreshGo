@@ -24,6 +24,7 @@
     "test:standalone-preparation-loading": "node scripts/check-standalone-preparation-loading.mjs",
     "test:notification-phase1": "node scripts/check-notification-phase1.mjs",
     "test:auth-consent-flow": "node scripts/check-auth-consent-flow.mjs",
+    "test:auth-sign-out": "node --experimental-strip-types scripts/test-auth-sign-out-fallback.mts",
     "test:phase4b0-catalog-completeness": "node scripts/check-phase4b0-catalog-completeness.mjs",
     "test:phase4b0-combo-components": "node scripts/check-phase4b0-combo-components.mjs",
     "test:phase4b0-combo-finalisation": "node scripts/check-phase4b0-combo-finalisation.mjs",
