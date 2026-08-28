@@ -17,7 +17,7 @@ import EstimatedQuantityNote from '../components/ui/EstimatedQuantityNote';
 import ProductImage from '../components/ui/ProductImage';
 import ProductCard from '../components/ui/ProductCard';
 import FeatureDisabledPage from '../components/system/FeatureDisabledPage';
-import { buildCartItem, computeSubtotal, getSliceRange } from '../lib/sellingOptions';
+import { buildCartItem, computeSubtotal, getSliceRange, isBulkWeighedPieceProduct } from '../lib/sellingOptions';
 import { formatCurrency } from '../lib/currency';
 
 export default function ProductDetailPage() {
@@ -75,6 +75,10 @@ export default function ProductDetailPage() {
   }
 
   const vendor = getVendorById(product.vendorId);
+  const isBulkWeighedPiece = isBulkWeighedPieceProduct(product);
+  const hasPieceWeightEstimate =
+    (product.orderingMode === 'whole_fish_by_weight' || isBulkWeighedPiece) &&
+    (product.averageWeight ?? 0) > 0;
   const related = products
     .filter((p) => p.category === product.category && p.id !== product.id)
     .slice(0, 4);
@@ -222,7 +226,7 @@ export default function ProductDetailPage() {
                   unit={product.sliceUnit ?? t("product.sliceUnitDefault")}
                 />
               </div>
-            ) : product.orderingMode === 'whole_fish_by_weight' ? (
+            ) : product.orderingMode === 'whole_fish_by_weight' || isBulkWeighedPiece ? (
               <QuantityStepper value={qty} onChange={setQty} />
             ) : product.orderingMode === 'weight_only' ? (
               <div className="flex items-center gap-2">
@@ -251,7 +255,7 @@ export default function ProductDetailPage() {
           {/* Estimated price display */}
           {product.orderingMode !== 'fixed_quantity' && product.orderingMode !== 'slice' && (
             <div className="mt-3 text-sm text-gray-500">
-              {product.orderingMode === 'whole_fish_by_weight' && product.averageWeight && product.averageWeight > 0 ? (
+              {hasPieceWeightEstimate ? (
                 <p>≈ {qty} × {product.averageWeight}g = <strong>{(qty * product.averageWeight / 1000).toFixed(2).replace(/\.?0+$/, '')}kg</strong> · ≈ <strong>RM{formatCurrency(computeSubtotal(product, { quantity: qty }))}</strong></p>
               ) : (
                 <p>{t("product.estimatedWeight")}: <strong>{estimatedWeight >= 1000 ? (estimatedWeight / 1000).toFixed(2).replace(/\.?0+$/, '') + 'kg' : estimatedWeight + 'g'}</strong> · ≈ <strong>RM{formatCurrency(computeSubtotal(product, { weightG: estimatedWeight }))}</strong></p>
@@ -278,7 +282,16 @@ export default function ProductDetailPage() {
             </div>
           )}
 
-          {(product.orderingMode === 'weight_only') && product.showEstimatedQuantity && product.averageWeight && product.averageWeight > 0 && (
+          {isBulkWeighedPiece && product.averageWeight && product.averageWeight > 0 && (
+            <div className="mt-4">
+              <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 leading-relaxed space-y-1">
+                <p className="font-semibold">{t("product.pieceBulkWeight.title")}</p>
+                <p>{t("product.pieceBulkWeight.details", { count: qty })}</p>
+              </div>
+            </div>
+          )}
+
+          {product.orderingMode === 'weight_only' && !isBulkWeighedPiece && product.showEstimatedQuantity && product.averageWeight && product.averageWeight > 0 && (
             <div className="mt-4">
               <EstimatedQuantityNote
                 weightGrams={estimatedWeight}

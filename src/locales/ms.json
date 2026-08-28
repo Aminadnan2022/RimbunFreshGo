@@ -207,8 +207,12 @@
       "added": "Ditambah!"
     },
     "estimatedWeight": "Berat Anggaran",
-    "estimatedQuantity": "💡 Anggaran Kuantiti",
-    "estimationDisclaimer": "Ini adalah anggaran sahaja. Berat dan harga akhir akan disahkan selepas penyediaan.",
+      "estimatedQuantity": "💡 Anggaran Kuantiti",
+      "estimationDisclaimer": "Ini adalah anggaran sahaja. Berat dan harga akhir akan disahkan selepas penyediaan.",
+      "pieceBulkWeight": {
+        "title": "💡 Beli mengikut bilangan ikan",
+        "details": "Anda memilih {{count}} ekor. Pembekal menimbang semuanya sekali gus; harga akhir berdasarkan jumlah berat sebenar."
+      },
     "wholeFish": "Ikan Utuh",
     "byWeight": "Mengikut Berat",
     "howToOrder": "Bagaimana anda mahu membuat pesanan?",
@@ -920,6 +924,9 @@
       "pricePerKg": "Harga Per KG",
       "estimatedPrice": "Anggaran Harga",
       "actualPrice": "Harga Sebenar",
+      "sellingPrice": "Harga jualan",
+      "fishNumber": "Ikan #{{number}}",
+      "totalWeight": "Jumlah berat: {{weight}} kg",
       "total": "Jumlah",
       "grandTotal": "Jumlah Besar",
       "deliveryFee": "Kos Penghantaran",
@@ -951,7 +958,8 @@
       "allSavedMsg": "Semua berat disimpan — status pembayaran dikemas kini ke Sedia Untuk Bayar",
       "orderLocked": "Pesanan ini telah dibayar. Berat dikunci dan tidak boleh diedit.",
       "orderLockedTitle": "Pesanan ini telah dibayar.",
-      "orderLockedMsg": "Berat dikunci dan tidak boleh diedit."
+      "orderLockedMsg": "Berat dikunci dan tidak boleh diedit.",
+      "notRequired": "Tidak perlu timbang"
     },
     "validation": {
       "required": "Masukkan berat sebenar untuk \"{{name}}\".",
@@ -1015,7 +1023,10 @@
       "totalProducts": "Jumlah Produk",
       "totalQuantity": "Jumlah Kuantiti",
       "estimatedTotal": "Anggaran Jumlah",
-      "actualTotal": "Jumlah Sebenar"
+      "actualTotal": "Jumlah Sebenar",
+      "sellingPrice": "Harga jualan",
+      "calculatedPrice": "Harga",
+      "totalPrice": "Jumlah harga"
     },
     "buttons": {
       "back": "Kembali",
@@ -1421,8 +1432,12 @@
       "orderingMode": "Cara Pelanggan Membeli Produk Ini",
       "orderingModeHelper": "Pilih cara pelanggan akan membeli produk ini di halaman kedai.",
       "fixedQuantity": "🐔 Harga Tetap (Seekor / Satu Unit)",
-      "weightOnly": "⚖️ Ikut Berat (kg / gram)",
-      "wholeOrWeight": "🐟 Pilih Seekor atau Ikut Berat",
+      "weightOnly": "⚖️ Pembekal timbang satu jumlah pukal",
+      "wholeOrWeight": "🐟 Ikan seekor — timbang setiap ekor",
+      "sellingUnit": "Unit pembelian pelanggan",
+      "sellingUnitHelper": "Pilih cara produk ini diwakili sebagai unit jualan.",
+      "bulkWeighByPieceHelper": "Pelanggan memilih bilangan ikan. Pembekal memasukkan satu jumlah berat sebenar, dan harga akhir kekal mengikut kg.",
+      "bulkWeighByWeightHelper": "Pelanggan memilih kg atau gram. Pembekal memasukkan satu jumlah berat sebenar, dan harga akhir kekal mengikut kg.",
       "combo": "📦 Kombo Keluarga",
       "sliceMode": "🔪 Ikut Kepingan (Pembekal Timbang)",
       "sliceConfigTitle": "Tetapan Kepingan",

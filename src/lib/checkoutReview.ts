@@ -72,7 +72,7 @@ export function conciseReviewLabel(target: PreparationTarget, unit: number | nul
 type OrderedQuantitySnapshot = Pick<
   ComboExpandedItem,
   'quantity' | 'quantityValue' | 'sellingUnit' | 'pricingType' | 'unit'
-> & Pick<CartItem, 'estimatedWeight' | 'orderingMode'>;
+> & Pick<CartItem, 'estimatedWeight' | 'orderingMode' | 'sellingUnit'>;
 
 const trimNumber = (value: number) => Number(value.toFixed(3)).toString();
 
@@ -100,7 +100,10 @@ export function orderedQuantityText(snapshot: OrderedQuantitySnapshot, multiplie
     snapshot.orderingMode === 'weight_only' ||
     (snapshot.orderingMode === 'whole_fish_by_weight' && snapshot.estimatedWeight != null);
 
-  if (isWeighted) {
+  const isBulkWeighedPiece =
+    snapshot.orderingMode === 'weight_only' && snapshot.sellingUnit === 'piece';
+
+  if (isWeighted && !isBulkWeighedPiece) {
     const weight = snapshot.quantityValue == null && snapshot.estimatedWeight != null
       ? snapshot.estimatedWeight * multiplier
       : configuredQuantity;

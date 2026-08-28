@@ -11,7 +11,7 @@ import EstimatedWeightStepper from './EstimatedWeightStepper';
 import SliceStepper from './SliceStepper';
 import EstimatedQuantityNote from './EstimatedQuantityNote';
 import ProductImage from './ProductImage';
-import { buildCartItem, computeSubtotal, getSliceRange } from '../../lib/sellingOptions';
+import { buildCartItem, computeSubtotal, getSliceRange, isBulkWeighedPieceProduct } from '../../lib/sellingOptions';
 import { formatCurrency } from '../../lib/currency';
 
 interface Props {
@@ -38,6 +38,7 @@ export default function ProductCard({ product }: Props) {
   const productUnitLabel = product.weight
     ? product.weight
     : product.priceNote ?? product.unit;
+  const isBulkWeighedPiece = isBulkWeighedPieceProduct(product);
 
   const handleAdd = () => {
     if (product.freshness === 'sold-out') return;
@@ -79,7 +80,7 @@ export default function ProductCard({ product }: Props) {
       );
     }
 
-    if (mode === 'whole_fish_by_weight') {
+    if (mode === 'whole_fish_by_weight' || isBulkWeighedPiece) {
       return (
         <div className="flex flex-col items-end gap-0.5">
           <QuantityStepper value={qty} onChange={setQty} size="sm" />
@@ -107,7 +108,7 @@ export default function ProductCard({ product }: Props) {
     return <QuantityStepper value={qty} onChange={setQty} size="sm" />;
   };
 
-  const estNoteMode = product.orderingMode === 'weight_only';
+  const estNoteMode = product.orderingMode === 'weight_only' && !isBulkWeighedPiece;
 
   const unitLabel = product.id === 'udang-a'
     ? 'prawns'
@@ -159,6 +160,13 @@ export default function ProductCard({ product }: Props) {
             {renderStepper()}
           </div>
         </div>
+
+        {isBulkWeighedPiece && product.averageWeight && product.averageWeight > 0 && (
+          <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 leading-relaxed">
+            <p className="font-semibold">{t("product.pieceBulkWeight.title")}</p>
+            <p>{t("product.pieceBulkWeight.details", { count: qty })}</p>
+          </div>
+        )}
 
         {product.orderingMode === 'whole_fish_by_weight' && product.showEstimatedQuantity && product.averageWeight && product.averageWeight > 0 && (
           <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 leading-relaxed">

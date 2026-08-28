@@ -11,7 +11,7 @@ import SliceStepper from '../components/ui/SliceStepper';
 import EstimatedQuantityNote from '../components/ui/EstimatedQuantityNote';
 import ProductImage from '../components/ui/ProductImage';
 import { formatCurrency } from '../lib/currency';
-import { isSliceItem } from '../lib/sellingOptions';
+import { isBulkWeighedPieceItem, isSliceItem } from '../lib/sellingOptions';
 import type { DeliveryDay, CartItem } from '../types';
 
 export default function CartPage() {
@@ -23,9 +23,12 @@ export default function CartPage() {
     item.orderingMode === 'whole_fish_by_weight' ||
     item.selectedOrderMode === 'whole';
 
+  const isBulkWeighedPiece = (item: CartItem) => isBulkWeighedPieceItem(item);
+
   const isWeightItem = (item: CartItem) => {
     if (isSliceItem(item)) return false;
     if (isWholeFishItem(item)) return false;
+    if (isBulkWeighedPiece(item)) return false;
     if (item.selectedOrderMode === 'weight') return true;
     if (item.orderingMode === 'weight_only') return true;
     return item.pricingType === 'per_kg';
@@ -141,7 +144,7 @@ export default function CartPage() {
                           size="sm"
                         />
                         <p className="font-bold text-forest-800">
-                          {isWholeFishItem(item)
+                          {isWholeFishItem(item) || isBulkWeighedPiece(item)
                             ? `≈ RM${formatCurrency(item.price * (item.estimatedWeight ?? 0))}`
                             : `RM${formatCurrency(item.price * item.quantity)}`}
                         </p>
@@ -164,7 +167,7 @@ export default function CartPage() {
                       {t("cart.slices", { count: item.sliceQuantity ?? item.quantity })}
                     </p>
                   ) : (
-                    isWholeFishItem(item) ? (
+                    isWholeFishItem(item) || isBulkWeighedPiece(item) ? (
                       <p className="text-xs text-amber-600 mt-1">
                         {item.quantity} {lang === 'ms' ? 'ekor' : 'fish'}
                         {item.averageWeight && item.averageWeight > 0

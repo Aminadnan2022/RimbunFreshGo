@@ -19,6 +19,22 @@ export function getSellingMode(product: Product): SellingMode {
   return 'quantity';
 }
 
+/**
+ * Customers choose a number of fish while the supplier records one combined
+ * actual weight for the line. The price is still per kg.
+ *
+ * This deliberately uses the existing canonical `weight_only` fulfilment
+ * path: it already accepts one line-level actual weight and never creates
+ * per-fish weight rows. `selling_unit: piece` is the customer-facing choice.
+ */
+export function isBulkWeighedPieceProduct(product: Product): boolean {
+  return product.orderingMode === 'weight_only' && product.selling_unit === 'piece';
+}
+
+export function isBulkWeighedPieceItem(item: CartItem): boolean {
+  return item.orderingMode === 'weight_only' && item.sellingUnit === 'piece';
+}
+
 export function usesWeight(product: Product): boolean {
   const mode = getSellingMode(product);
 
@@ -121,6 +137,7 @@ export function buildCartItem(
     category: product.category,
     showEstimatedQuantity: product.showEstimatedQuantity,
     orderingMode: product.orderingMode,
+    sellingUnit: product.selling_unit,
     averageWeight: product.averageWeight,
     ...(opts.preparation !== undefined && { preparation: opts.preparation }),
     costPrice: product.costPrice != null ? product.costPrice : 0,
@@ -147,6 +164,17 @@ export function buildCartItem(
   }
 
   if (mode === 'weight') {
+    if (isBulkWeighedPieceProduct(product)) {
+      const estimatedWeight = (qty * (product.averageWeight ?? 0)) / 1000;
+
+      return {
+        ...base,
+        quantity: qty,
+        estimatedWeight: estimatedWeight > 0 ? estimatedWeight : undefined,
+        pricingType: 'per_kg',
+      };
+    }
+
     return {
       ...base,
       quantity: 1,

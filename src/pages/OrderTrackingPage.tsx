@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, Link, Navigate } from 'react-router-dom';
 import {
   CheckCircle2, PackageCheck, Package, Truck, Home, Bike, Check,
-  ExternalLink, MapPin, User, ChevronRight, CalendarDays, Wallet, BadgeCheck, PackageX, ZoomIn, X,
+  ExternalLink, MapPin, User, ChevronRight, CalendarDays, Wallet, BadgeCheck, PackageX, ZoomIn, X, Camera, Upload,
 } from 'lucide-react';
 import { useOrders } from '../context/OrderContext';
 import { useAuth } from '../context/AuthContext';
@@ -884,27 +884,46 @@ useEffect(() => {
                     Upload receipt
                   </label>
 
-                  <input
-                key={receiptInputKey}
-                id="canonical-payment-receipt"
-                type="file"
-                accept="image/*"
-                disabled={receiptUploading}
-                onChange={(e) => {
-                  const file = e.currentTarget.files?.[0] ?? null;
-
-                  if (!file) return;
-
-                  setReceiptFile(file);
-                  setReceiptError(null);
-                  setReceiptSuccess(null);
-                }}
-                className="block w-full text-sm text-gray-600
-                  file:mr-4 file:rounded-xl file:border-0
-                  file:bg-forest-50 file:px-4 file:py-2.5
-                  file:text-sm file:font-semibold file:text-forest-700
-                  hover:file:bg-forest-100"
-              />
+                  <div className="flex flex-wrap gap-3">
+                    <label className="btn-secondary inline-flex cursor-pointer items-center gap-2">
+                      <Upload size={16} />
+                      Choose file
+                      <input
+                        key={receiptInputKey}
+                        id="canonical-payment-receipt"
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp,application/pdf"
+                        disabled={receiptUploading}
+                        onChange={(e) => {
+                          const file = e.currentTarget.files?.[0] ?? null;
+                          if (!file) return;
+                          setReceiptFile(file);
+                          setReceiptError(null);
+                          setReceiptSuccess(null);
+                        }}
+                        className="sr-only"
+                      />
+                    </label>
+                    <label className="btn-secondary inline-flex cursor-pointer items-center gap-2">
+                      <Camera size={16} />
+                      Use camera
+                      <input
+                        key={`camera-${receiptInputKey}`}
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        capture="environment"
+                        disabled={receiptUploading}
+                        onChange={(e) => {
+                          const file = e.currentTarget.files?.[0] ?? null;
+                          if (!file) return;
+                          setReceiptFile(file);
+                          setReceiptError(null);
+                          setReceiptSuccess(null);
+                        }}
+                        className="sr-only"
+                      />
+                    </label>
+                  </div>
 
               {receiptFile && (
                 <div className="mt-3 rounded-xl border border-green-200 bg-green-50 p-3">

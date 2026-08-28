@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import type { Cart, CartItem, DeliveryDay } from '../types';
+import { isBulkWeighedPieceItem } from '../lib/sellingOptions';
 
 type SelectedOrderMode = 'whole' | 'weight';
 
@@ -59,6 +60,10 @@ function loadCart(userId: string | null): Cart {
 }
 
 function itemMode(item: CartItem): string {
+  if (isBulkWeighedPieceItem(item)) {
+    return 'bulk_piece';
+  }
+
   // Canonical Phase 3D mode: customer orders physical whole fish by quantity,
   // while final price is still based on supplier-confirmed weight.
   if (
@@ -92,7 +97,7 @@ function cartItemKey(item: CartItem): string {
   // Whole fish must merge regardless of its estimated weight because the
   // customer is ordering a count of physical fish.
   const weight =
-    item.pricingType === 'per_kg' && mode !== 'whole'
+    item.pricingType === 'per_kg' && mode !== 'whole' && mode !== 'bulk_piece'
       ? `|weight${item.estimatedWeight ?? 0}`
       : '';
 
@@ -135,13 +140,14 @@ function actionMatchesItem(
   return !item.selectedOrderMode;
 }
 
-function wholeFishEstimatedWeight(item: CartItem, quantity: number): number | undefined {
-  const isWholeFish =
+function pieceCountEstimatedWeight(item: CartItem, quantity: number): number | undefined {
+  const isPieceCount =
     item.orderingMode === 'whole_fish_by_weight' ||
-    item.selectedOrderMode === 'whole';
+    item.selectedOrderMode === 'whole' ||
+    isBulkWeighedPieceItem(item);
 
   if (
-    !isWholeFish ||
+    !isPieceCount ||
     !item.averageWeight ||
     item.averageWeight <= 0
   ) {
@@ -167,11 +173,12 @@ function cartReducer(state: Cart, action: CartAction): Cart {
         };
       }
 
-      // Whole Fish is priced per kg but ordered as physical pieces.
-      // Repeated Add to Cart therefore increments the fish count.
+      // Whole fish and bulk-weighed small fish are priced per kg but ordered
+      // as physical pieces. Repeated Add to Cart therefore increments count.
       if (
         existing.orderingMode === 'whole_fish_by_weight' ||
-        existing.selectedOrderMode === 'whole'
+        existing.selectedOrderMode === 'whole' ||
+        isBulkWeighedPieceItem(existing)
       ) {
         const quantity = existing.quantity + action.item.quantity;
 
@@ -182,7 +189,7 @@ function cartReducer(state: Cart, action: CartAction): Cart {
               ? {
                   ...item,
                   quantity,
-                  estimatedWeight: wholeFishEstimatedWeight(item, quantity),
+                  estimatedWeight: pieceCountEstimatedWeight(item, quantity),
                 }
               : item,
           ),
@@ -236,7 +243,7 @@ function cartReducer(state: Cart, action: CartAction): Cart {
           return {
             ...item,
             quantity: action.quantity,
-            estimatedWeight: wholeFishEstimatedWeight(
+            estimatedWeight: pieceCountEstimatedWeight(
               item,
               action.quantity,
             ),
@@ -253,7 +260,8 @@ function cartReducer(state: Cart, action: CartAction): Cart {
             actionMatchesItem(item, action) &&
             item.pricingType === 'per_kg' &&
             item.orderingMode !== 'whole_fish_by_weight' &&
-            item.selectedOrderMode !== 'whole'
+            item.selectedOrderMode !== 'whole' &&
+            !isBulkWeighedPieceItem(item)
           ) {
             return {
               ...item,

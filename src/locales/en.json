@@ -207,8 +207,12 @@
       "added": "Added!"
     },
     "estimatedWeight": "Estimated Weight",
-    "estimatedQuantity": "💡 Estimated Quantity",
-    "estimationDisclaimer": "This is an estimate only. Final weight and price will be confirmed after preparation.",
+      "estimatedQuantity": "💡 Estimated Quantity",
+      "estimationDisclaimer": "This is an estimate only. Final weight and price will be confirmed after preparation.",
+      "pieceBulkWeight": {
+        "title": "💡 Buy by fish count",
+        "details": "You selected {{count}} fish. The supplier weighs them together; the final price uses the total actual weight."
+      },
     "wholeFish": "Whole Fish",
     "byWeight": "By Weight",
     "howToOrder": "How would you like to order?",
@@ -920,6 +924,9 @@
       "pricePerKg": "Price Per KG",
       "estimatedPrice": "Estimated Price",
       "actualPrice": "Actual Price",
+      "sellingPrice": "Selling price",
+      "fishNumber": "Fish #{{number}}",
+      "totalWeight": "Total weight: {{weight}} kg",
       "total": "Total",
       "grandTotal": "Grand Total",
       "deliveryFee": "Delivery Fee",
@@ -951,7 +958,8 @@
       "allSavedMsg": "All weights saved — payment status updated to Ready To Pay",
       "orderLocked": "This order has been paid. Weights are locked and cannot be edited.",
       "orderLockedTitle": "This order has been paid.",
-      "orderLockedMsg": "Weights are locked and cannot be edited."
+      "orderLockedMsg": "Weights are locked and cannot be edited.",
+      "notRequired": "No weighing needed"
     },
     "validation": {
       "required": "Enter actual weight for \"{{name}}\".",
@@ -1015,7 +1023,10 @@
       "totalProducts": "Total Products",
       "totalQuantity": "Total Quantity",
       "estimatedTotal": "Estimated Total",
-      "actualTotal": "Actual Total"
+      "actualTotal": "Actual Total",
+      "sellingPrice": "Selling price",
+      "calculatedPrice": "Price",
+      "totalPrice": "Total price"
     },
     "buttons": {
       "back": "Back",
@@ -1421,8 +1432,12 @@
       "orderingMode": "How Customers Order This Product",
       "orderingModeHelper": "Choose how customers will purchase this product on the shop page.",
       "fixedQuantity": "🐔 Fixed Price (Per Item)",
-      "weightOnly": "⚖️ By Weight (kg / gram)",
-      "wholeOrWeight": "🐟 Whole Fish — Price by Weight",
+      "weightOnly": "⚖️ Supplier weighs one bulk total",
+      "wholeOrWeight": "🐟 Whole fish — weigh each fish",
+      "sellingUnit": "Customer buying unit",
+      "sellingUnitHelper": "Choose how this product is represented as a selling unit.",
+      "bulkWeighByPieceHelper": "Customers choose the number of fish. The supplier records one combined actual weight, and the final price remains per kg.",
+      "bulkWeighByWeightHelper": "Customers choose kg or gram. The supplier records one combined actual weight, and the final price remains per kg.",
       "combo": "📦 Family Combo",
       "sliceMode": "🔪 By Slice (Supplier Weighs)",
       "sliceConfigTitle": "Slice Settings",

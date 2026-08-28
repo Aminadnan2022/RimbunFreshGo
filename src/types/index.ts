@@ -178,6 +178,8 @@ export interface CartItem {
   category?: Category;
   showEstimatedQuantity?: boolean;
   orderingMode?: OrderingMode;
+  /** Customer buying unit frozen from the product configuration. */
+  sellingUnit?: SellingUnit;
   /** Legacy customer-selected mode retained for historical cart/order compatibility. */
   selectedOrderMode?: 'whole' | 'weight';
   averageWeight?: number;

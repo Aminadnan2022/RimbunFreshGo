@@ -625,7 +625,16 @@ export default function AdminProductFormPage() {
               <select
                 id="ordering_mode"
                 value={form.ordering_mode}
-                onChange={(e) => set('ordering_mode', e.target.value)}
+                onChange={(e) => {
+                  const orderingMode = e.target.value;
+                  setForm((current) => ({
+                    ...current,
+                    ordering_mode: orderingMode,
+                    selling_unit: orderingMode === 'weight_only' && current.selling_unit === 'pack'
+                      ? 'kg'
+                      : current.selling_unit,
+                  }));
+                }}
                 className="input-field"
               >
                 {ORDERING_MODES.map((m) => (
@@ -638,7 +647,7 @@ export default function AdminProductFormPage() {
 
             <div>
               <label htmlFor="selling_unit" className="block text-sm font-medium text-gray-700 mb-1.5">
-                Selling Unit
+                {t("adminProducts.form.sellingUnit")}
               </label>
               <select
                 id="selling_unit"
@@ -648,10 +657,14 @@ export default function AdminProductFormPage() {
               >
                 <option value="piece">Piece / Ekor / Unit</option>
                 <option value="kg">Kilogram (kg)</option>
-                <option value="pack">Pack</option>
+                {form.ordering_mode !== 'weight_only' && <option value="pack">Pack</option>}
               </select>
               <p className="text-xs text-gray-400 mt-1.5">
-                Choose how this product is represented as a selling unit.
+                {form.ordering_mode === 'weight_only'
+                  ? form.selling_unit === 'piece'
+                    ? t("adminProducts.form.bulkWeighByPieceHelper")
+                    : t("adminProducts.form.bulkWeighByWeightHelper")
+                  : t("adminProducts.form.sellingUnitHelper")}
               </p>
             </div>
           </div>

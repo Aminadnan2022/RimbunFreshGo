@@ -134,6 +134,7 @@ interface OrderItem {
   canonicalLineId?: string;
   canonicalUnits?: CanonicalLineUnit[];
   name: string;
+  /** Frozen customer selling price for this historical order. Never supplier cost. */
   price?: number;
   unit: string;
   quantity: number;
@@ -194,6 +195,20 @@ const isSliceItem = (item: OrderItem): boolean =>
   item.pricingType === 'slice' || item.sliceQuantity != null || item.orderingMode === 'slice';
 
 const needsWeighing = (item: OrderItem): boolean => isPerKg(item) || isSliceItem(item);
+
+const formattedSellingPrice = (item: OrderItem): string | null => {
+  if (item.price == null || !Number.isFinite(item.price) || item.price < 0) return null;
+
+  const unit = needsWeighing(item) ? 'kg' : item.unit || 'unit';
+  return `RM${item.price.toFixed(2)} / ${unit}`;
+};
+
+const formatMoney = (amount: number): string => `RM${amount.toFixed(2)}`;
+
+const humanizeValue = (value: string): string =>
+  value
+    .replace(/[_-]+/g, ' ')
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
 
 const orderRequiresWeighing = (order: SupplierOrder): boolean => {
   return order.items.some(item => needsWeighing(item));
@@ -339,7 +354,7 @@ export default function SupplierDashboardPage() {
 
         supabase
           .from('sales_order_lines')
-          .select('id, sales_order_id, line_number, product_id, product_snapshot, quantity, selling_unit, ordering_mode, actual_weight_kg, item_kind')
+          .select('id, sales_order_id, line_number, product_id, product_snapshot, quantity, selling_unit, ordering_mode, unit_selling_price, actual_weight_kg, item_kind')
           .order('line_number', { ascending: true }),
 
         supabase
@@ -526,6 +541,10 @@ export default function SupplierDashboardPage() {
                 canonicalLineId: String(line.id),
                 canonicalUnits,
                 name: String(snapshot.name ?? line.product_id ?? 'Product'),
+                price:
+                  line.unit_selling_price != null && Number.isFinite(Number(line.unit_selling_price))
+                    ? Number(line.unit_selling_price)
+                    : undefined,
                 unit:
                   line.ordering_mode === 'fixed_quantity'
                     ? (snapshot.category === 'chicken' ? 'per bird' : String(line.selling_unit ?? 'piece'))
@@ -1890,6 +1909,46 @@ function WeightEntryView({
     return order.items.findIndex((item, i) => needsWeighing(item) && order.supplierWeights[String(i)] == null);
   });
 
+  const positiveWeight = (raw: string | undefined): number | null => {
+    const value = Number.parseFloat(raw ?? '');
+    return Number.isFinite(value) && value > 0 ? value : null;
+  };
+
+  const lineWeightKg = (item: OrderItem, index: number): number | null => {
+    if (item.orderingMode === 'whole_fish_by_weight') {
+      const units = item.canonicalUnits ?? [];
+      if (!units.length) return null;
+      const enteredUnitWeights = units.map((unit) => positiveWeight(unitWeights[unit.id]));
+      return enteredUnitWeights.every((weight) => weight != null)
+        ? enteredUnitWeights.reduce((sum, weight) => sum + (weight ?? 0), 0)
+        : null;
+    }
+
+    return positiveWeight(weights[String(index)]);
+  };
+
+  const displayPreparation = (preparation: string): string => {
+    const preparationKey = `cartItem.preparation.${preparation}`;
+    const fromPreparation = t(preparationKey);
+    if (fromPreparation !== preparationKey) return fromPreparation;
+
+    const commonKey = `checkout.${preparation}`;
+    const fromCommon = t(commonKey);
+    return fromCommon !== commonKey ? fromCommon : humanizeValue(preparation);
+  };
+
+  const calculatedTotal = order.items.reduce<number | null>((total, item, index) => {
+    if (total == null || item.price == null || !Number.isFinite(item.price)) return null;
+    if (!needsWeighing(item)) return total + item.price * item.quantity;
+
+    const weightKg = lineWeightKg(item, index);
+    return weightKg == null ? null : total + item.price * weightKg;
+  }, 0);
+
+  const remainingCount = perKgItems.filter(
+    ({ index, perKg }) => perKg && !savedProducts.has(index),
+  ).length;
+
   // BUG 3 fix: reset completed when editMode changes without remount
   useEffect(() => {
     if (editMode) {
@@ -2206,6 +2265,9 @@ function WeightEntryView({
         </div>
         <p className="text-[28px] font-bold text-green-700 mb-2">{editMode ? t("weightEntry.buttons.completed") : t("weightEntry.messages.saved")}</p>
         <p className="text-[18px] text-gray-500 mb-2">{order.customerName}</p>
+        <p className="text-[18px] font-bold text-forest-900 mb-4">
+          {t("supplierOrder.labels.totalPrice")}: {calculatedTotal == null ? '—' : formatMoney(calculatedTotal)}
+        </p>
         <p className="text-[16px] text-gray-400 mb-10">{editMode ? t("weightEntry.messages.weightSavedMsg") : t("weightEntry.messages.allSavedMsg")}</p>
         <div className="flex flex-col gap-4 w-full max-w-md">
           <button onClick={onNext} className="w-full bg-forest-700 hover:bg-forest-800 text-white rounded-xl py-5 text-[20px] font-bold min-h-[60px] transition-all active:scale-[0.97] shadow-lg">
@@ -2228,10 +2290,6 @@ function WeightEntryView({
 
   return (
     <div>
-      <button onClick={onBack} className="inline-flex items-center gap-1.5 text-[16px] text-gray-500 hover:text-forest-700 mb-6 transition-colors">
-        <ChevronLeft size={20} /> {t("weightEntry.buttons.back")}
-      </button>
-
       {/* Customer header card */}
       <div className="bg-white rounded-2xl border-2 border-forest-200 p-6 mb-6">
         <div className="flex items-start justify-between">
@@ -2239,9 +2297,11 @@ function WeightEntryView({
             <p className="text-[22px] font-bold text-gray-900">{order.customerName}</p>
             <p className="text-[14px] text-gray-500 font-mono mt-1">{order.orderRef}</p>
           </div>
-          <span className={`text-[14px] font-semibold px-3 py-1.5 rounded-full whitespace-nowrap ${completed ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
-            {completed ? t("weightEntry.messages.saved") : t("weightEntry.summary.pending", { count: perKgItems.filter((p) => p.perKg && !savedProducts.has(p.index)).length })}
-          </span>
+          {remainingCount > 0 && (
+            <span className="text-[14px] font-semibold px-3 py-1.5 rounded-full whitespace-nowrap bg-amber-100 text-amber-700">
+              {t("weightEntry.summary.pending", { count: remainingCount })}
+            </span>
+          )}
         </div>
         <div className="flex flex-wrap gap-4 mt-4 text-[16px] text-gray-600">
           <span>📍 {order.pickupLocation || '—'}</span>
@@ -2298,10 +2358,15 @@ function WeightEntryView({
           item.orderingMode === 'whole_fish_by_weight';
         const canonicalUnits = item.canonicalUnits ?? [];
         const hasCanonicalUnits = canonicalUnits.length > 0;
-        const wholeFishTotalWeight = canonicalUnits.reduce((sum, unit) => {
+          const wholeFishTotalWeight = canonicalUnits.reduce((sum, unit) => {
           const value = parseFloat(unitWeights[unit.id] ?? '');
           return sum + (Number.isFinite(value) && value > 0 ? value : 0);
-        }, 0);
+          }, 0);
+        const enteredWeightKg = lineWeightKg(item, i);
+        const calculatedPrice =
+          enteredWeightKg != null && item.price != null && Number.isFinite(item.price)
+            ? item.price * enteredWeightKg
+            : null;
 
           return (
             <div
@@ -2314,7 +2379,7 @@ function WeightEntryView({
                 <div>
                   <p className="text-[20px] font-bold text-gray-900">{item.name}</p>
                   {item.preparation && (
-                    <p className="text-[16px] text-gray-500 mt-0.5">{t("cartItem.preparation." + item.preparation)}</p>
+                    <p className="text-[16px] text-gray-500 mt-0.5">{displayPreparation(item.preparation)}</p>
                   )}
                   {isSliceItem(item) && (
                     <p className="text-[16px] text-purple-700 font-semibold mt-1">
@@ -2337,6 +2402,11 @@ function WeightEntryView({
 
               <div className="flex items-center gap-4 flex-wrap">
                 <span className="text-[16px] text-gray-600">x{item.quantity}</span>
+                {formattedSellingPrice(item) && (
+                  <span className="text-[14px] font-semibold text-forest-700">
+                    {t("supplierOrder.labels.sellingPrice")}: {formattedSellingPrice(item)}
+                  </span>
+                )}
 
                 {isWholeFishByWeight ? (
                   <div className="w-full mt-4 space-y-3">
@@ -2348,7 +2418,7 @@ function WeightEntryView({
                   {canonicalUnits.map((unit) => (
                     <div key={unit.id} className="flex items-center gap-3 rounded-xl border border-cream-200 bg-cream-50 p-3">
                       <span className="min-w-[80px] text-[15px] font-semibold text-gray-700">
-                        Ikan #{unit.unitNumber}
+                        {t("weightEntry.labels.fishNumber", { number: unit.unitNumber })}
                       </span>
                       <input
                         type="number"
@@ -2373,24 +2443,36 @@ function WeightEntryView({
                     </div>
                   ))}
                   <div className="pt-2 text-[16px] font-semibold">
-                    <span>Jumlah berat: {wholeFishTotalWeight.toFixed(2)} kg</span>
+                    <span>{t("weightEntry.labels.totalWeight", { weight: wholeFishTotalWeight.toFixed(2) })}</span>
+                    {calculatedPrice != null && (
+                      <span className="ml-4 text-forest-800">
+                        {t("supplierOrder.labels.calculatedPrice")}: {formatMoney(calculatedPrice)}
+                      </span>
+                    )}
                   </div>
                 </div>
               ) : perKgFlag && !hasComboItems ? (
                   <div className="flex items-center gap-3 ml-auto">
-                    <input
-                      ref={(el) => { inputRefs.current[i] = el; }}
-                      type="number"
-                      min="0.01"
-                      step="0.01"
-                      value={weight ?? ''}
-                      onChange={(e) => handleWeightChange(i, e.target.value)}
-                      placeholder={t("weightEntry.input.placeholder")}
-                      readOnly={isLocked || (isDone && !editMode)}
-                      className={`w-24 rounded-xl border-2 p-3 text-[18px] text-center focus:outline-none focus:border-forest-400 transition-colors ${
-                        isLocked || (isDone && !editMode) ? 'bg-gray-50 text-gray-400' : 'bg-white'
-                      }`}
-                    />
+                    <div className="flex flex-col items-end gap-1">
+                      <input
+                        ref={(el) => { inputRefs.current[i] = el; }}
+                        type="number"
+                        min="0.01"
+                        step="0.01"
+                        value={weight ?? ''}
+                        onChange={(e) => handleWeightChange(i, e.target.value)}
+                        placeholder={t("weightEntry.input.placeholder")}
+                        readOnly={isLocked || (isDone && !editMode)}
+                        className={`w-24 rounded-xl border-2 p-3 text-[18px] text-center focus:outline-none focus:border-forest-400 transition-colors ${
+                          isLocked || (isDone && !editMode) ? 'bg-gray-50 text-gray-400' : 'bg-white'
+                        }`}
+                      />
+                      {calculatedPrice != null && (
+                        <span className="text-[14px] font-bold text-forest-800">
+                          {t("supplierOrder.labels.calculatedPrice")}: {formatMoney(calculatedPrice)}
+                        </span>
+                      )}
+                    </div>
                         {isActive && !isLocked && (editMode || !isDone) && (
                       <button
                         onClick={() => saveCurrentProduct(i)}
@@ -2409,16 +2491,17 @@ function WeightEntryView({
                     )}
                   </div>
                 ) : (
-                  <span className="text-[16px] font-semibold text-gray-600 ml-auto">Tak perlu timbang</span>
+                  <span className="text-[16px] font-semibold text-gray-600 ml-auto">{t("weightEntry.messages.notRequired")}</span>
                 )}
               </div>
-
-              {perKgFlag && !isWholeFishByWeight && !hasComboItems && !weight && !isDone && !isLocked && (
-                <p className="text-[14px] text-amber-600 mt-2">{t("weightEntry.helper.autoCalculation")}</p>
-              )}
             </div>
           );
         })}
+      </div>
+
+      <div className="flex items-center justify-between rounded-2xl border-2 border-forest-200 bg-forest-50 px-5 py-4 text-[18px] font-bold text-forest-900">
+        <span>{t("supplierOrder.labels.totalPrice")}</span>
+        <span>{calculatedTotal == null ? '—' : formatMoney(calculatedTotal)}</span>
       </div>
 
       {error && (
@@ -2510,6 +2593,11 @@ function OrderDetailsView({ order, completionTimes, onClose }: { order: Supplier
                     {perKg && (
                       <p className="text-[16px] font-semibold text-forest-700 mt-1">
                         {t("supplierOrder.labels.actualWeight", { weight: weight != null ? `${weight.toFixed(2)} kg` : '—' })}
+                      </p>
+                    )}
+                    {formattedSellingPrice(item) && (
+                      <p className="text-[14px] font-semibold text-forest-700 mt-1">
+                        {t("supplierOrder.labels.sellingPrice")}: {formattedSellingPrice(item)}
                       </p>
                     )}
                   </div>
