@@ -25,6 +25,7 @@ type DbProduct = {
   tags: string[];
   is_popular: boolean;
   ordering_mode: string | null;
+  selling_unit: SellingUnit | null;
   display_order: number;
   is_pinned: boolean;
   slice_unit: string | null;
@@ -126,7 +127,7 @@ function mapRow(row: DbProduct): Product {
     showEstimatedQuantity: cfg?.showEstimatedQuantity,
     orderingMode,
     averageWeight: cfg?.averageWeight ?? 0,
-    selling_unit: deriveSellingUnit(orderingMode),
+    selling_unit: row.selling_unit ?? deriveSellingUnit(orderingMode),
     displayOrder: row.display_order ?? 0,
     isPinned: row.is_pinned ?? false,
     sliceUnit: row.slice_unit ?? 'slice',
@@ -138,7 +139,7 @@ function mapRow(row: DbProduct): Product {
   };
 }
 
-const SELECT = 'id, name, name_ms, category, price, cost_price, cost_supplier_name, unit, price_note, weight, quantity, description, long_description, image, images, freshness, preparation_options, vendor_id, vendor_name, tags, is_popular, ordering_mode, display_order, is_pinned, slice_unit, min_slice, max_slice, default_slice, slice_increment, slice_instruction';
+const SELECT = 'id, name, name_ms, category, price, cost_price, cost_supplier_name, unit, price_note, weight, quantity, description, long_description, image, images, freshness, preparation_options, vendor_id, vendor_name, tags, is_popular, ordering_mode, selling_unit, display_order, is_pinned, slice_unit, min_slice, max_slice, default_slice, slice_increment, slice_instruction';
 
 export async function fetchProducts(includeInactive = false): Promise<Product[]> {
   let query = supabase
@@ -248,12 +249,10 @@ export async function createProduct(payload: ProductPayload): Promise<Product> {
 }
 
 export async function updateProduct(id: string, payload: Partial<ProductPayload>): Promise<Product> {
-  const { data, error } = await supabase
-    .from('Product')
-    .update(payload)
-    .eq('id', id)
-    .select(SELECT)
-    .single();
+  const { data, error } = await supabase.rpc(
+    'admin_update_product_and_publish_configuration',
+    { p_product_id: id, p_product: payload },
+  );
   if (error) throw error;
   return mapRow(data as DbProduct);
 }
