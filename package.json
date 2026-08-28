@@ -57,6 +57,7 @@
     "test:admin-report-navigation": "node scripts/check-admin-report-navigation.mjs",
     "test:admin-historical-data": "node scripts/check-admin-historical-data.mjs",
     "test:admin-historical-data:rpc": "node --experimental-strip-types e2e/verify.historical-data-admin-rpc.ts",
+    "test:admin-product-version-publishing": "node scripts/check-admin-product-version-publishing.mjs",
     "test:supplier-price-repair": "node scripts/check-supplier-price-repair.mjs",
     "test:e2e": "node --experimental-strip-types e2e/run-all.ts",
     "test:e2e:playwright": "playwright test",

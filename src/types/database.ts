@@ -3208,6 +3208,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      admin_update_product_and_publish_configuration: {
+        Args: { p_product: Json; p_product_id: string }
+        Returns: Database["public"]["Tables"]["Product"]["Row"]
+      }
       admin_update_canonical_supplier_delivery_batch_tracking_url: {
         Args: { p_batch_id: string; p_tracking_url?: string }
         Returns: undefined
