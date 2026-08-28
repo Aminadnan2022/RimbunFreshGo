@@ -1,6 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { isTransientProviderStatus, renderTransactionalEmail, retryAt, type TransactionalNotification } from "./email.ts";
+import { isTransientProviderStatus, renderTransactionalEmail, retryAt, type TransactionalEmailProjection, type TransactionalNotification } from "./email.ts";
 
 type Job = { id: string; notification_id: string; recipient_user_id: string; attempt_count: number };
 type AttemptOutcome = "delivered" | "transient_failure" | "permanent_failure" | "recipient_unavailable";
@@ -38,7 +38,7 @@ Deno.serve(async (req: Request) => {
 
   for (const job of (jobs ?? []) as Job[]) {
     try {
-      const { data: notification, error: notificationError } = await db.from("notifications").select("id,notification_type,title,message,action_url").eq("id", job.notification_id).maybeSingle<TransactionalNotification>();
+      const { data: notification, error: notificationError } = await db.from("notifications").select("id,notification_type").eq("id", job.notification_id).maybeSingle<TransactionalNotification>();
       if (notificationError) throw notificationError;
       if (!notification) { await finish(job, "permanent_failure", { status: "failed", locked_at: null, last_error: "Notification no longer exists" }, undefined, undefined, "notification_missing"); outcomes.failed++; continue; }
       const { data: user, error: userError } = await db.auth.admin.getUserById(job.recipient_user_id);
@@ -46,7 +46,11 @@ Deno.serve(async (req: Request) => {
       const recipient = user.user?.email;
       if (!recipient) { await finish(job, "recipient_unavailable", { status: "failed", locked_at: null, last_error: "Recipient email is unavailable" }, undefined, undefined, "recipient_unavailable"); outcomes.unavailable++; continue; }
 
-      const rendered = renderTransactionalEmail(notification);
+      const { data: projectionRows, error: projectionError } = await db.rpc("get_transactional_email_projection", { p_notification_id: notification.id });
+      if (projectionError) throw projectionError;
+      const projection = (projectionRows as TransactionalEmailProjection[] | null)?.[0];
+      if (!projection) { await finish(job, "permanent_failure", { status: "failed", locked_at: null, last_error: "Safe email projection is unavailable" }, undefined, undefined, "projection_unavailable"); outcomes.failed++; continue; }
+      const rendered = renderTransactionalEmail(notification, projection, { appBaseUrl: Deno.env.get("TRANSACTIONAL_EMAIL_APP_BASE_URL") ?? undefined });
       const response = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: { Authorization: `Bearer ${resendApiKey}`, "Content-Type": "application/json", "Idempotency-Key": `freshgo-transactional-email-${job.id}` },
