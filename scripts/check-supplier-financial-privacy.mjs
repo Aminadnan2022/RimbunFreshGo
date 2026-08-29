@@ -79,8 +79,8 @@ if (supplier.includes("supplier_snapshot, ordering_mode")) {
 
 for (const token of [
   "supabase.rpc('supplier_list_legacy_orders')",
-  "supabase.rpc(\n        'supplier_mark_legacy_order_ready'",
-  "supabase.rpc(\n        'supplier_record_legacy_order_weight'",
+  "'supplier_mark_legacy_order_ready'",
+  "'supplier_record_legacy_order_weight'",
 ]) {
   if (!supplier.includes(token)) failures.push(`supplier network path is not using protected RPC: ${token}`);
 }

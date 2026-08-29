@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, type FormEvent } from 'react';
 import { useParams, Link, Navigate } from 'react-router-dom';
 import {
   CheckCircle2, PackageCheck, Package, Truck, Home, Bike, Check,
-  ExternalLink, MapPin, User, ChevronRight, CalendarDays, Wallet, BadgeCheck, PackageX, ZoomIn, X, Camera, Upload,
+  ExternalLink, MapPin, User, ChevronRight, CalendarDays, Wallet, BadgeCheck, PackageX, ZoomIn, X,
 } from 'lucide-react';
 import { useOrders } from '../context/OrderContext';
 import { useAuth } from '../context/AuthContext';
@@ -20,6 +20,78 @@ import {
 import type { Order } from '../types';
 import { createBrowserUuid } from '../lib/browserUuid';
 import { resolveCustomerPaymentPresentation } from '../lib/orderPaymentPresentation';
+
+const RECEIPT_FILE_ACCEPT =
+  'image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf';
+const RECEIPT_IMAGE_ACCEPT = 'image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp';
+
+function ReceiptFilePicker({
+  disabled,
+  onSelect,
+}: {
+  disabled: boolean;
+  onSelect: (file: File) => void;
+}) {
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const lastFileRef = useRef<File | null>(null);
+  const pickerRef = useRef<HTMLDivElement | null>(null);
+
+  const captureFile = (event: FormEvent<HTMLInputElement>) => {
+    const file = event.currentTarget.files?.[0];
+    if (!file || lastFileRef.current === file) return;
+
+    lastFileRef.current = file;
+    setSelectedFile(file);
+    onSelect(file);
+
+    window.requestAnimationFrame(() => {
+      pickerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  };
+
+  return (
+    <div ref={pickerRef} className="min-w-0 max-w-full">
+      <input
+        id="canonical-payment-receipt-file"
+        type="file"
+        accept={RECEIPT_FILE_ACCEPT}
+        disabled={disabled}
+        onInput={captureFile}
+        onChange={captureFile}
+        className="block w-full min-w-0 max-w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-forest-700 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white"
+      />
+
+      <label
+        htmlFor="canonical-payment-receipt-camera"
+        className="mt-3 inline-flex cursor-pointer items-center justify-center rounded-lg bg-forest-700 px-3 py-2 text-sm font-semibold text-white hover:bg-forest-800"
+      >
+        Use camera
+        <input
+          id="canonical-payment-receipt-camera"
+          type="file"
+          accept={RECEIPT_IMAGE_ACCEPT}
+          capture="environment"
+          disabled={disabled}
+          onInput={captureFile}
+          onChange={captureFile}
+          className="sr-only"
+        />
+      </label>
+
+      {selectedFile && (
+        <div className="mt-3 min-w-0 max-w-full overflow-hidden rounded-xl border border-green-200 bg-green-50 p-3">
+          <p className="text-sm font-semibold text-green-800">File selected</p>
+          <p className="mt-1 break-all text-xs text-green-700">
+            {selectedFile.name}
+          </p>
+          <p className="mt-1 text-xs text-green-600">
+            {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
 
 const STAGE_ICONS: Record<(typeof TRACKING_STAGES)[number], typeof Package> = {
   orderReceived: PackageCheck,
@@ -61,6 +133,7 @@ type CanonicalFinalPriceItem = {
 export default function OrderTrackingPage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
+  const userId = user?.id;
   const { getOrder } = useOrders();
   const { t } = useLanguage();
 
@@ -85,8 +158,7 @@ const [initialLoading, setInitialLoading] = useState(true);
     useState<CanonicalFinalPriceItem[]>([]);
 
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
-  const [receiptInputKey, setReceiptInputKey] = useState(0);
-const [receiptUploading, setReceiptUploading] = useState(false);
+  const [receiptUploading, setReceiptUploading] = useState(false);
   const [receiptError, setReceiptError] = useState<string | null>(null);
   const [receiptSuccess, setReceiptSuccess] = useState<string | null>(null);
   const loadLive = useCallback(async (ref: string) => {
@@ -409,7 +481,7 @@ const [receiptUploading, setReceiptUploading] = useState(false);
   }, [getOrder]);
 
 useEffect(() => {
-  if (!user) return;
+  if (!userId) return;
 
   let active = true;
   const ref = id ?? '';
@@ -420,7 +492,7 @@ useEffect(() => {
     if (active) setInitialLoading(false);
   });
 
-  // Do not refresh while Camera / Gallery / Files picker has hidden the page.
+  // Do not refresh while Gallery / Files picker has hidden the page.
   // This avoids interrupting the native file-selection handoff on mobile.
   const interval = window.setInterval(() => {
     if (!active) return;
@@ -433,7 +505,7 @@ useEffect(() => {
     active = false;
     window.clearInterval(interval);
   };
-}, [id, loadLive, user]);
+}, [id, loadLive, userId]);
 
   const handleReceiptUpload = async () => {
     if (!canonicalPayment || !receiptFile) return;
@@ -500,8 +572,7 @@ useEffect(() => {
       if (submitError) throw submitError;
 
       setReceiptFile(null);
-  setReceiptInputKey((key) => key + 1);
-  setReceiptSuccess('Receipt submitted successfully. Waiting for admin verification.');
+      setReceiptSuccess('Receipt submitted successfully. Waiting for admin verification.');
 
       await loadLive(id ?? '');
     } catch (err) {
@@ -888,66 +959,20 @@ useEffect(() => {
 
                 <div>
                   <label
-                    htmlFor="canonical-payment-receipt"
+                    htmlFor="canonical-payment-receipt-file"
                     className="block text-sm font-semibold text-gray-700 mb-2"
                   >
                     Upload receipt
                   </label>
 
-                  <div className="flex flex-wrap gap-3">
-                    <label className="btn-secondary inline-flex cursor-pointer items-center gap-2">
-                      <Upload size={16} />
-                      Choose file
-                      <input
-                        key={receiptInputKey}
-                        id="canonical-payment-receipt"
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp,application/pdf"
-                        disabled={receiptUploading}
-                        onChange={(e) => {
-                          const file = e.currentTarget.files?.[0] ?? null;
-                          if (!file) return;
-                          setReceiptFile(file);
-                          setReceiptError(null);
-                          setReceiptSuccess(null);
-                        }}
-                        className="sr-only"
-                      />
-                    </label>
-                    <label className="btn-secondary inline-flex cursor-pointer items-center gap-2">
-                      <Camera size={16} />
-                      Use camera
-                      <input
-                        key={`camera-${receiptInputKey}`}
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp"
-                        capture="environment"
-                        disabled={receiptUploading}
-                        onChange={(e) => {
-                          const file = e.currentTarget.files?.[0] ?? null;
-                          if (!file) return;
-                          setReceiptFile(file);
-                          setReceiptError(null);
-                          setReceiptSuccess(null);
-                        }}
-                        className="sr-only"
-                      />
-                    </label>
-                  </div>
-
-              {receiptFile && (
-                <div className="mt-3 rounded-xl border border-green-200 bg-green-50 p-3">
-                  <p className="text-sm font-semibold text-green-800">
-                    File selected
-                  </p>
-                  <p className="mt-1 break-all text-xs text-green-700">
-                    {receiptFile.name}
-                  </p>
-                  <p className="mt-1 text-xs text-green-600">
-                    {(receiptFile.size / 1024 / 1024).toFixed(2)} MB
-                  </p>
-                </div>
-              )}
+                  <ReceiptFilePicker
+                    disabled={receiptUploading}
+                    onSelect={(file) => {
+                      setReceiptFile(file);
+                      setReceiptError(null);
+                      setReceiptSuccess(null);
+                    }}
+                  />
 
                   <p className="mt-2 text-xs text-gray-400">
                     JPG, PNG, WebP or PDF · maximum 5 MB

@@ -4,6 +4,7 @@ const read = (path) => fs.readFileSync(new URL(`../${path}`, import.meta.url), '
 const header = read('src/components/layout/Header.tsx');
 const languageSwitcher = read('src/components/layout/LanguageSwitcher.tsx');
 const shop = read('src/pages/ShopPage.tsx');
+const checkout = read('src/pages/CheckoutPage.tsx');
 const productCard = read('src/components/ui/ProductCard.tsx');
 const comboDetail = read('src/pages/ComboDetailPage.tsx');
 const admin = read('src/pages/AdminProductsPage.tsx');
@@ -24,6 +25,10 @@ const checks = [
   [shop, 'w-full min-w-0 max-w-7xl', 'Shop root is viewport-bounded'],
   [shop, 'relative min-w-0 flex-1', 'Shop search field may shrink beside its filter button'],
   [shop, 'grid min-w-0 grid-cols-1', 'Shop grid may shrink'],
+  [checkout, 'w-full min-w-0 max-w-5xl', 'Checkout root is viewport-bounded'],
+  [checkout, 'grid min-w-0 grid-cols-1 lg:grid-cols-3', 'Checkout columns collapse without widening mobile layout'],
+  [checkout, 'card min-w-0 max-w-full p-5 sm:p-8 space-y-5', 'Checkout payment card cannot widen from receipt content'],
+  [checkout, 'flex min-w-0 gap-3', 'Checkout payment actions may shrink within the viewport'],
   [productCard, 'card card-hover flex min-w-0 max-w-full', 'product cards cannot widen their grid track'],
   [productCard, 'flex min-w-0 items-end justify-between gap-2', 'product price and controls share a shrinkable row'],
   [comboDetail, 'grid min-w-0 grid-cols-1 lg:grid-cols-2', 'Combo detail hero has a shrinkable single-column mobile layout'],

@@ -378,7 +378,7 @@ export default function SupplierDashboardPage() {
 
         supabase
           .from('sales_order_lines')
-          .select('id, sales_order_id, line_number, product_id, product_snapshot, quantity, selling_unit, ordering_mode, unit_selling_price, actual_weight_kg, item_kind')
+          .select('id, sales_order_id, line_number, product_id, product_snapshot, quantity, selling_unit, ordering_mode, actual_weight_kg, item_kind')
           .order('line_number', { ascending: true }),
 
         supabase
@@ -566,10 +566,6 @@ export default function SupplierDashboardPage() {
                 canonicalLineId: String(line.id),
                 canonicalUnits,
                 name: String(snapshot.name ?? line.product_id ?? 'Product'),
-                price:
-                  line.unit_selling_price != null && Number.isFinite(Number(line.unit_selling_price))
-                    ? Number(line.unit_selling_price)
-                    : undefined,
                 unit:
                   line.ordering_mode === 'fixed_quantity'
                     ? (snapshot.category === 'chicken' ? 'per bird' : String(line.selling_unit ?? 'piece'))
