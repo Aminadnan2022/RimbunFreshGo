@@ -4,7 +4,7 @@ import { CUSTOMER_EMAIL_TYPES, isTransientProviderStatus, renderTransactionalEma
 
 const orderNumber = 'FG-20260828-00001';
 const projection = (notification_type, overrides = {}) => ({
-  notification_type, order_number: orderNumber, final_total: null, currency_code: 'MYR', payment_status: 'pending',
+  notification_type, order_number: orderNumber, previous_final_total: null, final_total: null, currency_code: 'MYR', payment_status: 'pending',
   delivery_date: null, delivery_window: null, delivery_area: null, ...overrides,
 });
 
@@ -32,6 +32,10 @@ assert.doesNotMatch(pending.text, /^Payment: Confirmed$/m);
 const finalised = renderTransactionalEmail({ id: 'n', notification_type: 'price_finalised' }, projection('price_finalised', { final_total: '42.50' }));
 assert.match(finalised.text, /Final amount: RM\s?42\.50/);
 assert.match(finalised.text, /ACTION REQUIRED/);
+const updated = renderTransactionalEmail({ id: 'n', notification_type: 'final_amount_updated' }, projection('final_amount_updated', { previous_final_total: '42.50', final_total: '48.75' }));
+assert.match(updated.text, /Previous amount: RM\s?42\.50/);
+assert.match(updated.text, /Updated final amount: RM\s?48\.75/);
+assert.match(updated.text, /pay the updated final amount/i);
 const confirmed = renderTransactionalEmail({ id: 'n', notification_type: 'payment_confirmed' }, projection('payment_confirmed', { final_total: 42.5, payment_status: 'paid' }));
 assert.match(confirmed.text, /Payment: Confirmed/);
 assert.match(confirmed.text, /Amount paid: RM\s?42\.50/);
@@ -71,4 +75,4 @@ for (const forbiddenColumn of ['customer_snapshot', 'house_unit', 'apartment', '
 }
 assert.equal(isTransientProviderStatus(408), true); assert.equal(isTransientProviderStatus(429), true); assert.equal(isTransientProviderStatus(503), true); assert.equal(isTransientProviderStatus(400), false);
 const originalNow = Date.now; Date.now = () => 0; assert.equal(retryAt(1), '1970-01-01T00:00:30.000Z'); assert.equal(retryAt(5), '1970-01-01T00:08:00.000Z'); Date.now = originalNow;
-console.log('Transactional email dispatcher tests passed for all 8 customer events.');
+console.log('Transactional email dispatcher tests passed for all 9 customer events.');

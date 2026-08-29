@@ -446,6 +446,9 @@ useEffect(() => {
       if (canonicalPayment.priceStatus !== 'final') {
         throw new Error('Final order price is not ready yet.');
       }
+      if (canonicalPayment.finalTotal == null) {
+        throw new Error('Final order amount is unavailable. Refresh the order and try again.');
+      }
 
       if (!['pending', 'rejected'].includes(canonicalPayment.paymentStatus)) {
         throw new Error('Payment receipt cannot be submitted for this order right now.');
@@ -490,6 +493,7 @@ useEffect(() => {
           p_original_file_name: receiptFile.name,
           p_mime_type: receiptFile.type,
           p_file_size: receiptFile.size,
+          p_expected_final_total: canonicalPayment.finalTotal,
         },
       );
 

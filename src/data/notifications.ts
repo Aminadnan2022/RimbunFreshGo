@@ -35,6 +35,7 @@ export function notificationAction(item: AppNotification): string {
     case 'order_cancelled': return item.action_url?.startsWith('/order/') ? order : '/admin?tab=orders';
     case 'order_payment_submitted':
     case 'price_finalised':
+    case 'final_amount_updated':
     case 'payment_confirmed':
     case 'payment_receipt_rejected':
     case 'out_for_delivery':

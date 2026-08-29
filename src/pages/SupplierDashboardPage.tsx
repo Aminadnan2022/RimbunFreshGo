@@ -169,6 +169,8 @@ interface SupplierOrder {
   summary: OrderSummary;
   supplierWeights: Record<string, number>;
   paymentStatus: PaymentStatus;
+  /** Canonical state is retained separately because the legacy badge has only three labels. */
+  canonicalPaymentStatus: string | null;
   canonicalPriceStatus: 'estimated' | 'final' | null;
   orderNotes: string;
   paidAt: string | null;
@@ -227,6 +229,28 @@ const canonicalPreparationCode = (code: string | null | undefined): string | und
 
 const canonicalPaymentStatus = (status: string | null | undefined): PaymentStatus =>
   status === 'paid' ? 'Paid' : 'Pending';
+
+const canonicalWeightLockMessage = (
+  paymentStatus: string | null,
+  t: (key: string) => string,
+): string => {
+  if (paymentStatus === 'receipt_submitted') return t('weightEntry.messages.receiptUnderReview');
+  if (paymentStatus === 'paid') return t('weightEntry.messages.orderLocked');
+  return t('weightEntry.messages.saveFailed');
+};
+
+const canonicalWeightSaveError = (
+  databaseMessage: string,
+  t: (key: string) => string,
+): string => {
+  if (databaseMessage.includes('under review')) {
+    return t('weightEntry.messages.receiptUnderReview');
+  }
+  if (databaseMessage.includes('has been paid')) {
+    return t('weightEntry.messages.orderLocked');
+  }
+  return t('weightEntry.messages.saveFailed');
+};
 
 const canonicalPricingType = (
   orderingMode: string | null | undefined
@@ -399,6 +423,7 @@ export default function SupplierDashboardPage() {
           summary,
           supplierWeights: (r.supplier_weights as Record<string, number>) ?? {},
           paymentStatus: (r.payment_status as PaymentStatus) ?? 'Pending',
+          canonicalPaymentStatus: null,
           canonicalPriceStatus: null,
           orderNotes: r.order_notes ?? '',
           paidAt: r.paid_at ?? null,
@@ -582,6 +607,7 @@ export default function SupplierDashboardPage() {
             summary,
             supplierWeights,
             paymentStatus: canonicalPaymentStatus(row.payment_status),
+            canonicalPaymentStatus: row.payment_status ?? null,
             canonicalPriceStatus: row.price_status === 'final' ? ('final' as const) : ('estimated' as const),
             orderNotes: String(customer.notes ?? ''),
             paidAt: row.paid_at ?? null,
@@ -1850,7 +1876,15 @@ function WeightEntryView({
   onWeightsSaved?: (dbId: string, weights: Record<string, number>) => void;
 }) {
   const { t } = useLanguage();
-  const isLocked = order.paymentStatus === 'Paid';
+  const isLocked = order.source === 'canonical'
+    ? ['receipt_submitted', 'paid'].includes(order.canonicalPaymentStatus ?? '')
+    : order.paymentStatus === 'Paid';
+  const lockTitle = order.source === 'canonical' && order.canonicalPaymentStatus === 'receipt_submitted'
+    ? t('weightEntry.messages.receiptUnderReviewTitle')
+    : t('weightEntry.messages.orderLockedTitle');
+  const lockMessage = order.source === 'canonical'
+    ? canonicalWeightLockMessage(order.canonicalPaymentStatus, t)
+    : t('weightEntry.messages.orderLocked');
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   const perKgItems = order.items.map((item, i) => ({ item, index: i, perKg: needsWeighing(item) }));
@@ -1978,7 +2012,7 @@ function WeightEntryView({
     unit: CanonicalLineUnit,
   ) => {
     if (isLocked) {
-      setError(t("weightEntry.messages.orderLocked"));
+      setError(lockMessage);
       return;
     }
 
@@ -2090,11 +2124,7 @@ function WeightEntryView({
           ? String((err as { message?: unknown }).message ?? '')
           : '';
 
-      setError(
-        databaseMessage.includes('already finalised')
-          ? t("weightEntry.messages.orderLocked")
-          : t("weightEntry.messages.saveFailed"),
-      );
+      setError(canonicalWeightSaveError(databaseMessage, t));
     } finally {
       setSaving(false);
     }
@@ -2102,7 +2132,7 @@ function WeightEntryView({
 
   const saveCurrentProduct = async (index: number) => {
     if (isLocked) {
-      setError(t("weightEntry.messages.orderLocked"));
+      setError(lockMessage);
       return;
     }
     const item = order.items[index];
@@ -2246,11 +2276,7 @@ function WeightEntryView({
           ? String((err as { message?: unknown }).message ?? '')
           : '';
 
-      setError(
-        databaseMessage.includes('already finalised')
-          ? t("weightEntry.messages.orderLocked")
-          : t("weightEntry.messages.saveFailed"),
-      );
+      setError(canonicalWeightSaveError(databaseMessage, t));
     } finally {
       setSaving(false);
     }
@@ -2321,8 +2347,8 @@ function WeightEntryView({
         <div className="flex items-start gap-3 p-5 bg-green-50 border-2 border-green-200 rounded-2xl text-green-800 text-[16px] mb-6">
           <Lock size={24} className="flex-shrink-0 mt-0.5" />
           <div>
-            <p className="font-bold">{t("weightEntry.messages.orderLockedTitle")}</p>
-            <p className="text-green-700 mt-1">{t("weightEntry.messages.orderLockedMsg")}</p>
+            <p className="font-bold">{lockTitle}</p>
+            <p className="text-green-700 mt-1">{lockMessage}</p>
           </div>
         </div>
       )}

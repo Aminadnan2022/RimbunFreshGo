@@ -959,6 +959,8 @@
       "orderLocked": "This order has been paid. Weights are locked and cannot be edited.",
       "orderLockedTitle": "This order has been paid.",
       "orderLockedMsg": "Weights are locked and cannot be edited.",
+      "receiptUnderReview": "A payment receipt is under review. Weights are locked until it is accepted or rejected.",
+      "receiptUnderReviewTitle": "Payment receipt under review.",
       "notRequired": "No weighing needed"
     },
     "validation": {

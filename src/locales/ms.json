@@ -959,6 +959,8 @@
       "orderLocked": "Pesanan ini telah dibayar. Berat dikunci dan tidak boleh diedit.",
       "orderLockedTitle": "Pesanan ini telah dibayar.",
       "orderLockedMsg": "Berat dikunci dan tidak boleh diedit.",
+      "receiptUnderReview": "Resit bayaran sedang disemak. Berat dikunci sehingga resit diterima atau ditolak.",
+      "receiptUnderReviewTitle": "Resit bayaran sedang disemak.",
       "notRequired": "Tidak perlu timbang"
     },
     "validation": {

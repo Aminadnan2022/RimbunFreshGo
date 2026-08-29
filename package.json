@@ -52,6 +52,7 @@
     "test:phase4b2-projection-guard": "node scripts/check-phase4b2-projection-guard.mjs",
     "test:phase4b2-preparation-physical-units": "node scripts/check-phase4b2-preparation-physical-units.mjs",
     "test:auto-supplier-finalisation": "node scripts/check-auto-supplier-finalisation.mjs",
+    "test:pre-payment-weight-corrections": "node scripts/check-pre-payment-weight-corrections.mjs",
     "test:canonical-supplier-tracking-update": "node scripts/check-canonical-supplier-tracking-update.mjs",
     "test:supplier-financial-privacy": "node scripts/check-supplier-financial-privacy.mjs",
     "test:rider-delivery-proof-autoadvance": "node scripts/check-rider-delivery-proof-autoadvance.mjs",

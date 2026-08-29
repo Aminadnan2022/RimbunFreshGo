@@ -3702,6 +3702,7 @@ export type Database = {
       }
       submit_sales_order_payment_receipt: {
         Args: {
+          p_expected_final_total: number
           p_file_size: number
           p_mime_type: string
           p_original_file_name: string
