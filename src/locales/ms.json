@@ -1541,8 +1541,10 @@
     "labels": {
       "email": "E-mel",
       "role": "Peranan",
+      "supplier": "Pembekal ditugaskan",
       "actions": "Tindakan",
-      "you": "(anda)"
+      "you": "(anda)",
+      "selectSupplier": "Pilih pembekal"
     },
     "roles": {
       "admin": "Pentadbir",
@@ -1556,12 +1558,15 @@
       "promoteToAdmin": "Naikkan kepada Admin",
       "makeCustomer": "Jadikan Pelanggan",
       "makeSupplier": "Jadikan Pembekal",
+      "saveSupplier": "Simpan pembekal",
       "makeRider": "Jadikan Penghantar",
       "makeAdmin": "Jadikan Admin"
     },
     "messages": {
       "failedLoad": "Gagal memuat pengguna",
       "failedUpdate": "Gagal mengemas kini peranan",
+      "failedSupplierAssignment": "Gagal menyimpan tugasan pembekal",
+      "selectSupplierFirst": "Pilih pembekal sebelum menetapkan pengguna ini sebagai pembekal",
       "cannotChangeOwnRole": "Tidak boleh menukar peranan anda sendiri"
     }
   },

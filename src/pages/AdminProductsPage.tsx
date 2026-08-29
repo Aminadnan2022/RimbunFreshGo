@@ -1052,10 +1052,25 @@ function SettingsTab() {
 }
 type UserRoleValue = 'admin' | 'supplier' | 'delivery_rider' | 'customer';
 
+function userManagementErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === 'object' && 'message' in error) {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === 'string' && message.trim()) return message;
+  }
+  return fallback;
+}
+
 type UserRow = {
   id: string;
   email: string;
   role: UserRoleValue;
+  supplierId: number | null;
+};
+
+type SupplierOption = {
+  id: number;
+  name: string;
 };
 
 const roleBadgeClass: Record<UserRoleValue, string> = {
@@ -1072,6 +1087,8 @@ function UsersTab() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [mutating, setMutating] = useState<string | null>(null); // userId being mutated
+  const [suppliers, setSuppliers] = useState<SupplierOption[]>([]);
+  const [supplierSelections, setSupplierSelections] = useState<Record<string, number>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1091,11 +1108,23 @@ function UsersTab() {
       }
       const authUsers: { id: string; email: string }[] = await res.json();
 
-      // Fetch all role rows the admin can see
-      const { data: roleRows, error: roleErr } = await supabase
-        .from('user_roles')
-        .select('id, role');
+      const [roleRes, supplierRes, supplierUserRes] = await Promise.all([
+        supabase.from('user_roles').select('id, role'),
+        supabase.from('suppliers').select('id, name').order('name', { ascending: true }),
+        supabase.from('supplier_users').select('user_id, supplier_id, active').eq('active', true),
+      ]);
+
+      const { data: roleRows, error: roleErr } = roleRes;
       if (roleErr) throw roleErr;
+      if (supplierRes.error) throw supplierRes.error;
+      if (supplierUserRes.error) throw supplierUserRes.error;
+
+      const supplierByUser = new Map<string, number>();
+      (supplierUserRes.data ?? []).forEach((assignment) => {
+        if (!supplierByUser.has(assignment.user_id)) {
+          supplierByUser.set(assignment.user_id, assignment.supplier_id);
+        }
+      });
 
       const roleMap = new Map<string, string>(
         (roleRows ?? []).map((r: { id: string; role: string }) => [r.id, r.role])
@@ -1105,7 +1134,7 @@ function UsersTab() {
         const r = roleMap.get(u.id);
         const role: UserRoleValue =
           r === 'admin' ? 'admin' : r === 'supplier' ? 'supplier' : r === 'delivery_rider' ? 'delivery_rider' : 'customer';
-        return { id: u.id, email: u.email, role };
+        return { id: u.id, email: u.email, role, supplierId: supplierByUser.get(u.id) ?? null };
       });
 
       merged.sort((a, b) => {
@@ -1114,8 +1143,14 @@ function UsersTab() {
       });
 
       setUsers(merged);
+      setSuppliers((supplierRes.data ?? []).map((supplier) => ({ id: supplier.id, name: supplier.name })));
+      setSupplierSelections(Object.fromEntries(
+        merged
+          .filter((user) => user.supplierId !== null)
+          .map((user) => [user.id, user.supplierId as number]),
+      ));
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("adminUsers.messages.failedLoad"));
+      setError(userManagementErrorMessage(err, t("adminUsers.messages.failedLoad")));
     } finally {
       setLoading(false);
     }
@@ -1124,6 +1159,11 @@ function UsersTab() {
   useEffect(() => { load(); }, [load]);
 
   const changeRole = async (targetUser: UserRow, newRole: UserRoleValue) => {
+    if (newRole === 'supplier') {
+      await saveSupplierAssignment(targetUser);
+      return;
+    }
+
     setMutating(targetUser.id);
     try {
       const current = targetUser.role;
@@ -1153,10 +1193,74 @@ function UsersTab() {
       // Re-fetch to confirm the updated role
       await load();
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("adminUsers.messages.failedUpdate"));
+      setError(userManagementErrorMessage(err, t("adminUsers.messages.failedUpdate")));
     } finally {
       setMutating(null);
     }
+  };
+
+  const saveSupplierAssignment = async (targetUser: UserRow) => {
+    const supplierId = supplierSelections[targetUser.id];
+    if (!supplierId) {
+      setError(t('adminUsers.messages.selectSupplierFirst'));
+      return;
+    }
+
+    setMutating(targetUser.id);
+    setError(null);
+    try {
+      const { error: assignmentError } = await supabase.rpc('admin_assign_supplier_user', {
+        p_user_id: targetUser.id,
+        p_supplier_id: supplierId,
+      });
+      if (assignmentError) throw assignmentError;
+      await load();
+    } catch (err) {
+      setError(userManagementErrorMessage(err, t('adminUsers.messages.failedSupplierAssignment')));
+    } finally {
+      setMutating(null);
+    }
+  };
+
+  const SupplierAssignmentControl = ({ user, compact = false }: { user: UserRow; compact?: boolean }) => {
+    const isSelf = user.id === currentUser?.id;
+    const isLoading = mutating === user.id;
+    const selectedSupplierId = supplierSelections[user.id] ?? user.supplierId ?? '';
+
+    return (
+      <div className={compact ? 'space-y-2' : 'flex flex-wrap items-center justify-end gap-2'}>
+        <select
+          aria-label={t('adminUsers.labels.supplier')}
+          value={selectedSupplierId}
+          disabled={isSelf || isLoading}
+          onChange={(event) => {
+            const supplierId = Number(event.target.value);
+            setSupplierSelections((current) => {
+              if (supplierId) return { ...current, [user.id]: supplierId };
+              const next = { ...current };
+              delete next[user.id];
+              return next;
+            });
+          }}
+          className="min-h-9 max-w-full rounded-lg border border-cream-300 bg-white px-2 py-1.5 text-xs text-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          <option value="">{t('adminUsers.labels.selectSupplier')}</option>
+          {suppliers.map((supplier) => (
+            <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
+          ))}
+        </select>
+        {user.role === 'supplier' && (
+          <button
+            type="button"
+            onClick={() => saveSupplierAssignment(user)}
+            disabled={isSelf || isLoading || !selectedSupplierId}
+            className="min-h-9 rounded-lg border border-forest-200 px-3 py-1.5 text-xs font-semibold text-forest-700 transition-colors hover:bg-forest-50 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {t('adminUsers.buttons.saveSupplier')}
+          </button>
+        )}
+      </div>
+    );
   };
 
   if (loading) {
@@ -1183,6 +1287,7 @@ function UsersTab() {
             <tr className="bg-cream-50 border-b border-cream-200">
               <th className="text-left px-4 py-3 font-semibold text-gray-700">{t("adminUsers.labels.email")}</th>
               <th className="text-left px-4 py-3 font-semibold text-gray-700">{t("adminUsers.labels.role")}</th>
+              <th className="text-right px-4 py-3 font-semibold text-gray-700">{t("adminUsers.labels.supplier")}</th>
               <th className="text-right px-4 py-3 font-semibold text-gray-700">{t("adminUsers.labels.actions")}</th>
             </tr>
           </thead>
@@ -1230,6 +1335,9 @@ function UsersTab() {
                     </span>
                   </td>
                   <td className="px-4 py-3">
+                    <SupplierAssignmentControl user={u} />
+                  </td>
+                  <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-2 flex-wrap">
                       {isLoading ? (
                         <Loader2 size={16} className="animate-spin text-forest-500" />
@@ -1275,6 +1383,10 @@ function UsersTab() {
                 <span className="text-xs font-semibold text-gray-500">{t("adminUsers.labels.role")}</span>
                 <span className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium capitalize ${roleBadgeClass[u.role]}`}>{t("adminUsers.roles." + u.role)}</span>
               </div>
+              <div className="mt-3">
+                <p className="mb-1 text-xs font-semibold text-gray-500">{t('adminUsers.labels.supplier')}</p>
+                <SupplierAssignmentControl user={u} compact />
+              </div>
               <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {isLoading ? <Loader2 size={18} className="animate-spin text-forest-500" /> : actions.map((action) => (
                   <button key={action.to} onClick={() => changeRole(u, action.to)} disabled={isSelf} title={isSelf ? t("adminUsers.messages.cannotChangeOwnRole") : undefined} className={`min-h-11 rounded-xl px-3 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-30 ${action.danger ? 'border border-red-200 text-red-600 hover:bg-red-50' : 'border border-forest-200 text-forest-700 hover:bg-forest-50'}`}>{action.label}</button>
@@ -1292,6 +1404,8 @@ function CanonicalPaymentVerificationQueue() {
   const [loading, setLoading] = useState(true);
   const [actionId, setActionId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [rejectTarget, setRejectTarget] = useState<any | null>(null);
+  const [rejectionReason, setRejectionReason] = useState('');
 
   const loadCanonicalReceipts = useCallback(async () => {
     setLoading(true);
@@ -1400,28 +1514,26 @@ function CanonicalPaymentVerificationQueue() {
     }
   };
 
-  const rejectReceipt = async (row: any) => {
-    const reason = window.prompt(
-      'Reason for rejecting this payment receipt:'
-    );
+  const openRejectReceipt = (row: any) => {
+    setError(null);
+    setRejectionReason('');
+    setRejectTarget(row);
+  };
 
-    if (reason == null) return;
+  const rejectReceipt = async () => {
+    if (!rejectTarget) return;
 
-    const cleanReason = reason.trim();
+    const cleanReason = rejectionReason.trim();
+    if (!cleanReason) return;
 
-    if (!cleanReason) {
-      window.alert('Rejection reason is required.');
-      return;
-    }
-
-    setActionId(row.id);
+    setActionId(rejectTarget.id);
     setError(null);
 
     try {
       const { error: rpcError } = await supabase.rpc(
         'reject_sales_order_payment_receipt',
         {
-          p_receipt_id: row.id,
+          p_receipt_id: rejectTarget.id,
           p_reason: cleanReason,
         }
       );
@@ -1429,6 +1541,8 @@ function CanonicalPaymentVerificationQueue() {
       if (rpcError) throw rpcError;
 
       await loadCanonicalReceipts();
+      setRejectTarget(null);
+      setRejectionReason('');
     } catch (err) {
       setError(
         err instanceof Error ? err.message : 'Failed to reject payment receipt.'
@@ -1525,7 +1639,7 @@ function CanonicalPaymentVerificationQueue() {
 
                     <button
                       type="button"
-                      onClick={() => rejectReceipt(row)}
+                      onClick={() => openRejectReceipt(row)}
                       disabled={busy}
                       className="px-4 py-2.5 rounded-xl border border-red-300 text-red-700 font-semibold text-sm hover:bg-red-50 disabled:opacity-50"
                     >
@@ -1545,6 +1659,76 @@ function CanonicalPaymentVerificationQueue() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {rejectTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="reject-receipt-title"
+        >
+          <div
+            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            onClick={() => !actionId && setRejectTarget(null)}
+          />
+          <form
+            className="relative w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl animate-[fadeSlideUp_0.2s_ease-out]"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void rejectReceipt();
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setRejectTarget(null)}
+              disabled={Boolean(actionId)}
+              className="absolute right-4 top-4 rounded-lg p-1.5 text-gray-400 transition-all hover:bg-gray-100 hover:text-gray-700 disabled:opacity-50"
+              aria-label="Close"
+            >
+              <X size={18} />
+            </button>
+            <div className="mb-4 flex items-center gap-3">
+              <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-red-100">
+                <AlertTriangle size={20} className="text-red-600" />
+              </div>
+              <div>
+                <h4 id="reject-receipt-title" className="text-lg font-semibold text-gray-900">Reject payment receipt</h4>
+                <p className="text-sm text-gray-500">{rejectTarget.order?.order_number ?? rejectTarget.sales_order_id}</p>
+              </div>
+            </div>
+            <label htmlFor="receipt-rejection-reason" className="mb-1.5 block text-sm font-semibold text-gray-700">
+              Reason for rejection
+            </label>
+            <textarea
+              id="receipt-rejection-reason"
+              value={rejectionReason}
+              onChange={(event) => setRejectionReason(event.target.value)}
+              placeholder="Tell the customer what needs to be corrected."
+              rows={4}
+              autoFocus
+              disabled={Boolean(actionId)}
+              className="w-full resize-y rounded-xl border border-gray-300 px-3 py-2.5 text-sm text-gray-900 outline-none transition-colors placeholder:text-gray-400 focus:border-red-400 focus:ring-2 focus:ring-red-100 disabled:opacity-50"
+            />
+            <div className="mt-5 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setRejectTarget(null)}
+                disabled={Boolean(actionId)}
+                className="rounded-xl border border-gray-200 px-4 py-2 text-sm font-medium text-gray-700 transition-all hover:bg-gray-50 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={!rejectionReason.trim() || Boolean(actionId)}
+                className="rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white transition-all hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {actionId ? 'Rejecting...' : 'Reject receipt'}
+              </button>
+            </div>
+          </form>
         </div>
       )}
     </div>

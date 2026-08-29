@@ -1541,8 +1541,10 @@
     "labels": {
       "email": "Email",
       "role": "Role",
+      "supplier": "Assigned supplier",
       "actions": "Actions",
-      "you": "(you)"
+      "you": "(you)",
+      "selectSupplier": "Select supplier"
     },
     "roles": {
       "admin": "Admin",
@@ -1556,12 +1558,15 @@
       "promoteToAdmin": "Promote to Admin",
       "makeCustomer": "Make Customer",
       "makeSupplier": "Make Supplier",
+      "saveSupplier": "Save supplier",
       "makeRider": "Make Delivery Rider",
       "makeAdmin": "Make Admin"
     },
     "messages": {
       "failedLoad": "Failed to load users",
       "failedUpdate": "Failed to update role",
+      "failedSupplierAssignment": "Failed to save supplier assignment",
+      "selectSupplierFirst": "Select a supplier before assigning this user as a supplier",
       "cannotChangeOwnRole": "Cannot change your own role"
     }
   },

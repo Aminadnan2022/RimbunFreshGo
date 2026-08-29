@@ -79,6 +79,7 @@ export default function ProductDetailPage() {
   const hasPieceWeightEstimate =
     (product.orderingMode === 'whole_fish_by_weight' || isBulkWeighedPiece) &&
     (product.averageWeight ?? 0) > 0;
+  const averageWeight = product.averageWeight ?? 0;
   const related = products
     .filter((p) => p.category === product.category && p.id !== product.id)
     .slice(0, 4);
@@ -256,7 +257,7 @@ export default function ProductDetailPage() {
           {product.orderingMode !== 'fixed_quantity' && product.orderingMode !== 'slice' && (
             <div className="mt-3 text-sm text-gray-500">
               {hasPieceWeightEstimate ? (
-                <p>≈ {qty} × {product.averageWeight}g = <strong>{(qty * product.averageWeight / 1000).toFixed(2).replace(/\.?0+$/, '')}kg</strong> · ≈ <strong>RM{formatCurrency(computeSubtotal(product, { quantity: qty }))}</strong></p>
+                <p>≈ {qty} × {averageWeight}g = <strong>{(qty * averageWeight / 1000).toFixed(2).replace(/\.?0+$/, '')}kg</strong> · ≈ <strong>RM{formatCurrency(computeSubtotal(product, { quantity: qty }))}</strong></p>
               ) : (
                 <p>{t("product.estimatedWeight")}: <strong>{estimatedWeight >= 1000 ? (estimatedWeight / 1000).toFixed(2).replace(/\.?0+$/, '') + 'kg' : estimatedWeight + 'g'}</strong> · ≈ <strong>RM{formatCurrency(computeSubtotal(product, { weightG: estimatedWeight }))}</strong></p>
               )}

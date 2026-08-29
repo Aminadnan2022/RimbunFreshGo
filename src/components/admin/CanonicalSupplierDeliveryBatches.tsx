@@ -89,6 +89,13 @@ export default function CanonicalSupplierDeliveryBatches() {
   const [selectedRiders, setSelectedRiders] = useState<Record<string, string>>(
     {},
   );
+  const [dispatchForm, setDispatchForm] = useState<{
+    batchId: string;
+    trackingUrl: string;
+    bookingReference: string;
+  } | null>(null);
+  const [arrivalConfirmationBatchId, setArrivalConfirmationBatchId] =
+    useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(
@@ -285,19 +292,15 @@ export default function CanonicalSupplierDeliveryBatches() {
   };
 
   const dispatchBatch = async (batch: CanonicalSupplierBatch) => {
-    const tracking = window.prompt(
-      "Lalamove tracking URL (optional). Leave blank if not available yet.",
-      batch.tracking_url ?? "",
-    );
+    if (dispatchForm?.batchId !== batch.id) return;
 
-    if (tracking === null) return;
+    const tracking = dispatchForm.trackingUrl.trim();
+    const ref = dispatchForm.bookingReference.trim();
 
-    const ref = window.prompt(
-      "Booking reference (optional).",
-      batch.booking_reference ?? "",
-    );
-
-    if (ref === null) return;
+    if (tracking && !tracking.startsWith("https://")) {
+      setMessage({ ok: false, text: "Tracking URL must start with https://" });
+      return;
+    }
 
     const key = `dispatch:${batch.id}`;
     setBusy(key);
@@ -309,6 +312,7 @@ export default function CanonicalSupplierDeliveryBatches() {
         ok: true,
         text: `${batch.batch_code} marked as dispatched to FreshGo Hub.`,
       });
+      setDispatchForm(null);
       await load();
     } catch (err) {
       setMessage({ ok: false, text: describeError(err) });
@@ -383,12 +387,6 @@ export default function CanonicalSupplierDeliveryBatches() {
   };
 
   const confirmArrival = async (batch: CanonicalSupplierBatch) => {
-    if (
-      !window.confirm(`Confirm ${batch.batch_code} has arrived at FreshGo Hub?`)
-    ) {
-      return;
-    }
-
     const key = `arrival:${batch.id}`;
     setBusy(key);
     setMessage(null);
@@ -399,6 +397,7 @@ export default function CanonicalSupplierDeliveryBatches() {
         ok: true,
         text: `${batch.batch_code} confirmed arrived at FreshGo Hub.`,
       });
+      setArrivalConfirmationBatchId(null);
       await load();
     } catch (err) {
       setMessage({ ok: false, text: describeError(err) });
@@ -444,8 +443,7 @@ export default function CanonicalSupplierDeliveryBatches() {
                 Ready for Supplier Dispatch
               </h3>
               <p className="text-xs text-gray-500 mt-0.5">
-                Paid orders with supplier packing completed and not
-                yet assigned to a supplier → hub batch.
+                Step 1 of 3 · Packed orders waiting to be sent from a supplier to FreshGo Hub.
               </p>
             </div>
           </div>
@@ -473,8 +471,11 @@ export default function CanonicalSupplierDeliveryBatches() {
                   key={key}
                   className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
                 >
-                  <div>
-                    <p className="font-mono text-sm font-semibold text-forest-800">
+                  <div className="min-w-0 border-l-4 border-forest-500 pl-3">
+                    <p className="text-[10px] font-bold tracking-[0.14em] text-forest-700">
+                      CUSTOMER ORDER
+                    </p>
+                    <p className="mt-0.5 font-mono text-sm font-semibold text-forest-900">
                       {order.order_number}
                     </p>
                     <p className="text-sm text-gray-700 mt-1">
@@ -520,8 +521,7 @@ export default function CanonicalSupplierDeliveryBatches() {
                   Supplier Delivery Batches
                 </h3>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  One supplier transport may carry multiple customer orders to
-                  FreshGo Hub.
+                  Step 2 of 3 · Each card below is one supplier trip. The orders inside it travel together to FreshGo Hub.
                 </p>
               </div>
             </div>
@@ -544,7 +544,7 @@ export default function CanonicalSupplierDeliveryBatches() {
             No supplier delivery batches yet.
           </div>
         ) : (
-          <div className="divide-y divide-cream-100">
+          <div className="space-y-4 bg-cream-50/80 p-4">
             {visibleBatches.map((batch) => {
               const dispatchKey = `dispatch:${batch.id}`;
               const arrivalKey = `arrival:${batch.id}`;
@@ -553,27 +553,53 @@ export default function CanonicalSupplierDeliveryBatches() {
               const ordersInBatch = hubOrders.filter(
                 (order) => order.batch_id === batch.id,
               );
+              const batchCardClass =
+                batch.status === "draft"
+                  ? "border-indigo-200 bg-white"
+                  : batch.status === "dispatched"
+                    ? "border-blue-200 bg-blue-50/30"
+                    : batch.status === "arrived_hub"
+                      ? "border-forest-200 bg-forest-50/30"
+                      : "border-gray-200 bg-gray-50";
 
               return (
-                <div key={batch.id} className="p-5">
+                <article
+                  key={batch.id}
+                  className={`overflow-hidden rounded-2xl border shadow-sm ${batchCardClass}`}
+                >
+                  <div className="border-b border-current/10 px-5 py-2 text-[11px] font-semibold tracking-wide text-gray-500">
+                    {batch.status === "draft"
+                      ? "WAITING TO LEAVE SUPPLIER"
+                      : batch.status === "dispatched"
+                        ? "ON THE WAY TO FRESHGO HUB"
+                        : batch.status === "arrived_hub"
+                          ? "AT FRESHGO HUB · READY FOR RIDER"
+                          : "CANCELLED BATCH"}
+                  </div>
+                  <div className="p-5">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div>
+                    <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <p className="font-mono text-sm font-semibold text-forest-800">
-                          {batch.batch_code}
-                        </p>
+                        <div className="border-l-4 border-indigo-500 pl-3">
+                          <p className="text-[10px] font-bold tracking-[0.14em] text-indigo-700">
+                            SUPPLIER BATCH
+                          </p>
+                          <p className="mt-0.5 font-mono text-sm font-semibold text-indigo-950">
+                            {batch.batch_code}
+                          </p>
+                        </div>
                         <span className="px-2 py-0.5 rounded-full bg-cream-100 text-xs font-semibold text-gray-600">
                           {formatBatchStatus(batch.status)}
                         </span>
                       </div>
 
                       <p className="text-sm text-gray-700 mt-2">
-                        {batch.supplier_name} • {batch.order_count}{" "}
-                        {batch.order_count === 1 ? "order" : "orders"}
+                        <span className="font-semibold">Supplier:</span> {batch.supplier_name} · {batch.order_count}{" "}
+                        customer {batch.order_count === 1 ? "order" : "orders"}
                       </p>
 
                       <p className="text-xs text-gray-400 mt-1">
-                        {batch.delivery_date} → {batch.hub_name}
+                        Delivery date: {batch.delivery_date} · Destination: {batch.hub_name}
                       </p>
 
                       {batch.status !== "draft" && batch.transport_provider && (
@@ -637,7 +663,13 @@ export default function CanonicalSupplierDeliveryBatches() {
 
                       {batch.status === "draft" && (
                         <button
-                          onClick={() => dispatchBatch(batch)}
+                          onClick={() =>
+                            setDispatchForm({
+                              batchId: batch.id,
+                              trackingUrl: batch.tracking_url ?? "",
+                              bookingReference: batch.booking_reference ?? "",
+                            })
+                          }
                           disabled={busy !== null || batch.order_count === 0}
                           className="px-4 py-2 rounded-xl text-sm font-semibold bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 inline-flex items-center gap-2"
                         >
@@ -669,7 +701,7 @@ export default function CanonicalSupplierDeliveryBatches() {
 
                       {batch.status === "dispatched" && (
                         <button
-                          onClick={() => confirmArrival(batch)}
+                          onClick={() => setArrivalConfirmationBatchId(batch.id)}
                           disabled={busy !== null}
                           className="px-4 py-2 rounded-xl text-sm font-semibold bg-forest-600 text-white hover:bg-forest-700 disabled:opacity-50 inline-flex items-center gap-2"
                         >
@@ -683,17 +715,75 @@ export default function CanonicalSupplierDeliveryBatches() {
                       )}
                     </div>
                   </div>
+                  {batch.status === "draft" && dispatchForm?.batchId === batch.id && (
+                    <div className="mt-5 rounded-xl border border-indigo-200 bg-indigo-50/70 p-4">
+                      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                          <p className="text-sm font-semibold text-indigo-950">Dispatch this supplier trip</p>
+                          <p className="text-xs text-indigo-800">Tracking link and booking reference are optional. You can add them later.</p>
+                        </div>
+                        <span className="text-xs font-semibold text-indigo-700">{batch.order_count} order{batch.order_count === 1 ? "" : "s"} included</span>
+                      </div>
+                      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                        <label className="text-xs font-medium text-gray-700">
+                          Lalamove tracking link <span className="font-normal text-gray-500">(optional)</span>
+                          <input
+                            type="url"
+                            value={dispatchForm.trackingUrl}
+                            onChange={(event) =>
+                              setDispatchForm((current) =>
+                                current ? { ...current, trackingUrl: event.target.value } : current,
+                              )
+                            }
+                            placeholder="https://..."
+                            className="input-field mt-1 w-full"
+                          />
+                        </label>
+                        <label className="text-xs font-medium text-gray-700">
+                          Booking reference <span className="font-normal text-gray-500">(optional)</span>
+                          <input
+                            type="text"
+                            value={dispatchForm.bookingReference}
+                            onChange={(event) =>
+                              setDispatchForm((current) =>
+                                current ? { ...current, bookingReference: event.target.value } : current,
+                              )
+                            }
+                            placeholder="e.g. Lalamove booking number"
+                            className="input-field mt-1 w-full"
+                          />
+                        </label>
+                      </div>
+                      <div className="mt-4 flex flex-wrap justify-end gap-2">
+                        <button type="button" onClick={() => setDispatchForm(null)} disabled={busy !== null} className="px-4 py-2 rounded-xl text-sm font-semibold border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50">Cancel</button>
+                        <button type="button" onClick={() => dispatchBatch(batch)} disabled={busy !== null} className="px-4 py-2 rounded-xl text-sm font-semibold bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 inline-flex items-center gap-2">
+                          {busy === dispatchKey ? <Loader2 size={16} className="animate-spin" /> : <Truck size={16} />}
+                          Confirm Dispatch to Hub
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  {batch.status === "dispatched" && arrivalConfirmationBatchId === batch.id && (
+                    <div className="mt-5 rounded-xl border border-forest-200 bg-forest-50 p-4">
+                      <p className="text-sm font-semibold text-forest-900">Has this whole supplier batch arrived at FreshGo Hub?</p>
+                      <p className="mt-1 text-xs text-forest-800">Confirm only after all {batch.order_count} order{batch.order_count === 1 ? "" : "s"} in this trip have physically arrived. They will then be ready for rider assignment.</p>
+                      <div className="mt-4 flex flex-wrap justify-end gap-2">
+                        <button type="button" onClick={() => setArrivalConfirmationBatchId(null)} disabled={busy !== null} className="px-4 py-2 rounded-xl text-sm font-semibold border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-50">Not yet</button>
+                        <button type="button" onClick={() => confirmArrival(batch)} disabled={busy !== null} className="px-4 py-2 rounded-xl text-sm font-semibold bg-forest-700 text-white hover:bg-forest-800 disabled:opacity-50 inline-flex items-center gap-2">{busy === arrivalKey ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />} Confirm Arrived at Hub</button>
+                      </div>
+                    </div>
+                  )}
                   {ordersInBatch.length > 0 &&
                     batch.status !== "arrived_hub" && (
                       <div className="mt-5 border-t border-cream-100 pt-4 space-y-3">
                         <div>
                           <p className="text-sm font-semibold text-forest-900">
-                            Batch Orders
+                            Orders travelling in this batch
                           </p>
                           <p className="text-xs text-gray-500 mt-0.5">
                             {batch.status === "draft"
-                              ? "Review the packed orders before dispatching this supplier batch."
-                              : "This manifest is locked because the batch has already been dispatched."}
+                              ? "Review this list, then dispatch the complete batch to FreshGo Hub."
+                              : "This list is locked because the supplier trip is already in progress."}
                           </p>
                         </div>
 
@@ -706,8 +796,11 @@ export default function CanonicalSupplierDeliveryBatches() {
                               className="rounded-xl border border-cream-200 bg-cream-50/40 p-4"
                             >
                               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                                <div>
-                                  <p className="font-mono text-sm font-semibold text-forest-800">
+                                <div className="border-l-4 border-forest-400 pl-3">
+                                  <p className="text-[10px] font-bold tracking-[0.14em] text-forest-700">
+                                    CUSTOMER ORDER
+                                  </p>
+                                  <p className="mt-0.5 font-mono text-sm font-semibold text-forest-900">
                                     {order.order_number}
                                   </p>
 
@@ -791,8 +884,11 @@ export default function CanonicalSupplierDeliveryBatches() {
                               className="rounded-xl border border-cream-200 bg-cream-50/40 p-4"
                             >
                               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-                                <div>
-                                  <p className="font-mono text-sm font-semibold text-forest-800">
+                                <div className="border-l-4 border-forest-400 pl-3">
+                                  <p className="text-[10px] font-bold tracking-[0.14em] text-forest-700">
+                                    CUSTOMER ORDER
+                                  </p>
+                                  <p className="mt-0.5 font-mono text-sm font-semibold text-forest-900">
                                     {order.order_number}
                                   </p>
                                   <p className="text-sm text-gray-700 mt-1">
@@ -886,7 +982,8 @@ export default function CanonicalSupplierDeliveryBatches() {
                         })}
                       </div>
                     )}
-                </div>
+                  </div>
+                </article>
               );
             })}
           </div>

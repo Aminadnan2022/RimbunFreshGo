@@ -503,10 +503,16 @@ useEffect(() => {
     } catch (err) {
       console.error('[tracking:receiptUpload]', err);
 
-      setReceiptError(
+      const message =
         err instanceof Error
           ? err.message
-          : 'Failed to submit payment receipt.',
+          : typeof err === 'object' && err !== null && 'message' in err &&
+              typeof err.message === 'string'
+            ? err.message
+            : 'Failed to submit payment receipt.';
+
+      setReceiptError(
+        message,
       );
     } finally {
       setReceiptUploading(false);

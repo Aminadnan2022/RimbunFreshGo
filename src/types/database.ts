@@ -3110,6 +3110,10 @@ export type Database = {
         Args: { p_batch_id: string; p_sales_order_id: string }
         Returns: undefined
       }
+      admin_assign_supplier_user: {
+        Args: { p_supplier_id: number; p_user_id: string }
+        Returns: undefined
+      }
       admin_archive_order: {
         Args: { p_order_id: number; p_reason?: string }
         Returns: undefined

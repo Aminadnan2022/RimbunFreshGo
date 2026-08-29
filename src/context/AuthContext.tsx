@@ -50,10 +50,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      checkRole(data.session?.user?.id).then(() => setLoading(false));
-    });
+    let active = true;
+
+    const restoreSession = async () => {
+      const { data: { session: storedSession } } = await supabase.auth.getSession();
+
+      if (!storedSession) {
+        if (!active) return;
+        setSession(null);
+        setRole(null);
+        setLoading(false);
+        return;
+      }
+
+      // getSession() only reads the browser copy. Verify the session with
+      // GoTrue as well, otherwise a remotely revoked session can still make
+      // the app appear signed in until a protected request fails.
+      const { data: { user }, error } = await supabase.auth.getUser();
+      if (error || !user) {
+        clearSupabaseAuthStorage();
+        if (!active) return;
+        setSession(null);
+        setRole(null);
+        setLoading(false);
+        return;
+      }
+
+      if (!active) return;
+      setSession(storedSession);
+      await checkRole(user.id);
+      if (active) setLoading(false);
+    };
+
+    void restoreSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
       (async () => {
@@ -63,7 +92,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })();
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signOut = async () => {

@@ -71,8 +71,10 @@ export function conciseReviewLabel(target: PreparationTarget, unit: number | nul
 
 type OrderedQuantitySnapshot = Pick<
   ComboExpandedItem,
-  'quantity' | 'quantityValue' | 'sellingUnit' | 'pricingType' | 'unit'
-> & Pick<CartItem, 'estimatedWeight' | 'orderingMode' | 'sellingUnit'>;
+  'quantity' | 'quantityValue' | 'pricingType' | 'unit'
+> & Pick<CartItem, 'estimatedWeight' | 'orderingMode'> & {
+  sellingUnit?: string;
+};
 
 const trimNumber = (value: number) => Number(value.toFixed(3)).toString();
 
