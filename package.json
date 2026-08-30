@@ -23,6 +23,7 @@
     "test:checkout-preparation-validation": "node scripts/check-checkout-preparation-validation.mjs",
     "test:standalone-preparation-loading": "node scripts/check-standalone-preparation-loading.mjs",
     "test:notification-phase1": "node scripts/check-notification-phase1.mjs",
+    "test:supplier-combo-notifications": "node scripts/check-supplier-combo-notifications.mjs",
     "test:auth-consent-flow": "node scripts/check-auth-consent-flow.mjs",
     "test:auth-sign-out": "node --experimental-strip-types scripts/test-auth-sign-out-fallback.mts",
     "test:piece-bulk-weight": "node --experimental-strip-types scripts/test-piece-bulk-weight-ordering.mts",
