@@ -941,7 +941,7 @@ export default function SupplierDashboardPage() {
     }`;
 
   return (
-    <main className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+    <main className="mx-auto w-full min-w-0 max-w-7xl px-4 py-8 sm:px-6">
       {/* Header + view toggle */}
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
@@ -2545,18 +2545,18 @@ function WeightEntryView({
       )}
 
       {/* Progress indicator */}
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex w-full min-w-0 items-center gap-0.5 mb-6 sm:gap-3">
         {perKgItems.filter((p) => p.perKg).map((p, i, arr) => {
           const done = savedProducts.has(p.index);
           const active = currentIndex === p.index;
           return (
-            <div key={p.index} className="flex items-center gap-1">
-              <span className={`w-8 h-8 rounded-full flex items-center justify-center text-[14px] font-bold ${
+            <div key={p.index} className="flex min-w-0 flex-1 items-center gap-0.5 last:flex-none sm:gap-1">
+              <span className={`flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full text-[11px] font-bold sm:h-8 sm:w-8 sm:text-[14px] ${
                 done ? 'bg-green-500 text-white' : active ? 'bg-forest-600 text-white' : 'bg-cream-200 text-gray-500'
               }`}>
                 {done ? '✓' : i + 1}
               </span>
-              {i < arr.length - 1 && <div className={`h-1 w-6 rounded ${done ? 'bg-green-400' : 'bg-cream-200'}`} />}
+              {i < arr.length - 1 && <div className={`h-1 min-w-0 flex-1 rounded ${done ? 'bg-green-400' : 'bg-cream-200'}`} />}
             </div>
           );
         })}
@@ -2653,8 +2653,8 @@ function WeightEntryView({
                     </p>
                   )}
                   {canonicalUnits.map((unit) => (
-                    <div key={unit.id} className="flex items-center gap-3 rounded-xl border border-cream-200 bg-cream-50 p-3">
-                      <span className="min-w-[80px] text-[15px] font-semibold text-gray-700">
+                    <div key={unit.id} className="flex min-w-0 flex-wrap items-center gap-3 rounded-xl border border-cream-200 bg-cream-50 p-3">
+                      <span className="min-w-0 flex-1 text-[15px] font-semibold text-gray-700 sm:min-w-[80px]">
                         {t("weightEntry.labels.fishNumber", { number: unit.unitNumber })}
                       </span>
                       <input
@@ -2672,7 +2672,7 @@ function WeightEntryView({
                         <button
                           onClick={() => saveCanonicalUnitWeight(i, unit)}
                           disabled={saving}
-                          className="bg-forest-700 hover:bg-forest-800 text-white rounded-xl px-4 py-3 text-[15px] font-bold disabled:opacity-50"
+                          className="w-full bg-forest-700 hover:bg-forest-800 text-white rounded-xl px-4 py-3 text-[15px] font-bold disabled:opacity-50 sm:w-auto"
                         >
                           {saving ? <Loader2 size={18} className="animate-spin" /> : t("weightEntry.buttons.save")}
                         </button>

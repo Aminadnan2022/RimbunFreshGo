@@ -5,6 +5,7 @@ const header = read('src/components/layout/Header.tsx');
 const languageSwitcher = read('src/components/layout/LanguageSwitcher.tsx');
 const shop = read('src/pages/ShopPage.tsx');
 const checkout = read('src/pages/CheckoutPage.tsx');
+const supplier = read('src/pages/SupplierDashboardPage.tsx');
 const productCard = read('src/components/ui/ProductCard.tsx');
 const comboDetail = read('src/pages/ComboDetailPage.tsx');
 const admin = read('src/pages/AdminProductsPage.tsx');
@@ -29,6 +30,10 @@ const checks = [
   [checkout, 'grid min-w-0 grid-cols-1 lg:grid-cols-3', 'Checkout columns collapse without widening mobile layout'],
   [checkout, 'card min-w-0 max-w-full p-5 sm:p-8 space-y-5', 'Checkout payment card cannot widen from receipt content'],
   [checkout, 'flex min-w-0 gap-3', 'Checkout payment actions may shrink within the viewport'],
+  [supplier, 'mx-auto w-full min-w-0 max-w-7xl', 'Supplier dashboard root is viewport-bounded'],
+  [supplier, 'flex w-full min-w-0 items-center gap-0.5 mb-6 sm:gap-3', 'Supplier packing progress fits narrow mobile viewports'],
+  [supplier, 'h-1 min-w-0 flex-1 rounded', 'Supplier packing progress connectors may shrink'],
+  [supplier, 'flex min-w-0 flex-wrap items-center gap-3', 'Supplier physical-unit weight controls reflow on mobile'],
   [productCard, 'card card-hover flex min-w-0 max-w-full', 'product cards cannot widen their grid track'],
   [productCard, 'flex min-w-0 items-end justify-between gap-2', 'product price and controls share a shrinkable row'],
   [comboDetail, 'grid min-w-0 grid-cols-1 lg:grid-cols-2', 'Combo detail hero has a shrinkable single-column mobile layout'],
