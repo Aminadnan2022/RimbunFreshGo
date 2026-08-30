@@ -6,6 +6,11 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { supabase } from '../lib/supabase';
 import { formatLocalDate } from '../data/delivery';
+import {
+  hasOutstandingCustomerPriceWeight,
+  resolveSupplierWeightPurpose,
+  type SupplierWeightPurpose,
+} from '../lib/supplierWeightFinalisation';
 import SupplierDispatchSection from '../components/supplier/SupplierDispatchSection';
 import {
   supplierStartPacking,
@@ -129,10 +134,18 @@ interface CanonicalLineUnit {
   actualWeightKg?: number;
 }
 
+interface PreparationAnswer {
+  questionCode: string;
+  value: string;
+  unitNumber?: number;
+}
+
 interface OrderItem {
   productId: string;
   canonicalLineId?: string;
+  canonicalComponentId?: string;
   canonicalUnits?: CanonicalLineUnit[];
+  canonicalItemKind?: 'direct' | 'combo_component';
   name: string;
   /** Frozen customer selling price for this historical order. Never supplier cost. */
   price?: number;
@@ -145,6 +158,14 @@ interface OrderItem {
   sliceQuantity?: number;
   sliceUnit?: string;
   orderingMode?: string;
+  /** Whether this supplier workflow needs an operational measurement. */
+  requiresWeight?: boolean;
+  /** Separates customer repricing from internal combo procurement-cost capture. */
+  weightPurpose?: SupplierWeightPurpose;
+  comboName?: string;
+  comboQuantity?: number;
+  componentQuantityPerCombo?: number;
+  preparationAnswers?: PreparationAnswer[];
 }
 
 interface OrderSummary {
@@ -196,7 +217,12 @@ const isPerKg = (item: OrderItem): boolean => {
 const isSliceItem = (item: OrderItem): boolean =>
   item.pricingType === 'slice' || item.sliceQuantity != null || item.orderingMode === 'slice';
 
-const needsWeighing = (item: OrderItem): boolean => isPerKg(item) || isSliceItem(item);
+const needsWeighing = (item: OrderItem): boolean =>
+  item.requiresWeight ?? (isPerKg(item) || isSliceItem(item));
+
+const affectsCustomerPrice = (item: OrderItem): boolean =>
+  item.weightPurpose === 'customer_price' ||
+  (item.weightPurpose == null && item.canonicalItemKind !== 'combo_component' && needsWeighing(item));
 
 const formattedSellingPrice = (item: OrderItem): string | null => {
   if (item.price == null || !Number.isFinite(item.price) || item.price < 0) return null;
@@ -212,9 +238,12 @@ const humanizeValue = (value: string): string =>
     .replace(/[_-]+/g, ' ')
     .replace(/\b\w/g, (letter) => letter.toUpperCase());
 
-const orderRequiresWeighing = (order: SupplierOrder): boolean => {
+const orderHasOperationalWeights = (order: SupplierOrder): boolean => {
   return order.items.some(item => needsWeighing(item));
 };
+
+const orderRequiresCustomerPriceWeighing = (order: SupplierOrder): boolean =>
+  order.items.some(affectsCustomerPrice);
 
 const canonicalPreparationCode = (code: string | null | undefined): string | undefined => {
   if (!code) return undefined;
@@ -262,15 +291,34 @@ const canonicalPricingType = (
   return 'fixed';
 };
 
-const hasAllWeightsSubmitted = (order: SupplierOrder): boolean => {
-  const perKgIndices = order.items
-    .map((item, i) => ({ item, i }))
-    .filter(({ item }) => needsWeighing(item));
+const canonicalAnswerValue = (answer: {
+  option_code?: unknown;
+  answer_value?: unknown;
+}): string | null => {
+  if (answer.option_code != null && String(answer.option_code).trim()) {
+    return canonicalPreparationCode(String(answer.option_code)) ?? String(answer.option_code);
+  }
 
-  if (perKgIndices.length === 0) return true;
+  if (typeof answer.answer_value === 'string' || typeof answer.answer_value === 'number') {
+    const value = String(answer.answer_value).trim();
+    return value || null;
+  }
 
-  return perKgIndices.every(({ i }) => order.supplierWeights[String(i)] != null);
+  if (answer.answer_value != null) {
+    const value = JSON.stringify(answer.answer_value);
+    return value === '{}' || value === '[]' ? null : value;
+  }
+
+  return null;
 };
+
+const hasOutstandingCustomerPriceWeightForOrder = (order: SupplierOrder): boolean =>
+  hasOutstandingCustomerPriceWeight(
+    order.items.map((item, index) => ({
+      purpose: affectsCustomerPrice(item) ? 'customer_price' : (item.weightPurpose ?? 'none'),
+      submitted: order.supplierWeights[String(index)] != null,
+    })),
+  );
 
 function formatDateFull(raw: string): string {
   const d = new Date(raw);
@@ -317,6 +365,12 @@ function toISODate(raw: string): string {
  */
 function getOrderDeliveryDate(order: SupplierOrder): string {
   return order.deliveryDate;
+}
+
+function getPackingStatus(order: SupplierOrder): 'not_started' | 'packing' | 'packed' {
+  if (order.packingCompletedAt) return 'packed';
+  if (order.packingStartedAt) return 'packing';
+  return 'not_started';
 }
 
 // ----------- Main page -----------
@@ -366,6 +420,8 @@ export default function SupplierDashboardPage() {
         canonicalOrderRes,
         canonicalLineRes,
         canonicalUnitRes,
+        canonicalComponentRes,
+        canonicalComponentUnitRes,
         canonicalAnswerRes,
         canonicalFulfilmentRes,
       ] = await Promise.all([
@@ -387,8 +443,18 @@ export default function SupplierDashboardPage() {
           .order('unit_number', { ascending: true }),
 
         supabase
+          .from('sales_order_line_components')
+          .select('id, sales_order_line_id, component_number, product_id, product_snapshot, quantity, selling_unit, ordering_mode, actual_weight_kg')
+          .order('component_number', { ascending: true }),
+
+        supabase
+          .from('sales_order_line_component_units')
+          .select('id, sales_order_line_component_id, unit_number, actual_weight_kg')
+          .order('unit_number', { ascending: true }),
+
+        supabase
           .from('sales_order_preparation_answers')
-          .select('sales_order_line_id, sales_order_line_component_id, option_code, question_code'),
+          .select('sales_order_line_id, sales_order_line_component_id, sales_order_line_component_unit_id, option_code, answer_value, question_code'),
 
         supabase
           .from('sales_order_supplier_fulfilments')
@@ -399,6 +465,8 @@ export default function SupplierDashboardPage() {
       if (canonicalOrderRes.error) throw canonicalOrderRes.error;
       if (canonicalLineRes.error) throw canonicalLineRes.error;
       if (canonicalUnitRes.error) throw canonicalUnitRes.error;
+      if (canonicalComponentRes.error) throw canonicalComponentRes.error;
+      if (canonicalComponentUnitRes.error) throw canonicalComponentUnitRes.error;
       if (canonicalAnswerRes.error) throw canonicalAnswerRes.error;
       if (canonicalFulfilmentRes.error) throw canonicalFulfilmentRes.error;
 
@@ -445,6 +513,10 @@ export default function SupplierDashboardPage() {
 
       const canonicalUnits = (canonicalUnitRes.data ?? []) as any[];
 
+      const canonicalComponents = (canonicalComponentRes.data ?? []) as any[];
+
+      const canonicalComponentUnits = (canonicalComponentUnitRes.data ?? []) as any[];
+
       const canonicalAnswers = (canonicalAnswerRes.data ?? []) as any[];
 
       const canonicalFulfilments = (canonicalFulfilmentRes.data ?? []) as any[];
@@ -457,16 +529,28 @@ export default function SupplierDashboardPage() {
         fulfilmentsByOrder.set(key, list);
       });
 
-      const answersByLine = new Map<string, string>();
+      const answersByLine = new Map<string, PreparationAnswer[]>();
+      const answersByComponent = new Map<string, PreparationAnswer[]>();
       canonicalAnswers.forEach((answer) => {
-        if (answer.sales_order_line_component_id != null) return;
-        if (!answer.sales_order_line_id || !answer.option_code) return;
-        if (!answersByLine.has(String(answer.sales_order_line_id))) {
-          answersByLine.set(
-            String(answer.sales_order_line_id),
-            canonicalPreparationCode(String(answer.option_code)) ?? String(answer.option_code),
-          );
-        }
+        const value = canonicalAnswerValue(answer);
+        if (!value || !answer.question_code) return;
+
+        const componentId = answer.sales_order_line_component_id != null
+          ? String(answer.sales_order_line_component_id)
+          : null;
+        const target = componentId ? answersByComponent : answersByLine;
+        const key = componentId ?? String(answer.sales_order_line_id);
+        const list = target.get(key) ?? [];
+        const componentUnit = canonicalComponentUnits.find(
+          (unit) => String(unit.id) === String(answer.sales_order_line_component_unit_id ?? ''),
+        );
+
+        list.push({
+          questionCode: String(answer.question_code),
+          value,
+          unitNumber: componentUnit ? Number(componentUnit.unit_number) : undefined,
+        });
+        target.set(key, list);
       });
 
       const unitsByLine = new Map<string, any[]>();
@@ -477,11 +561,19 @@ export default function SupplierDashboardPage() {
         unitsByLine.set(key, list);
       });
 
+      const unitsByComponent = new Map<string, any[]>();
+      canonicalComponentUnits.forEach((unit) => {
+        const key = String(unit.sales_order_line_component_id);
+        const list = unitsByComponent.get(key) ?? [];
+        list.push(unit);
+        unitsByComponent.set(key, list);
+      });
+
+      const linesById = new Map<string, any>();
+      canonicalLines.forEach((line) => linesById.set(String(line.id), line));
+
       const linesByOrder = new Map<string, any[]>();
       canonicalLines.forEach((line) => {
-        // Phase 4C.1 read bridge currently maps direct product lines only.
-        // Combo parent/component mapping will be added from a real canonical
-        // combo test row rather than inferred from legacy vendor structures.
         if (line.item_kind !== 'product') return;
 
         const key = String(line.sales_order_id);
@@ -490,14 +582,24 @@ export default function SupplierDashboardPage() {
         linesByOrder.set(key, list);
       });
 
+      const componentsByOrder = new Map<string, any[]>();
+      canonicalComponents.forEach((component) => {
+        const parentLine = linesById.get(String(component.sales_order_line_id));
+        if (!parentLine) return;
+
+        const key = String(parentLine.sales_order_id);
+        const list = componentsByOrder.get(key) ?? [];
+        list.push(component);
+        componentsByOrder.set(key, list);
+      });
+
 
       const canonicalMapped = ((canonicalOrderRes.data ?? []) as any[])
         .map((row) => {
           const ownedLines = linesByOrder.get(String(row.id)) ?? [];
+          const ownedComponents = componentsByOrder.get(String(row.id)) ?? [];
 
-          // A combo-only order may be visible at order level due component
-          // ownership, but Phase 4C.1 does not fabricate its UI item mapping.
-          if (ownedLines.length === 0) return null;
+          if (ownedLines.length === 0 && ownedComponents.length === 0) return null;
 
           const customer = row.customer_snapshot ?? {};
           const delivery = row.delivery_snapshot ?? {};
@@ -526,9 +628,7 @@ export default function SupplierDashboardPage() {
               ? completedTimes.sort()[completedTimes.length - 1] ?? null
               : null;
 
-          const items: OrderItem[] = ownedLines
-            .sort((a, b) => Number(a.line_number) - Number(b.line_number))
-            .map((line, index) => {
+          const directItems = ownedLines.map((line) => {
               let actualWeight: number | undefined;
 
               if (line.actual_weight_kg != null) {
@@ -543,10 +643,6 @@ export default function SupplierDashboardPage() {
                 if (weights.length > 0 && weights.length === units.length) {
                   actualWeight = weights.reduce((sum, value) => sum + value, 0);
                 }
-              }
-
-              if (actualWeight != null && Number.isFinite(actualWeight) && actualWeight > 0) {
-                supplierWeights[String(index)] = actualWeight;
               }
 
               const snapshot = line.product_snapshot ?? {};
@@ -565,16 +661,99 @@ export default function SupplierDashboardPage() {
                 productId: String(line.product_id ?? ''),
                 canonicalLineId: String(line.id),
                 canonicalUnits,
+                canonicalItemKind: 'direct' as const,
                 name: String(snapshot.name ?? line.product_id ?? 'Product'),
                 unit:
                   line.ordering_mode === 'fixed_quantity'
                     ? (snapshot.category === 'chicken' ? 'per bird' : String(line.selling_unit ?? 'piece'))
                     : 'per kg',
                 quantity: Number(line.quantity ?? 0),
-                preparation: answersByLine.get(String(line.id)),
+                preparation: answersByLine.get(String(line.id))?.[0]?.value,
+                preparationAnswers: answersByLine.get(String(line.id)) ?? [],
                 pricingType: canonicalPricingType(line.ordering_mode),
                 orderingMode: String(line.ordering_mode ?? ''),
+                weightPurpose: resolveSupplierWeightPurpose(line.ordering_mode, 'direct'),
+                requiresWeight: resolveSupplierWeightPurpose(line.ordering_mode, 'direct') !== 'none',
+                sortLineNumber: Number(line.line_number),
+                sortComponentNumber: 0,
+                actualWeight,
               };
+            });
+
+          const componentItems = ownedComponents.map((component) => {
+            const parentLine = linesById.get(String(component.sales_order_line_id));
+            const parentSnapshot = parentLine?.product_snapshot ?? {};
+            const snapshot = component.product_snapshot ?? {};
+            const units = unitsByComponent.get(String(component.id)) ?? [];
+            let actualWeight: number | undefined;
+
+            if (component.actual_weight_kg != null) {
+              actualWeight = Number(component.actual_weight_kg);
+            } else {
+              const weights = units
+                .map((unit) => unit.actual_weight_kg)
+                .filter((value) => value != null)
+                .map(Number);
+
+              if (weights.length > 0 && weights.length === units.length) {
+                actualWeight = weights.reduce((sum, value) => sum + value, 0);
+              }
+            }
+
+            const comboQuantity = Number(parentLine?.quantity ?? 1);
+            const componentQuantityPerCombo = Number(component.quantity ?? 0);
+
+            return {
+              productId: String(component.product_id ?? ''),
+              canonicalLineId: String(component.sales_order_line_id),
+              canonicalComponentId: String(component.id),
+              canonicalItemKind: 'combo_component' as const,
+              canonicalUnits: units.map((unit) => ({
+                id: String(unit.id),
+                unitNumber: Number(unit.unit_number),
+                actualWeightKg: unit.actual_weight_kg != null
+                  ? Number(unit.actual_weight_kg)
+                  : undefined,
+              })),
+              name: String(snapshot.name ?? component.product_id ?? 'Combo item'),
+              unit: component.ordering_mode === 'fixed_quantity'
+                ? String(component.selling_unit ?? 'piece')
+                : 'per kg',
+              quantity: componentQuantityPerCombo * comboQuantity,
+              preparation: answersByComponent.get(String(component.id))?.[0]?.value,
+              preparationAnswers: answersByComponent.get(String(component.id)) ?? [],
+              pricingType: canonicalPricingType(component.ordering_mode),
+              orderingMode: String(component.ordering_mode ?? ''),
+              weightPurpose: resolveSupplierWeightPurpose(component.ordering_mode, 'combo_component'),
+              requiresWeight: resolveSupplierWeightPurpose(component.ordering_mode, 'combo_component') !== 'none',
+              comboName: String(parentSnapshot.name ?? parentLine?.combo_id ?? 'Combo'),
+              comboQuantity,
+              componentQuantityPerCombo,
+              sortLineNumber: Number(parentLine?.line_number ?? 0),
+              sortComponentNumber: Number(component.component_number ?? 0),
+              actualWeight,
+            };
+          });
+
+          const items: OrderItem[] = [...directItems, ...componentItems]
+            .sort((a, b) => (
+              a.sortLineNumber - b.sortLineNumber ||
+              a.sortComponentNumber - b.sortComponentNumber
+            ))
+            .map((mappedItem, index): OrderItem => {
+              const {
+                sortLineNumber,
+                sortComponentNumber,
+                actualWeight,
+                ...item
+              } = mappedItem;
+              void sortLineNumber;
+              void sortComponentNumber;
+
+              if (actualWeight != null && Number.isFinite(actualWeight) && actualWeight > 0) {
+                supplierWeights[String(index)] = actualWeight;
+              }
+              return item;
             });
 
           const summary: OrderSummary = {
@@ -650,7 +829,7 @@ export default function SupplierDashboardPage() {
     if (order.paymentStatus === 'Paid') return;
     setEditMode(false);
 
-    if (!orderRequiresWeighing(order)) {
+    if (!orderHasOperationalWeights(order)) {
       // Order has only fixed-price items - no weighing needed
       // Immediately update payment_status to 'Ready To Pay'
       const { error: updateError } = await supabase.rpc(
@@ -941,6 +1120,49 @@ function PaymentBadge({ status }: { status: PaymentStatus }) {
   );
 }
 
+function ItemOperationalContext({ item }: { item: OrderItem }) {
+  const { t } = useLanguage();
+  const answers = item.preparationAnswers ?? [];
+
+  return (
+    <>
+      {item.comboName && (
+        <p className="mt-1 text-[14px] font-semibold text-sky-700">
+          {t('supplierDashboard.comboContext', {
+            combo: item.comboName,
+            count: item.comboQuantity ?? 1,
+          })}
+        </p>
+      )}
+      {answers.length > 0 ? (
+        <div className="mt-2 space-y-1 rounded-xl bg-cream-50 p-3 text-[14px] text-gray-700">
+          <p className="font-semibold text-gray-500">{t('supplierDashboard.preparationInstructions')}</p>
+          {answers.map((answer, index) => {
+            const translatedValue = t(`cartItem.preparation.${answer.value}`);
+            const value = translatedValue === `cartItem.preparation.${answer.value}`
+              ? humanizeValue(answer.value)
+              : translatedValue;
+            return (
+              <p key={`${answer.questionCode}-${answer.unitNumber ?? 'all'}-${index}`}>
+                {answer.unitNumber != null
+                  ? `${t('weightEntry.labels.fishNumber', { number: answer.unitNumber })} · `
+                  : ''}
+                {humanizeValue(answer.questionCode)}: {value}
+              </p>
+            );
+          })}
+        </div>
+      ) : item.preparation ? (
+        <p className="mt-1 text-[14px] text-gray-500">
+          {t('supplierOrder.labels.preparation', {
+            prep: t(`cartItem.preparation.${item.preparation}`),
+          })}
+        </p>
+      ) : null}
+    </>
+  );
+}
+
 // ----------- Waiting For Weighing queue -----------
 
 function WaitingForWeighing({ orders, onStart, onEditWeight, onViewDetails }: {
@@ -951,11 +1173,13 @@ function WaitingForWeighing({ orders, onStart, onEditWeight, onViewDetails }: {
 }) {
   const { t } = useLanguage();
 
-  // Queue 1: orders that require weighing but don't have all weights submitted yet.
-  const needsWeighing = orders.filter((o) => orderRequiresWeighing(o) && !hasAllWeightsSubmitted(o));
-  // Queue 2: orders that have all weights submitted (or don't require weighing) but payment not yet Paid.
+  // Only customer-price weights block order readiness. A weighted component
+  // inside a fixed-price combo may still capture procurement cost, but it must
+  // not hold the parent combo in this queue.
+  const needsWeighing = orders.filter(hasOutstandingCustomerPriceWeightForOrder);
+  // Queue 2: customer-price weight is complete/not required, but payment is not yet Paid.
   const awaitingPayment = orders.filter((o) =>
-    (!orderRequiresWeighing(o) || hasAllWeightsSubmitted(o)) &&
+    !hasOutstandingCustomerPriceWeightForOrder(o) &&
     o.paymentStatus !== 'Paid' &&
     (o.source !== 'canonical' || o.canonicalPriceStatus === 'final')
   );
@@ -993,7 +1217,7 @@ function WaitingForWeighing({ orders, onStart, onEditWeight, onViewDetails }: {
               </div>
               <div className="flex gap-3">
                 <button onClick={() => onStart(order)} className="flex-1 bg-forest-700 hover:bg-forest-800 text-white rounded-xl py-3 text-[16px] font-bold min-h-[56px] transition-all active:scale-[0.97]">
-                  {orderRequiresWeighing(order) ? t("supplierQueues.weighButton") : t("supplierQueues.startButton")}
+                  {orderRequiresCustomerPriceWeighing(order) ? t("supplierQueues.weighButton") : t("supplierQueues.startButton")}
                 </button>
                 <button onClick={() => onViewDetails(order)} className="border-2 border-cream-200 rounded-xl px-5 py-3 text-[16px] font-semibold text-gray-600 min-h-[56px] hover:bg-cream-50 transition-all active:scale-[0.97]">
                   {t("supplierQueues.viewButton")}
@@ -1033,7 +1257,7 @@ function WaitingForWeighing({ orders, onStart, onEditWeight, onViewDetails }: {
                   <button onClick={() => onViewDetails(order)} className="flex-1 border-2 border-cream-200 rounded-xl py-3 text-[16px] font-semibold text-gray-600 min-h-[52px] hover:bg-cream-50 transition-all active:scale-[0.97]">
                     {t("supplierQueues.viewButton")}
                   </button>
-                  {orderRequiresWeighing(order) && (
+                  {orderHasOperationalWeights(order) && (
                     <button onClick={() => onEditWeight(order)} className="flex-1 border-2 border-amber-300 rounded-xl py-3 text-[16px] font-semibold text-amber-700 min-h-[52px] hover:bg-amber-50 transition-all active:scale-[0.97]">
                       {t("supplierQueues.editWeightButton")}
                     </button>
@@ -1057,10 +1281,10 @@ function ReadyToPrepare({ orders, onPrepare, onViewDetails }: {
 }) {
   const { t } = useLanguage();
 
-  // Queue: payment_status='Paid' AND packing_started_at IS NULL.
+  // Queue: paid, customer-price finalisation complete, and packing not started.
   const readyOrders = orders.filter((o) => {
     if (o.paymentStatus !== 'Paid') return false;
-    return o.packingStartedAt == null;
+    return !hasOutstandingCustomerPriceWeightForOrder(o) && o.packingStartedAt == null;
   });
 
   const productCount = (o: SupplierOrder) => o.items.reduce((sum, item) => sum + item.quantity, 0);
@@ -1799,9 +2023,7 @@ function OrderFilterModal({ orders, filterStatus, selectedDate, onClose, onOpenO
                                       <p className="text-[16px] font-bold text-gray-900">{item.name}</p>
                                       <span className="text-[14px] text-gray-500">x{item.quantity}</span>
                                     </div>
-                                    {item.preparation && (
-                                      <p className="text-[13px] text-gray-500 mt-0.5">{t("cartItem.preparation." + item.preparation)}</p>
-                                    )}
+                                    <ItemOperationalContext item={item} />
                                     {perKg && weight != null && (
                                       <p className="text-[13px] text-forest-700 font-semibold mt-0.5">Weight: {weight.toFixed(2)} kg</p>
                                     )}
@@ -1957,19 +2179,9 @@ function WeightEntryView({
     return positiveWeight(weights[String(index)]);
   };
 
-  const displayPreparation = (preparation: string): string => {
-    const preparationKey = `cartItem.preparation.${preparation}`;
-    const fromPreparation = t(preparationKey);
-    if (fromPreparation !== preparationKey) return fromPreparation;
-
-    const commonKey = `checkout.${preparation}`;
-    const fromCommon = t(commonKey);
-    return fromCommon !== commonKey ? fromCommon : humanizeValue(preparation);
-  };
-
   const calculatedTotal = order.items.reduce<number | null>((total, item, index) => {
     if (total == null || item.price == null || !Number.isFinite(item.price)) return null;
-    if (!needsWeighing(item)) return total + item.price * item.quantity;
+    if (!affectsCustomerPrice(item)) return total + item.price * item.quantity;
 
     const weightKg = lineWeightKg(item, index);
     return weightKg == null ? null : total + item.price * weightKg;
@@ -2016,6 +2228,7 @@ function WeightEntryView({
 
     if (
       order.source !== 'canonical' ||
+      !needsWeighing(item) ||
       item.orderingMode !== 'whole_fish_by_weight'
     ) {
       setError('Per-unit weight entry is only available for whole fish orders.');
@@ -2040,13 +2253,22 @@ function WeightEntryView({
     setError(null);
 
     try {
-      const { error: weightError } = await supabase.rpc(
-        'record_sales_order_line_unit_actual_weight',
-        {
-          p_sales_order_line_unit_id: unit.id,
-          p_actual_weight_kg: n,
-        },
-      );
+      const isComboComponent = item.canonicalItemKind === 'combo_component';
+      const { error: weightError } = isComboComponent
+        ? await supabase.rpc(
+            'record_sales_order_line_component_unit_actual_weight',
+            {
+              p_sales_order_line_component_unit_id: unit.id,
+              p_actual_weight_kg: n,
+            },
+          )
+        : await supabase.rpc(
+            'record_sales_order_line_unit_actual_weight',
+            {
+              p_sales_order_line_unit_id: unit.id,
+              p_actual_weight_kg: n,
+            },
+          );
 
       if (weightError) throw weightError;
 
@@ -2161,13 +2383,26 @@ function WeightEntryView({
           throw new Error('This item requires per-unit weight entry.');
         }
 
-        const { error: weightError } = await supabase.rpc(
-          'record_sales_order_line_actual_weight',
-          {
-            p_sales_order_line_id: item.canonicalLineId,
-            p_actual_weight_kg: n,
-          },
-        );
+        const isComboComponent = item.canonicalItemKind === 'combo_component';
+        if (isComboComponent && !item.canonicalComponentId) {
+          throw new Error('Combo item ID is missing.');
+        }
+
+        const { error: weightError } = isComboComponent
+          ? await supabase.rpc(
+              'record_sales_order_line_component_actual_weight',
+              {
+                p_sales_order_line_component_id: item.canonicalComponentId!,
+                p_actual_weight_kg: n,
+              },
+            )
+          : await supabase.rpc(
+              'record_sales_order_line_actual_weight',
+              {
+                p_sales_order_line_id: item.canonicalLineId,
+                p_actual_weight_kg: n,
+              },
+            );
 
         if (weightError) throw weightError;
 
@@ -2329,6 +2564,9 @@ function WeightEntryView({
           <span>📍 {order.pickupLocation || '—'}</span>
           {order.houseUnit && <span>🏠 {t("supplierCard.unit")} {order.houseUnit}</span>}
           <span>📦 {order.orderRef}</span>
+          <span>
+            {t('supplierDashboard.packingStatus')}: {t(`supplierDashboard.packingStatuses.${getPackingStatus(order)}`)}
+          </span>
         </div>
         {order.orderNotes && (
           <div className="mt-4 pt-4 border-t border-cream-200">
@@ -2377,6 +2615,7 @@ function WeightEntryView({
           const weight = weights[String(i)];
         const isWholeFishByWeight =
           order.source === 'canonical' &&
+          perKgFlag &&
           item.orderingMode === 'whole_fish_by_weight';
         const canonicalUnits = item.canonicalUnits ?? [];
         const hasCanonicalUnits = canonicalUnits.length > 0;
@@ -2400,9 +2639,7 @@ function WeightEntryView({
               <div className="flex items-start justify-between mb-3">
                 <div>
                   <p className="text-[20px] font-bold text-gray-900">{item.name}</p>
-                  {item.preparation && (
-                    <p className="text-[16px] text-gray-500 mt-0.5">{displayPreparation(item.preparation)}</p>
-                  )}
+                  <ItemOperationalContext item={item} />
                   {isSliceItem(item) && (
                     <p className="text-[16px] text-purple-700 font-semibold mt-1">
                       {t("supplierDashboard.slicesRequested", { count: item.sliceQuantity ?? item.quantity })}
@@ -2423,7 +2660,28 @@ function WeightEntryView({
               </div>
 
               <div className="flex items-center gap-4 flex-wrap">
-                <span className="text-[16px] text-gray-600">x{item.quantity}</span>
+                <span className="text-[16px] text-gray-600">
+                  {t('supplierOrder.labels.quantity')}: {item.quantity} {item.unit || t('supplierCard.products')}
+                </span>
+                {item.canonicalUnits && item.canonicalUnits.length > 0 && (
+                  <span className="text-[14px] font-semibold text-gray-500">
+                    {t('supplierDashboard.physicalUnits', { count: item.canonicalUnits.length })}
+                  </span>
+                )}
+                <span className={`text-[14px] font-semibold ${isDone ? 'text-green-700' : perKgFlag ? 'text-amber-700' : 'text-gray-600'}`}>
+                  {perKgFlag
+                    ? item.weightPurpose === 'supplier_cost'
+                      ? (isDone
+                          ? t('supplierDashboard.procurementWeightSaved')
+                          : t('supplierDashboard.procurementWeightNeeded'))
+                      : (isDone ? t('supplierDashboard.weightSaved') : t('supplierDashboard.weightNeeded'))
+                    : t('weightEntry.messages.notRequired')}
+                </span>
+                {item.weightPurpose === 'supplier_cost' && (
+                  <span className="w-full text-[13px] font-medium text-sky-700">
+                    {t('supplierDashboard.procurementWeightHint')}
+                  </span>
+                )}
                 {formattedSellingPrice(item) && (
                   <span className="text-[14px] font-semibold text-forest-700">
                     {t("supplierOrder.labels.sellingPrice")}: {formattedSellingPrice(item)}
@@ -2606,12 +2864,17 @@ function OrderDetailsView({ order, completionTimes, onClose }: { order: Supplier
                             {t("supplierOrder.labels.slices", { count: item.sliceQuantity ?? item.quantity })}
                           </p>
                         )}
-                        <p className="text-[14px] text-gray-500">{t("supplierOrder.labels.quantity")}: {item.quantity}</p>
+                        <p className="text-[14px] text-gray-500">
+                          {t("supplierOrder.labels.quantity")}: {item.quantity} {item.unit}
+                        </p>
+                        {item.canonicalUnits && item.canonicalUnits.length > 0 && (
+                          <p className="text-[14px] text-gray-500">
+                            {t('supplierDashboard.physicalUnits', { count: item.canonicalUnits.length })}
+                          </p>
+                        )}
                       </div>
                     </div>
-                    {item.preparation && (
-                      <p className="text-[14px] text-gray-500 mt-1">{t("supplierOrder.labels.preparation", { prep: t("cartItem.preparation." + item.preparation) })}</p>
-                    )}
+                    <ItemOperationalContext item={item} />
                     {perKg && (
                       <p className="text-[16px] font-semibold text-forest-700 mt-1">
                         {t("supplierOrder.labels.actualWeight", { weight: weight != null ? `${weight.toFixed(2)} kg` : '—' })}
@@ -2637,6 +2900,12 @@ function OrderDetailsView({ order, completionTimes, onClose }: { order: Supplier
             <div>
               <p className="text-[14px] font-semibold text-gray-500 mb-1">{t("supplierOrder.labels.completionTime")}</p>
               <p className="text-[16px] text-gray-800 font-semibold">{completionTime || '—'}</p>
+            </div>
+            <div>
+              <p className="text-[14px] font-semibold text-gray-500 mb-1">{t('supplierDashboard.packingStatus')}</p>
+              <p className="text-[16px] text-gray-800 font-semibold">
+                {t(`supplierDashboard.packingStatuses.${getPackingStatus(order)}`)}
+              </p>
             </div>
           </div>
         </div>

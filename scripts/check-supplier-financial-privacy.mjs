@@ -64,7 +64,7 @@ if (detailStart < 0) {
     'order.orderRef',
     'order.items.map(',
     'item.quantity',
-    'item.preparation',
+    '<ItemOperationalContext item={item}',
     'order.supplierWeights',
     'order.orderNotes',
     '<PaymentBadge status={order.paymentStatus}',

@@ -57,6 +57,7 @@
     "test:repeatable-final-amount-notifications": "node scripts/check-repeatable-final-amount-notifications.mjs",
     "test:canonical-supplier-tracking-update": "node scripts/check-canonical-supplier-tracking-update.mjs",
     "test:supplier-financial-privacy": "node scripts/check-supplier-financial-privacy.mjs",
+    "test:supplier-combo-dashboard": "node --experimental-strip-types scripts/check-supplier-combo-dashboard.mjs",
     "test:rider-delivery-proof-autoadvance": "node scripts/check-rider-delivery-proof-autoadvance.mjs",
     "test:admin-canonical-order-history": "node scripts/check-admin-canonical-order-history.mjs",
     "test:admin-report-navigation": "node scripts/check-admin-report-navigation.mjs",
