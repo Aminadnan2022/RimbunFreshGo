@@ -1,4 +1,4 @@
-import { cloneElement, isValidElement, useEffect, useId, useRef, useState } from 'react';
+import { cloneElement, isValidElement, useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { Navigate, Link, useNavigate } from 'react-router-dom';
 import { CheckCircle2, ChevronLeft, ChevronRight, Info, Lock, Upload } from 'lucide-react';
 import { useCart } from '../context/CartContext';
@@ -21,7 +21,7 @@ import type { CustomerDetails, DeliveryDay } from '../types';
 
 const RECEIPT_FILE_ACCEPT =
   'image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf';
-const RECEIPT_IMAGE_ACCEPT = 'image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp';
+type ReceiptSource = 'Files' | 'Camera';
 
 const jsonRecord = (value: unknown): Record<string, unknown> =>
   value !== null && typeof value === 'object' && !Array.isArray(value)
@@ -47,6 +47,7 @@ export default function CheckoutPage() {
   const [step, setStep] = useState<'details' | 'preparation' | 'review' | 'payment'>('details'); const [targets, setTargets] = useState<PreparationTarget[]>([]); const [answers, setAnswers] = useState<PreparationAnswers>({}); const [prepLoading, setPrepLoading] = useState(true); const [prepError, setPrepError] = useState<string | null>(null); const [prepLoadFailures, setPrepLoadFailures] = useState<PreparationLoadFailure[]>([]); const [placing, setPlacing] = useState(false); const [placeError, setPlaceError] = useState<string | null>(null);
   const [paymentPreview, setPaymentPreview] = useState<CheckoutPaymentPreview | null>(null); const [paymentPreviewLoading, setPaymentPreviewLoading] = useState(false); const [paymentPreviewError, setPaymentPreviewError] = useState<string | null>(null);
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [receiptSource, setReceiptSource] = useState<ReceiptSource | null>(null);
   const [stagedReceipt, setStagedReceipt] = useState<{ storagePath: string; fileName: string } | null>(null);
   const [receiptUploading, setReceiptUploading] = useState(false);
   const [receiptError, setReceiptError] = useState<string | null>(null);
@@ -252,6 +253,9 @@ useEffect(() => {
       if (previousPath && previousPath !== uploadedPath) await supabase.storage.from('sales-order-payment-receipts').remove([previousPath]);
     } catch (err) {
       if (uploadedPath) await supabase.storage.from('sales-order-payment-receipts').remove([uploadedPath]);
+      setReceiptFile(null);
+      setReceiptSource(null);
+      setStagedReceipt(null);
       setReceiptError(err instanceof Error ? err.message : t('payment.receiptUploadError'));
     } finally { setReceiptUploading(false); }
   };
@@ -491,47 +495,87 @@ const Preparation = () => (
   );
   if (authLoading || consentChecking) return <main className="py-20 text-center">Loading…</main>; if (!user) return <Navigate to="/" replace/>; if (!cart.items.length && !placing && !placementSucceeded.current) return <Navigate to="/cart" replace/>;
   const steps = [['details', t('checkout.yourDetails')], ['preparation', t('checkout.preparation')], ['review', t('checkout.review')], ['payment', t('checkout.payment')]] as const;
-  const selectReceiptFile = (file: File | null) => {
+  const selectReceiptFile = (file: File, source: ReceiptSource) => {
     setReceiptFile(file);
+    setReceiptSource(source);
     setReceiptError(null);
     setStagedReceipt(null);
   };
+  const captureReceiptFile = (event: FormEvent<HTMLInputElement>) => {
+    const input = event.currentTarget;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    const source: ReceiptSource = input.dataset.receiptSource === 'camera' ? 'Camera' : 'Files';
+    selectReceiptFile(file, source);
+    input.value = '';
+  };
+  const changeReceipt = () => {
+    setReceiptFile(null);
+    setReceiptSource(null);
+    setStagedReceipt(null);
+    setReceiptError(null);
+  };
+  const receiptPickerDisabled = receiptUploading || placing;
+  const receiptPickerClassName = `inline-flex cursor-pointer items-center justify-center rounded-lg bg-forest-700 px-3 py-2 text-sm font-semibold text-white hover:bg-forest-800 ${receiptPickerDisabled ? 'pointer-events-none cursor-not-allowed opacity-50' : ''}`;
   const receiptPicker = (
     <div className="flex flex-wrap gap-3">
-      <div className="w-full sm:w-auto">
-        <input
-          id="checkout-payment-receipt-file"
-          type="file"
-          accept={RECEIPT_FILE_ACCEPT}
-          disabled={receiptUploading || placing}
-          onChange={(event) => {
-            const file = event.currentTarget.files?.[0];
-            if (!file) return;
-            selectReceiptFile(file);
-          }}
-          className="block w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-forest-700 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white"
-        />
-      </div>
-      <div className="w-full sm:w-auto">
-        <input
-          id="checkout-payment-receipt-camera"
-          type="file"
-          accept={RECEIPT_IMAGE_ACCEPT}
-          capture="environment"
-          disabled={receiptUploading || placing}
-          onChange={(event) => {
-            const file = event.currentTarget.files?.[0];
-            if (!file) return;
-            selectReceiptFile(file);
-          }}
-          className="block w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-forest-700 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white"
-        />
-      </div>
-      {receiptFile && (
-        <div className="w-full min-w-0 max-w-full overflow-hidden rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-800">
-          <p className="font-semibold">File selected</p>
-          <p className="mt-1 break-all text-xs text-green-700">{receiptFile.name}</p>
-        </div>
+      {!receiptFile ? (
+        <>
+          <p className="w-full text-sm text-gray-600">Choose one method for your receipt.</p>
+          <input
+            id="checkout-payment-receipt-file"
+            data-receipt-source="files"
+            type="file"
+            accept={RECEIPT_FILE_ACCEPT}
+            disabled={receiptPickerDisabled}
+            onInput={captureReceiptFile}
+            onChange={captureReceiptFile}
+            className="sr-only"
+          />
+          <label
+            htmlFor="checkout-payment-receipt-file"
+            aria-disabled={receiptPickerDisabled}
+            className={receiptPickerClassName}
+          >
+            Choose file
+          </label>
+
+          <input
+            id="checkout-payment-receipt-camera"
+            data-receipt-source="camera"
+            type="file"
+            accept="image/*"
+            capture="environment"
+            disabled={receiptPickerDisabled}
+            onInput={captureReceiptFile}
+            onChange={captureReceiptFile}
+            className="sr-only"
+          />
+          <label
+            htmlFor="checkout-payment-receipt-camera"
+            aria-disabled={receiptPickerDisabled}
+            className={receiptPickerClassName}
+          >
+            Use camera
+          </label>
+        </>
+      ) : (
+        <>
+          <div className="w-full min-w-0 max-w-full overflow-hidden rounded-xl border border-green-200 bg-green-50 p-3 text-sm text-green-800">
+            <p className="font-semibold">File selected</p>
+            <p className="mt-1 break-all text-xs text-green-700">{receiptFile.name}</p>
+            {receiptSource && <p className="mt-1 text-xs text-green-700">Source: {receiptSource}</p>}
+          </div>
+          <button
+            type="button"
+            disabled={receiptPickerDisabled}
+            onClick={changeReceipt}
+            className="btn-secondary w-full sm:w-auto"
+          >
+            Change receipt
+          </button>
+        </>
       )}
     </div>
   );

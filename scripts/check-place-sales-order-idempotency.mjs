@@ -19,7 +19,7 @@ for (const token of [
 if (!migration.includes('CREATE FUNCTION public.place_sales_order(') || !migration.includes('p_idempotency_key text')) failures.push('canonical RPC does not accept an idempotency key');
 if (!migration.includes('FROM public.sales_order_checkout_idempotency') || !migration.includes('IF FOUND THEN')) failures.push('same-key retry does not return the persisted result');
 if (!migration.includes('SELECT * INTO v_result') || !migration.includes('INSERT INTO public.sales_order_checkout_idempotency')) failures.push('new key does not atomically create and record one order');
-if (!checkout.includes('checkoutAttemptKey') || !checkout.includes('crypto.randomUUID()')) failures.push('checkout does not retain a stable retry key');
+if (!checkout.includes('checkoutAttemptKey') || !checkout.includes('createBrowserUuid()')) failures.push('checkout does not retain a stable retry key');
 if (!client.includes('p_idempotency_key')) failures.push('client RPC payload omits the idempotency key');
 
 if (failures.length) {

@@ -23,26 +23,32 @@ import { resolveCustomerPaymentPresentation } from '../lib/orderPaymentPresentat
 
 const RECEIPT_FILE_ACCEPT =
   'image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf';
-const RECEIPT_IMAGE_ACCEPT = 'image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp';
+type ReceiptSource = 'Files' | 'Camera';
 
 function ReceiptFilePicker({
   disabled,
+  selectedFile,
+  selectedSource,
   onSelect,
+  onChangeReceipt,
 }: {
   disabled: boolean;
-  onSelect: (file: File) => void;
+  selectedFile: File | null;
+  selectedSource: ReceiptSource | null;
+  onSelect: (file: File, source: ReceiptSource) => void;
+  onChangeReceipt: () => void;
 }) {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const lastFileRef = useRef<File | null>(null);
   const pickerRef = useRef<HTMLDivElement | null>(null);
 
   const captureFile = (event: FormEvent<HTMLInputElement>) => {
-    const file = event.currentTarget.files?.[0];
-    if (!file || lastFileRef.current === file) return;
+    const input = event.currentTarget;
+    const file = input.files?.[0];
+    if (!file) return;
 
-    lastFileRef.current = file;
-    setSelectedFile(file);
-    onSelect(file);
+    const source: ReceiptSource =
+      input.dataset.receiptSource === 'camera' ? 'Camera' : 'Files';
+    onSelect(file, source);
+    input.value = '';
 
     window.requestAnimationFrame(() => {
       pickerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -51,42 +57,72 @@ function ReceiptFilePicker({
 
   return (
     <div ref={pickerRef} className="min-w-0 max-w-full">
-      <input
-        id="canonical-payment-receipt-file"
-        type="file"
-        accept={RECEIPT_FILE_ACCEPT}
-        disabled={disabled}
-        onInput={captureFile}
-        onChange={captureFile}
-        className="block w-full min-w-0 max-w-full text-sm text-gray-600 file:mr-3 file:rounded-lg file:border-0 file:bg-forest-700 file:px-3 file:py-2 file:text-sm file:font-semibold file:text-white"
-      />
-
-      <label
-        htmlFor="canonical-payment-receipt-camera"
-        className="mt-3 inline-flex cursor-pointer items-center justify-center rounded-lg bg-forest-700 px-3 py-2 text-sm font-semibold text-white hover:bg-forest-800"
-      >
-        Use camera
-        <input
-          id="canonical-payment-receipt-camera"
-          type="file"
-          accept={RECEIPT_IMAGE_ACCEPT}
-          capture="environment"
-          disabled={disabled}
-          onInput={captureFile}
-          onChange={captureFile}
-          className="sr-only"
-        />
-      </label>
-
-      {selectedFile && (
-        <div className="mt-3 min-w-0 max-w-full overflow-hidden rounded-xl border border-green-200 bg-green-50 p-3">
-          <p className="text-sm font-semibold text-green-800">File selected</p>
-          <p className="mt-1 break-all text-xs text-green-700">
-            {selectedFile.name}
+      {!selectedFile ? (
+        <>
+          <p className="mb-3 text-sm text-gray-600">
+            Choose one method for your receipt.
           </p>
-          <p className="mt-1 text-xs text-green-600">
-            {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-          </p>
+          <div className="flex flex-wrap gap-3">
+            <input
+              id="canonical-payment-receipt-file"
+              data-receipt-source="files"
+              type="file"
+              accept={RECEIPT_FILE_ACCEPT}
+              disabled={disabled}
+              onInput={captureFile}
+              onChange={captureFile}
+              className="sr-only"
+            />
+            <label
+              htmlFor="canonical-payment-receipt-file"
+              aria-disabled={disabled}
+              className={`inline-flex cursor-pointer items-center justify-center rounded-lg bg-forest-700 px-3 py-2 text-sm font-semibold text-white hover:bg-forest-800 ${disabled ? 'pointer-events-none cursor-not-allowed opacity-50' : ''}`}
+            >
+              Choose file
+            </label>
+
+            <input
+              id="canonical-payment-receipt-camera"
+              data-receipt-source="camera"
+              type="file"
+              accept="image/*"
+              capture="environment"
+              disabled={disabled}
+              onInput={captureFile}
+              onChange={captureFile}
+              className="sr-only"
+            />
+            <label
+              htmlFor="canonical-payment-receipt-camera"
+              aria-disabled={disabled}
+              className={`inline-flex cursor-pointer items-center justify-center rounded-lg bg-forest-700 px-3 py-2 text-sm font-semibold text-white hover:bg-forest-800 ${disabled ? 'pointer-events-none cursor-not-allowed opacity-50' : ''}`}
+            >
+              Use camera
+            </label>
+          </div>
+        </>
+      ) : (
+        <div className="space-y-3">
+          <div className="min-w-0 max-w-full overflow-hidden rounded-xl border border-green-200 bg-green-50 p-3">
+            <p className="text-sm font-semibold text-green-800">File selected</p>
+            <p className="mt-1 break-all text-xs text-green-700">
+              {selectedFile.name}
+            </p>
+            <p className="mt-1 text-xs text-green-700">
+              Source: {selectedSource}
+            </p>
+            <p className="mt-1 text-xs text-green-600">
+              {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+            </p>
+          </div>
+          <button
+            type="button"
+            disabled={disabled}
+            onClick={onChangeReceipt}
+            className="btn-secondary w-full sm:w-auto"
+          >
+            Change receipt
+          </button>
         </div>
       )}
     </div>
@@ -158,6 +194,7 @@ const [initialLoading, setInitialLoading] = useState(true);
     useState<CanonicalFinalPriceItem[]>([]);
 
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
+  const [receiptSource, setReceiptSource] = useState<ReceiptSource | null>(null);
   const [receiptUploading, setReceiptUploading] = useState(false);
   const [receiptError, setReceiptError] = useState<string | null>(null);
   const [receiptSuccess, setReceiptSuccess] = useState<string | null>(null);
@@ -572,11 +609,14 @@ useEffect(() => {
       if (submitError) throw submitError;
 
       setReceiptFile(null);
+      setReceiptSource(null);
       setReceiptSuccess('Receipt submitted successfully. Waiting for admin verification.');
 
       await loadLive(id ?? '');
     } catch (err) {
       console.error('[tracking:receiptUpload]', err);
+      setReceiptFile(null);
+      setReceiptSource(null);
 
       const message =
         err instanceof Error
@@ -967,8 +1007,17 @@ useEffect(() => {
 
                   <ReceiptFilePicker
                     disabled={receiptUploading}
-                    onSelect={(file) => {
+                    selectedFile={receiptFile}
+                    selectedSource={receiptSource}
+                    onSelect={(file, source) => {
                       setReceiptFile(file);
+                      setReceiptSource(source);
+                      setReceiptError(null);
+                      setReceiptSuccess(null);
+                    }}
+                    onChangeReceipt={() => {
+                      setReceiptFile(null);
+                      setReceiptSource(null);
                       setReceiptError(null);
                       setReceiptSuccess(null);
                     }}
