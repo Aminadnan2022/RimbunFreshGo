@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { supabase } from '../lib/supabase';
 import {
-  fetchProductById,
+  fetchAdminProductById,
   createProduct,
   updateProduct,
   fetchProductPriceHistory,
@@ -217,7 +217,7 @@ export default function AdminProductFormPage() {
     if (!isEdit || !id) return;
     (async () => {
       try {
-        const product = await fetchProductById(id);
+        const product = await fetchAdminProductById(id);
         if (!product) {
           navigate('/admin/products', { replace: true });
           return;

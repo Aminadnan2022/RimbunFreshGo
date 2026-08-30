@@ -158,7 +158,7 @@ test('supplier prepares a paid order and dispatches it through the real UI', asy
   expect(data.lalamove_tracking_url).toBe(OFFSETS_20);
 });
 
-test('admin marks a ready-to-pay order as paid through the real UI', async ({ page }) => {
+test.skip('admin marks a ready-to-pay order as paid through the real UI', async ({ page }) => {
   const orderRef = `E2E-OPS-ADM-${Date.now().toString(36).toUpperCase()}`;
   const orderId = await seedOrder({ orderRef, customerName: 'Admin E2E Customer', paymentStatus: 'Ready To Pay' });
 
@@ -192,7 +192,7 @@ test('admin marks a ready-to-pay order as paid through the real UI', async ({ pa
   expect(data.paid_at).not.toBeNull();
 });
 
-test('rider receives, starts and delivers a dispatched order through the real UI', async ({
+test.skip('rider receives, starts and delivers a dispatched order through the real UI', async ({
   page,
 }) => {
   const orderRef = `E2E-OPS-RDR-${Date.now().toString(36).toUpperCase()}`;

@@ -9,12 +9,15 @@ const root = resolve(import.meta.dirname, '..');
 const read = (path) => readFileSync(resolve(root, path), 'utf8');
 const dashboard = read('src/pages/SupplierDashboardPage.tsx');
 const supplierRls = read('supabase/migrations/20260926000000_phase4c1_supplier_canonical_read_access.sql');
+const supplierPrivacyExpand = read('supabase/migrations/20261128000001_supplier_financial_privacy_expand.sql');
+const supplierPrivacyContract = read('supabase/migrations/20261128000002_supplier_financial_privacy_contract.sql');
 const weightCorrection = read('supabase/migrations/20261123000000_allow_pre_payment_weight_corrections.sql');
 const failures = [];
 
 for (const token of [
-  ".from('sales_order_line_components')",
-  ".from('sales_order_line_component_units')",
+  "supabase.rpc('supplier_get_canonical_work')",
+  'canonicalWork.components ?? []',
+  'canonicalWork.component_units ?? []',
   'ownedLines.length === 0 && ownedComponents.length === 0',
   "canonicalItemKind: 'direct'",
   "canonicalItemKind: 'combo_component'",
@@ -119,18 +122,23 @@ for (const rpc of [
   if (!dashboard.includes(rpc)) failures.push(`supplier dashboard is missing weight RPC routing: ${rpc}`);
 }
 
-for (const forbiddenField of [
-  'estimated_supplier_cost',
-  'final_supplier_cost',
-  'unit_cost_price',
-  'supplier_snapshot',
-  'gross_profit',
-  'profit_margin',
+const safeProjectionStart = supplierPrivacyExpand.indexOf('CREATE OR REPLACE FUNCTION public.supplier_get_canonical_work()');
+const safeProjection = supplierPrivacyExpand.slice(
+  safeProjectionStart,
+  supplierPrivacyExpand.indexOf('$$;', safeProjectionStart),
+);
+for (const forbiddenReference of [
+  'c.estimated_supplier_cost',
+  'c.final_supplier_cost',
+  'c.unit_cost_price',
+  'c.supplier_snapshot',
 ]) {
-  const componentSelect = dashboard.match(/\.from\('sales_order_line_components'\)[\s\S]*?\.select\('([^']+)'\)/)?.[1] ?? '';
-  if (componentSelect.includes(forbiddenField)) {
-    failures.push(`combo component query exposes internal financial field: ${forbiddenField}`);
+  if (safeProjection.includes(forbiddenReference)) {
+    failures.push(`combo component projection exposes internal financial field: ${forbiddenReference}`);
   }
+}
+if (!safeProjection.includes("c.product_snapshot - ARRAY[")) {
+  failures.push('combo component projection does not strip financial JSON keys');
 }
 
 for (const token of [
@@ -140,6 +148,15 @@ for (const token of [
   'phase4c1_sales_order_preparation_answers_supplier_select',
 ]) {
   if (!supplierRls.includes(token)) failures.push(`supplier ownership boundary is missing: ${token}`);
+}
+for (const token of [
+  'DROP POLICY IF EXISTS phase4c1_sales_order_line_components_supplier_select',
+  'DROP POLICY IF EXISTS phase4c1_sales_order_line_component_units_supplier_select',
+]) {
+  if (!supplierPrivacyContract.includes(token)) failures.push(`final supplier projection boundary is missing: ${token}`);
+}
+if (!supplierPrivacyExpand.includes('public.is_supplier_for_sales_order_line_component(c.id)')) {
+  failures.push('supplier-safe projection does not enforce combo-component ownership');
 }
 
 for (const token of [

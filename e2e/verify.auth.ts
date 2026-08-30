@@ -91,6 +91,7 @@ async function createTestUser(role: Role): Promise<TestUser> {
     email,
     password,
     email_confirm: true,
+    user_metadata: { test_run_id: runId, role, privacy_notice_accepted: true, marketing_opt_in: false, privacy_policy_version: '2026-08-25' },
   });
 
   if (error || !data.user) {

@@ -36,8 +36,8 @@ test('admin signs in and is routed to the admin products page', async ({ page })
   const user = users['admin'];
   await signInViaHeader(page, user.email, user.password, '/admin/products');
   await expect(page).toHaveURL(/\/admin\/products$/);
-  // The admin page renders its tab bar (Orders tab is always present).
-  await expect(page.getByRole('button', { name: 'Orders' })).toBeVisible();
+  // The admin page exposes its navigation as semantic tabs.
+  await expect(page.getByRole('tab', { name: 'Orders' })).toBeVisible();
 });
 
 test('supplier signs in and is routed to the packing dashboard', async ({ page }) => {
@@ -108,6 +108,7 @@ test('admin logout clears a browser session when the remote session is already m
       status: 400,
       contentType: 'application/json',
       body: JSON.stringify({
+        error_code: 'session_not_found',
         code: 'session_not_found',
         message: 'Session from session_id claim in JWT does not exist',
       }),

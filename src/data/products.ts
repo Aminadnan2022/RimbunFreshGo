@@ -139,12 +139,21 @@ function mapRow(row: DbProduct): Product {
   };
 }
 
-const SELECT = 'id, name, name_ms, category, price, cost_price, cost_supplier_name, unit, price_note, weight, quantity, description, long_description, image, images, freshness, preparation_options, vendor_id, vendor_name, tags, is_popular, ordering_mode, selling_unit, display_order, is_pinned, slice_unit, min_slice, max_slice, default_slice, slice_increment, slice_instruction';
+const PUBLIC_SELECT = 'id, name, name_ms, category, price, unit, price_note, weight, quantity, description, long_description, image, images, freshness, preparation_options, vendor_id, vendor_name, tags, is_popular, ordering_mode, selling_unit, display_order, is_pinned, slice_unit, min_slice, max_slice, default_slice, slice_increment, slice_instruction';
+
+async function fetchAdminProducts(productId?: string): Promise<Product[]> {
+  const { data, error } = await supabase.rpc('admin_list_products', {
+    p_product_id: productId ?? null,
+  });
+  if (error) throw error;
+  return ((data ?? []) as DbProduct[]).map(mapRow);
+}
 
 export async function fetchProducts(includeInactive = false): Promise<Product[]> {
+  if (includeInactive) return fetchAdminProducts();
   let query = supabase
     .from('Product')
-    .select(SELECT)
+    .select(PUBLIC_SELECT)
     .order('is_pinned', { ascending: false })
     .order('display_order', { ascending: true });
   if (!includeInactive) query = query.neq('freshness', 'sold-out');
@@ -156,17 +165,21 @@ export async function fetchProducts(includeInactive = false): Promise<Product[]>
 export async function fetchProductById(id: string): Promise<Product | null> {
   const { data, error } = await supabase
     .from('Product')
-    .select(SELECT)
+    .select(PUBLIC_SELECT)
     .eq('id', id)
     .maybeSingle();
   if (error) throw error;
   return data ? mapRow(data as DbProduct) : null;
 }
 
+export async function fetchAdminProductById(id: string): Promise<Product | null> {
+  return (await fetchAdminProducts(id))[0] ?? null;
+}
+
 export async function fetchProductsByCategory(category: string): Promise<Product[]> {
   const { data, error } = await supabase
     .from('Product')
-    .select(SELECT)
+    .select(PUBLIC_SELECT)
     .eq('category', category as Category)
     .neq('freshness', 'sold-out')
     .order('is_pinned', { ascending: false })
@@ -178,7 +191,7 @@ export async function fetchProductsByCategory(category: string): Promise<Product
 export async function fetchPopularProducts(limit = 4): Promise<Product[]> {
   const { data, error } = await supabase
     .from('Product')
-    .select(SELECT)
+    .select(PUBLIC_SELECT)
     .eq('is_popular', true)
     .neq('freshness', 'sold-out')
     .order('is_pinned', { ascending: false })
@@ -236,16 +249,16 @@ async function getNextDisplayOrder(): Promise<number> {
 }
 
 export async function createProduct(payload: ProductPayload): Promise<Product> {
-  const { data, error } = await supabase
+  const { error } = await supabase
     .from('Product')
     .insert({
       ...payload,
       display_order: payload.display_order ?? (await getNextDisplayOrder()),
-    })
-    .select(SELECT)
-    .single();
+    });
   if (error) throw error;
-  return mapRow(data as DbProduct);
+  const created = await fetchAdminProductById(payload.id);
+  if (!created) throw new Error('Created product could not be reloaded');
+  return created;
 }
 
 export async function updateProduct(id: string, payload: Partial<ProductPayload>): Promise<Product> {
@@ -274,7 +287,7 @@ export async function deleteProduct(id: string): Promise<void> {
 }
 
 export async function duplicateProduct(id: string): Promise<Product> {
-  const original = await fetchProductById(id);
+  const original = await fetchAdminProductById(id);
   if (!original) throw new Error('Product not found');
   const newId = `${id}-copy-${Date.now()}`;
   const displayOrder = await getNextDisplayOrder();

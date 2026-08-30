@@ -22,7 +22,7 @@ const fail = (message: string) => { failures++; console.error(`FAIL: ${message}`
 async function clientFor(role: 'admin' | 'customer'): Promise<SupabaseClient> {
   const email = `combo-${role}-${Date.now()}-${randomBytes(3).toString('hex')}@example.com`;
   const password = `Test-${randomBytes(18).toString('base64url')}!`;
-  const { data, error } = await service.auth.admin.createUser({ email, password, email_confirm: true });
+  const { data, error } = await service.auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { privacy_notice_accepted: true, marketing_opt_in: false, privacy_policy_version: '2026-08-25' } });
   if (error || !data.user) throw new Error(`Could not create ${role}: ${error?.message ?? 'no user'}`);
   users.push(data.user.id);
   const { error: roleError } = await service.from('user_roles').upsert({ id: data.user.id, role });

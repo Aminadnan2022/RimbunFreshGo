@@ -415,60 +415,23 @@ export default function SupplierDashboardPage() {
     setError(null);
 
     try {
-      const [
-        legacyOrderRes,
-        canonicalOrderRes,
-        canonicalLineRes,
-        canonicalUnitRes,
-        canonicalComponentRes,
-        canonicalComponentUnitRes,
-        canonicalAnswerRes,
-        canonicalFulfilmentRes,
-      ] = await Promise.all([
+      const [legacyOrderRes, canonicalWorkRes] = await Promise.all([
         supabase.rpc('supplier_list_legacy_orders'),
-
-        supabase
-          .from('sales_orders')
-          .select('id, order_number, customer_snapshot, delivery_snapshot, payment_status, price_status, paid_at, created_at')
-          .order('created_at', { ascending: false }),
-
-        supabase
-          .from('sales_order_lines')
-          .select('id, sales_order_id, line_number, product_id, product_snapshot, quantity, selling_unit, ordering_mode, actual_weight_kg, item_kind')
-          .order('line_number', { ascending: true }),
-
-        supabase
-          .from('sales_order_line_units')
-          .select('id, sales_order_line_id, unit_number, actual_weight_kg')
-          .order('unit_number', { ascending: true }),
-
-        supabase
-          .from('sales_order_line_components')
-          .select('id, sales_order_line_id, component_number, product_id, product_snapshot, quantity, selling_unit, ordering_mode, actual_weight_kg')
-          .order('component_number', { ascending: true }),
-
-        supabase
-          .from('sales_order_line_component_units')
-          .select('id, sales_order_line_component_id, unit_number, actual_weight_kg')
-          .order('unit_number', { ascending: true }),
-
-        supabase
-          .from('sales_order_preparation_answers')
-          .select('sales_order_line_id, sales_order_line_component_id, sales_order_line_component_unit_id, option_code, answer_value, question_code'),
-
-        supabase
-          .from('sales_order_supplier_fulfilments')
-          .select('sales_order_id, supplier_id, status, packing_started_at, packing_completed_at'),
+        supabase.rpc('supplier_get_canonical_work'),
       ]);
 
       if (legacyOrderRes.error) throw legacyOrderRes.error;
-      if (canonicalOrderRes.error) throw canonicalOrderRes.error;
-      if (canonicalLineRes.error) throw canonicalLineRes.error;
-      if (canonicalUnitRes.error) throw canonicalUnitRes.error;
-      if (canonicalComponentRes.error) throw canonicalComponentRes.error;
-      if (canonicalComponentUnitRes.error) throw canonicalComponentUnitRes.error;
-      if (canonicalAnswerRes.error) throw canonicalAnswerRes.error;
-      if (canonicalFulfilmentRes.error) throw canonicalFulfilmentRes.error;
+      if (canonicalWorkRes.error) throw canonicalWorkRes.error;
+
+      const canonicalWork = (canonicalWorkRes.data ?? {}) as {
+        orders?: any[];
+        lines?: any[];
+        line_units?: any[];
+        components?: any[];
+        component_units?: any[];
+        preparation_answers?: any[];
+        fulfilments?: any[];
+      };
 
       const legacyMapped: SupplierOrder[] = (legacyOrderRes.data ?? []).map((row) => {
 
@@ -506,20 +469,14 @@ export default function SupplierDashboardPage() {
         };
       });
 
-      // Canonical child tables are already supplier-scoped by Phase 4C.1 RLS.
-      // Do not client-filter all suppliers' rows.
-
-      const canonicalLines = (canonicalLineRes.data ?? []) as any[];
-
-      const canonicalUnits = (canonicalUnitRes.data ?? []) as any[];
-
-      const canonicalComponents = (canonicalComponentRes.data ?? []) as any[];
-
-      const canonicalComponentUnits = (canonicalComponentUnitRes.data ?? []) as any[];
-
-      const canonicalAnswers = (canonicalAnswerRes.data ?? []) as any[];
-
-      const canonicalFulfilments = (canonicalFulfilmentRes.data ?? []) as any[];
+      // Canonical work is returned by a server-side supplier-safe projection.
+      // Raw canonical tables intentionally have no supplier SELECT policy.
+      const canonicalLines = canonicalWork.lines ?? [];
+      const canonicalUnits = canonicalWork.line_units ?? [];
+      const canonicalComponents = canonicalWork.components ?? [];
+      const canonicalComponentUnits = canonicalWork.component_units ?? [];
+      const canonicalAnswers = canonicalWork.preparation_answers ?? [];
+      const canonicalFulfilments = canonicalWork.fulfilments ?? [];
 
       const fulfilmentsByOrder = new Map<string, any[]>();
       canonicalFulfilments.forEach((fulfilment) => {
@@ -594,7 +551,7 @@ export default function SupplierDashboardPage() {
       });
 
 
-      const canonicalMapped = ((canonicalOrderRes.data ?? []) as any[])
+      const canonicalMapped = (canonicalWork.orders ?? [])
         .map((row) => {
           const ownedLines = linesByOrder.get(String(row.id)) ?? [];
           const ownedComponents = componentsByOrder.get(String(row.id)) ?? [];

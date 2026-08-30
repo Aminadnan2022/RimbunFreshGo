@@ -230,7 +230,7 @@ function CanonicalDetail({ order, onBack }: { order: CanonicalOrder; onBack: () 
     void (async () => {
       try {
         const [linesResult, answersResult, receiptsResult, membershipsResult, proofs] = await Promise.all([
-          supabase.from('sales_order_lines').select('id, line_number, item_kind, product_snapshot, supplier_snapshot, supplier_id, quantity, selling_unit, ordering_mode, unit_selling_price, estimated_weight_kg, actual_weight_kg, estimated_line_total, final_line_total, line_total').eq('sales_order_id', order.id).order('line_number'),
+          supabase.rpc('admin_get_sales_order_lines', { p_sales_order_id: order.id }),
           supabase.from('sales_order_preparation_answers').select('sales_order_line_id, question_code, option_code, answer_value').in('sales_order_line_id', (await supabase.from('sales_order_lines').select('id').eq('sales_order_id', order.id)).data?.map((row) => row.id) ?? []),
           supabase.from('sales_order_payment_receipts').select('id, original_file_name, verification_status, uploaded_at, verified_at, rejection_reason').eq('sales_order_id', order.id).order('uploaded_at', { ascending: false }),
           supabase.from('canonical_supplier_delivery_batch_orders').select('batch_id').eq('sales_order_id', order.id),

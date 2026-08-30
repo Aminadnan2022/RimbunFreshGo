@@ -1,4 +1,4 @@
-import { assertSafeSupabaseUrl, loadTestEnv, type TestEnv } from './env';
+import { assertSafeSupabaseUrl, loadTestEnv, type TestEnv } from './env.ts';
 
 /**
  * Safety guard for destructive E2E fixture work (creating users, orders,
@@ -30,4 +30,4 @@ export function assertSafeForDestructiveSetup(overrides?: Partial<TestEnv>): Req
 }
 
 /** Convenience re-export so callers can check before calling the guard. */
-export { isProductionSupabaseUrl } from './env';
+export { isProductionSupabaseUrl } from './env.ts';

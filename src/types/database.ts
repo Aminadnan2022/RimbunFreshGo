@@ -3114,6 +3114,18 @@ export type Database = {
         Args: { p_supplier_id: number; p_user_id: string }
         Returns: undefined
       }
+      admin_list_products: {
+        Args: { p_product_id?: string | null }
+        Returns: Database["public"]["Tables"]["Product"]["Row"][]
+      }
+      admin_get_sales_order_lines: {
+        Args: { p_sales_order_id: string }
+        Returns: Database["public"]["Tables"]["sales_order_lines"]["Row"][]
+      }
+      admin_read_legacy_financial_report: {
+        Args: { p_report_name: string }
+        Returns: Json
+      }
       admin_archive_order: {
         Args: { p_order_id: number; p_reason?: string }
         Returns: undefined
@@ -3764,6 +3776,10 @@ export type Database = {
           supplier_dispatch_started_at: string | null
           supplier_weights: Json
         }[]
+      }
+      supplier_get_canonical_work: {
+        Args: never
+        Returns: Json
       }
       supplier_mark_legacy_order_ready: {
         Args: { p_order_id: number }

@@ -58,7 +58,7 @@ function fail(message: string) { failures++; console.log(`FAIL: ${message}`); }
 async function createUser(role: Role, runId: string): Promise<TestUser> {
   const email = `${role}.rider-${runId.toLowerCase()}@example.com`;
   const password = `RiderE2E!${randomBytes(18).toString('base64url')}`;
-  const { data, error } = await service.auth.admin.createUser({ email, password, email_confirm: true });
+  const { data, error } = await service.auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { test_run_id: runId, role, privacy_notice_accepted: true, marketing_opt_in: false, privacy_policy_version: '2026-08-25' } });
   if (error || !data.user) throw new Error(`create ${role} failed: ${error?.message ?? 'no user returned'}`);
 
   const user = { id: data.user.id, email, password, role };

@@ -53,7 +53,7 @@ const check = (condition: unknown, message: string) => condition ? pass(message)
 async function createUser(role: Role, runId: string): Promise<TestUser> {
   const email = `${role}.pricing-${runId.toLowerCase()}@example.com`;
   const password = `PricingE2E!${randomBytes(18).toString('base64url')}`;
-  const { data, error } = await service.auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { test_run_id: runId } });
+  const { data, error } = await service.auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { test_run_id: runId, privacy_notice_accepted: true, marketing_opt_in: false, privacy_policy_version: '2026-08-25' } });
   if (error || !data.user) throw new Error(`create ${role} failed: ${error?.message ?? 'no user'}`);
   const user = { id: data.user.id, email, password, role };
   users.push(user);

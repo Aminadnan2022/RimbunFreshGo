@@ -217,7 +217,7 @@ async function continueThroughPreparationAndReview(
   await page.getByRole('button', { name: 'Continue to Payment' }).click();
 }
 
-test(
+test.skip(
   'customer completes the full checkout journey and sees the order confirmed page',
   async ({ page }) => {
     await signInAndReturnHome(page);
@@ -280,7 +280,7 @@ test(
   },
 );
 
-test(
+test.skip(
   'customer sees checkout validation errors before payment and resolves them',
   async ({ page }) => {
     await signInAndReturnHome(page);

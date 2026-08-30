@@ -18,7 +18,7 @@ const check = (ok: boolean, message: string) => ok ? console.log(`PASS: ${messag
 async function clientFor(role: 'admin' | 'customer'): Promise<SupabaseClient> {
   const email = `history-${role}-${Date.now()}-${randomBytes(3).toString('hex')}@example.com`;
   const password = `Test-${randomBytes(18).toString('base64url')}!`;
-  const created = await service.auth.admin.createUser({ email, password, email_confirm: true });
+  const created = await service.auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { privacy_notice_accepted: true, marketing_opt_in: false, privacy_policy_version: '2026-08-25' } });
   if (created.error || !created.data.user) throw new Error(created.error?.message ?? 'User creation failed');
   users.push(created.data.user.id);
   const roleResult = await service.from('user_roles').upsert({ id: created.data.user.id, role });

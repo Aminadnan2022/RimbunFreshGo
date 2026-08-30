@@ -1,6 +1,6 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
-import { loadTestEnv, type TestRole } from './env';
-import { assertSafeForDestructiveSetup } from './safety';
+import { loadTestEnv, type TestRole } from './env.ts';
+import { assertSafeForDestructiveSetup } from './safety.ts';
 
 /**
  * FreshGo test-fixture foundation.
@@ -88,7 +88,7 @@ export async function createTestUser(role: TestRole, runId: string = currentTest
     email,
     password,
     email_confirm: true,
-    user_metadata: { test_run_id: runId, role },
+    user_metadata: { test_run_id: runId, role, privacy_notice_accepted: true, marketing_opt_in: false, privacy_policy_version: '2026-08-25' },
   });
   if (error) {
     throw new Error(`createTestUser(${role}) failed: ${error.message}`);
