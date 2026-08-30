@@ -70,6 +70,8 @@
     "test:segar-putrajaya-supplier-cutover": "node scripts/check-segar-putrajaya-supplier-cutover.mjs",
     "test:e2e": "node --experimental-strip-types e2e/run-all.ts",
     "test:e2e:prelaunch": "node --experimental-strip-types e2e/prelaunch-canonical.ts",
+    "test:e2e:canonical-cleanup": "node --experimental-strip-types e2e/verify.canonical-cleanup.ts",
+    "cleanup:e2e:canonical-run": "node --experimental-strip-types e2e/cleanup-canonical-run.ts",
     "test:e2e:playwright": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:headed": "playwright test --headed"

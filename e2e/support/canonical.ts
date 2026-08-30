@@ -5,6 +5,21 @@ import { loadTestEnv, type TestRole } from './env.ts';
 
 export type TestUser = Awaited<ReturnType<typeof createTestUser>>;
 
+export type CanonicalCleanupSummary = {
+  run_id: string;
+  target_orders: number;
+  sales_orders: number;
+  [category: string]: string | number;
+};
+
+const CONCURRENCY_RUN_ID = /^E2E-\d{8}-[A-Z0-9]{6}-CONC(?:10|25|50)$/;
+
+export function assertConcurrencyRunId(runId: string): void {
+  if (!CONCURRENCY_RUN_ID.test(runId)) {
+    throw new Error('Invalid E2E concurrency run id.');
+  }
+}
+
 export function userClient(): SupabaseClient {
   const env = loadTestEnv();
   if (!env.supabaseUrl || !env.supabaseAnonKey) throw new Error('Test Supabase configuration is incomplete.');
@@ -137,6 +152,15 @@ export async function cleanupCanonical(input: {
     await service.from('delivery_assignments').delete().in('rider_id', input.userIds);
     await service.from('supplier_users').delete().in('user_id', input.userIds);
   }
+}
+
+/** Service-role-only, marker-proven cleanup for a complete concurrency run. */
+export async function cleanupCanonicalTestRun(runId: string): Promise<CanonicalCleanupSummary> {
+  assertConcurrencyRunId(runId);
+  const service = getServiceClient();
+  const { data, error } = await service.rpc('e2e_cleanup_canonical_test_run', { p_run_id: runId });
+  if (error) throw new Error(`e2e_cleanup_canonical_test_run(${runId}) failed: ${error.message}`);
+  return data as CanonicalCleanupSummary;
 }
 
 export function percentile(values: number[], ratio: number): number {
