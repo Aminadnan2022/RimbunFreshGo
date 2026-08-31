@@ -12,6 +12,7 @@
     "check:schema-drift": "node scripts/check-schema-drift.mjs",
     "check:pwa-installability": "node scripts/check-pwa-installability.mjs",
     "test:mobile-horizontal-overflow": "node scripts/check-mobile-horizontal-overflow.mjs",
+    "test:onboarding-v1": "node --experimental-strip-types scripts/test-onboarding-v1.mts",
     "check:web-push": "node scripts/check-web-push-foundation.mjs",
     "test:web-push-regressions": "node scripts/check-web-push-regressions.mjs",
     "test:web-push-worker-diagnostic": "node scripts/test-web-push-worker-diagnostic.mjs",

@@ -17,6 +17,8 @@ import EstimatedQuantityNote from '../components/ui/EstimatedQuantityNote';
 import ProductImage from '../components/ui/ProductImage';
 import ProductCard from '../components/ui/ProductCard';
 import FeatureDisabledPage from '../components/system/FeatureDisabledPage';
+import OnboardingTour from '../components/onboarding/OnboardingTour';
+import { productDetailTour } from '../components/onboarding/onboardingTours';
 import { buildCartItem, computeSubtotal, getSliceRange, isBulkWeighedPieceProduct } from '../lib/sellingOptions';
 import { formatCurrency } from '../lib/currency';
 
@@ -28,7 +30,7 @@ export default function ProductDetailPage() {
   const { openSignIn } = useAuthModal();
   const { config } = useDeliveryConfig();
   const { settings, loading: settingsLoading } = useWebsiteSettings();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { product, loading, error } = useProduct(id);
   const { products } = useProducts();
 
@@ -188,7 +190,7 @@ export default function ProductDetailPage() {
             </span>
           </div>
 
-          <div className="flex items-baseline gap-2 mt-4 mb-4">
+          <div data-onboarding="product-price" className="flex items-baseline gap-2 mt-4 mb-4">
             <span className="text-4xl font-bold text-forest-800">RM{formatCurrency(product.price)}</span>
             <span className="text-gray-400">{product.priceNote ?? product.unit}</span>
             {product.weight && <span className="text-gray-400 text-sm">· {product.weight}</span>}
@@ -214,7 +216,7 @@ export default function ProductDetailPage() {
           </div>
 
           {/* Add to cart */}
-          <div className="flex items-center gap-4">
+          <div data-onboarding="product-quantity" className="flex items-center gap-4">
             {product.orderingMode === 'slice' ? (
               <div className="flex flex-col gap-1">
                 <span className="text-xs text-gray-500">{t("product.howManySlices")}</span>
@@ -238,6 +240,7 @@ export default function ProductDetailPage() {
               <QuantityStepper value={qty} onChange={setQty} />
             )}
             <button
+              data-onboarding="product-add-to-cart"
               onClick={handleAdd}
               disabled={product.freshness === 'sold-out'}
               className={`flex-1 flex items-center justify-center gap-2 py-3.5 rounded-2xl font-semibold transition-all duration-200 ${
@@ -330,6 +333,11 @@ export default function ProductDetailPage() {
           </div>
         </section>
       )}
+
+      <OnboardingTour
+        page="product-detail"
+        steps={productDetailTour(language, product.orderingMode !== 'fixed_quantity')}
+      />
 
       {/* Admin delete modal */}
       {showDeleteModal && (

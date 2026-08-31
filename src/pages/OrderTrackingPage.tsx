@@ -20,6 +20,8 @@ import {
 import type { Order } from '../types';
 import { createBrowserUuid } from '../lib/browserUuid';
 import { resolveCustomerPaymentPresentation } from '../lib/orderPaymentPresentation';
+import OnboardingTour from '../components/onboarding/OnboardingTour';
+import { orderTrackingTour, paymentReceiptTour } from '../components/onboarding/onboardingTours';
 
 const RECEIPT_FILE_ACCEPT =
   'image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf';
@@ -74,6 +76,7 @@ function ReceiptFilePicker({
               className="sr-only"
             />
             <label
+              data-onboarding="payment-gallery"
               htmlFor="canonical-payment-receipt-file"
               aria-disabled={disabled}
               className={`inline-flex cursor-pointer items-center justify-center rounded-lg bg-forest-700 px-3 py-2 text-sm font-semibold text-white hover:bg-forest-800 ${disabled ? 'pointer-events-none cursor-not-allowed opacity-50' : ''}`}
@@ -93,6 +96,7 @@ function ReceiptFilePicker({
               className="sr-only"
             />
             <label
+              data-onboarding="payment-camera"
               htmlFor="canonical-payment-receipt-camera"
               aria-disabled={disabled}
               className={`inline-flex cursor-pointer items-center justify-center rounded-lg bg-forest-700 px-3 py-2 text-sm font-semibold text-white hover:bg-forest-800 ${disabled ? 'pointer-events-none cursor-not-allowed opacity-50' : ''}`}
@@ -171,7 +175,7 @@ export default function OrderTrackingPage() {
   const { user } = useAuth();
   const userId = user?.id;
   const { getOrder } = useOrders();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
 
   const [order, setOrder] = useState<Order | null | undefined>(undefined);
   const [riderName, setRiderName] = useState<string | null>(null);
@@ -973,7 +977,7 @@ useEffect(() => {
                   <span className="text-sm text-gray-600">
                     Final amount
                   </span>
-                  <span className="font-bold text-lg text-forest-800">
+                  <span data-onboarding="payment-amount" className="font-bold text-lg text-forest-800">
                     RM{formatCurrency(
                       canonicalPayment.finalTotal ?? order.total
                     )}
@@ -1030,6 +1034,7 @@ useEffect(() => {
 
                 <button
                   type="button"
+                  data-onboarding="payment-submit"
                   onClick={handleReceiptUpload}
                   disabled={!receiptFile || receiptUploading}
                   className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
@@ -1056,7 +1061,7 @@ useEffect(() => {
       )}
 
       {/* Live timeline */}
-      <div className="card p-6 sm:p-8 mb-6">
+      <div data-onboarding="tracking-timeline" className="card p-6 sm:p-8 mb-6">
         <h2 className="font-semibold text-charcoal mb-6">{t("tracking.live.title")}</h2>
         <div className="relative pl-1">
           {TRACKING_STAGES.map((key, i) => {
@@ -1081,7 +1086,17 @@ useEffect(() => {
               order.paymentStatus === 'Paid' &&
               st === 'done';
             return (
-              <div key={key} className="relative pl-14 pb-7 last:pb-0">
+              <div
+                key={key}
+                data-onboarding={
+                  key === 'preparing' ? 'tracking-preparing'
+                    : key === 'readyForRider' ? 'tracking-ready-for-rider'
+                    : key === 'outForDelivery' ? 'tracking-out-for-delivery'
+                    : key === 'delivered' ? 'tracking-delivered'
+                    : undefined
+                }
+                className="relative pl-14 pb-7 last:pb-0"
+              >
                 {i < TRACKING_STAGES.length - 1 && (
                   <div className={`absolute top-11 bottom-0 left-[19px] w-0.5 rounded-full ${lineCls(st)}`} />
                 )}
@@ -1448,6 +1463,16 @@ useEffect(() => {
       <div className="mt-8 text-center">
         <Link to="/shop" className="btn-secondary">{t("orderSuccess.continueShopping")}</Link>
       </div>
+      <OnboardingTour
+        page="payment-receipt"
+        steps={paymentReceiptTour(language)}
+        enabled={paymentPresentation.allowReceiptUpload}
+      />
+      <OnboardingTour
+        page="order-tracking"
+        steps={orderTrackingTour(language)}
+        enabled={!paymentPresentation.allowReceiptUpload}
+      />
     </main>
   );
 }

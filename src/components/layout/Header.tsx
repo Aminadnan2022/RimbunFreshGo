@@ -477,6 +477,7 @@ export default function Header() {
               <Link
                 key={link.to}
                 to={link.to}
+                data-onboarding={link.to === '/combos' ? 'family-combo' : undefined}
                 className="px-4 py-2 rounded-xl text-sm font-medium text-gray-600 hover:text-forest-700 hover:bg-forest-50 transition-all"
               >
                 {t(link.label)}
@@ -600,6 +601,7 @@ export default function Header() {
             {user && !isSupplier && !isRider && (
               <Link
                 to="/cart"
+                data-onboarding="cart"
                 className="touch-target relative flex items-center justify-center gap-2 px-2 sm:px-3 py-2 rounded-xl bg-forest-700 text-white hover:bg-forest-800 transition-all sm:ml-1"
                 aria-label={`${t("header.cart")}, ${itemCount} items`}
               >
@@ -653,6 +655,7 @@ export default function Header() {
             <Link
               key={link.to}
               to={link.to}
+              data-onboarding={link.to === '/combos' ? 'family-combo' : undefined}
               onClick={() => setMenuOpen(false)}
               className="block px-4 py-2.5 rounded-xl text-sm font-medium text-gray-600 hover:text-forest-700 hover:bg-forest-50 transition-all"
             >

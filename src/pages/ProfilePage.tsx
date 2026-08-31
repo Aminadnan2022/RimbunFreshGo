@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { useLanguage } from '../context/LanguageContext';
-import { Link, Navigate } from 'react-router-dom';
-import { User, Mail, Lock, LogOut, Eye, EyeOff, CheckCircle2, AlertCircle, Calendar, ShieldCheck, Package, ChevronRight } from 'lucide-react';
+import { Link, Navigate, useNavigate } from 'react-router-dom';
+import { User, Mail, Lock, LogOut, Eye, EyeOff, CheckCircle2, AlertCircle, Calendar, ShieldCheck, Package, ChevronRight, BookOpenCheck } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { getUserDisplayName } from '../lib/authProfile';
+import TutorialModeSwitch from '../components/onboarding/TutorialModeSwitch';
 
 export default function ProfilePage() {
   const { user, signOut } = useAuth();
@@ -21,7 +22,6 @@ export default function ProfilePage() {
   });
 
   return <ProfileContent
-    userId={user.id}
     displayName={displayName}
     email={email}
     initial={initial}
@@ -38,14 +38,14 @@ function ProfileContent({
   memberSince,
   signOut,
 }: {
-  userId: string;
   displayName: string;
   email: string;
   initial: string;
   memberSince: string;
   signOut: () => Promise<void>;
 }) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const navigate = useNavigate();
   // Name form
   const [nameValue, setNameValue] = useState(initialName);
   const [nameStatus, setNameStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
@@ -160,6 +160,25 @@ function ProfileContent({
         </div>
         <ChevronRight size={18} className="text-gray-300 group-hover:text-forest-500 transition-colors flex-shrink-0" />
       </Link>
+
+      <section className="bg-white rounded-2xl border border-cream-200 shadow-soft p-5 mb-4 flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-1 items-center gap-4">
+          <div className="w-10 h-10 rounded-xl bg-jade-50 flex items-center justify-center flex-shrink-0">
+            <BookOpenCheck size={18} className="text-jade-700" />
+          </div>
+          <div className="min-w-0">
+            <h2 className="font-semibold text-forest-900 text-sm">
+              {language === 'ms' ? 'Tutorial FreshGo' : 'FreshGo Tutorial'}
+            </h2>
+            <p className="text-xs text-gray-400 mt-0.5">
+              {language === 'ms'
+                ? 'Hidupkan untuk lihat semula panduan sekali pada setiap halaman.'
+                : 'Turn on to view the guide once again on each page.'}
+            </p>
+          </div>
+        </div>
+        <TutorialModeSwitch onEnabled={() => navigate('/shop')} />
+      </section>
 
       {/* ── Update display name ────────────────────────────────────── */}
       <section className="bg-white rounded-2xl border border-cream-200 shadow-soft p-6 mb-4">

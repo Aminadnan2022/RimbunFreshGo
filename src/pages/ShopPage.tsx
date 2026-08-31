@@ -6,6 +6,8 @@ import ProductCard from '../components/ui/ProductCard';
 import { useLanguage } from '../context/LanguageContext';
 import { useWebsiteSettings } from '../context/WebsiteSettingsContext';
 import FeatureDisabledPage from '../components/system/FeatureDisabledPage';
+import OnboardingTour from '../components/onboarding/OnboardingTour';
+import { shopTour } from '../components/onboarding/onboardingTours';
 import type { Category } from '../types';
 
 const categories: { value: Category | 'all'; label: string }[] = [
@@ -32,7 +34,7 @@ const availabilityOpts = [
 export default function ShopPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { products, loading, error } = useProducts();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { settings, loading: settingsLoading } = useWebsiteSettings();
   const [query, setQuery] = useState(searchParams.get('q') ?? '');
   const [category, setCategory] = useState<Category | 'all'>(
@@ -115,7 +117,7 @@ export default function ShopPage() {
       </div>
 
       {/* Search bar */}
-      <form onSubmit={handleSearch} className="flex min-w-0 gap-2 mb-6">
+      <form data-onboarding="shop-search" onSubmit={handleSearch} className="flex min-w-0 gap-2 mb-6">
         <div className="relative min-w-0 flex-1">
           <Search size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
@@ -138,7 +140,7 @@ export default function ShopPage() {
       </form>
 
       {/* Category pills */}
-      <div className="flex gap-2 flex-wrap mb-4">
+      <div data-onboarding="shop-categories" className="flex gap-2 flex-wrap mb-4">
         {categories.map((c) => (
           <button
             key={c.value}
@@ -214,6 +216,7 @@ export default function ShopPage() {
           ))}
         </div>
       )}
+      <OnboardingTour page="shop" steps={shopTour(language)} />
     </main>
   );
 }

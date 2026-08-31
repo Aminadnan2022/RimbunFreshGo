@@ -10,6 +10,8 @@ import EstimatedWeightStepper from '../components/ui/EstimatedWeightStepper';
 import SliceStepper from '../components/ui/SliceStepper';
 import EstimatedQuantityNote from '../components/ui/EstimatedQuantityNote';
 import ProductImage from '../components/ui/ProductImage';
+import OnboardingTour from '../components/onboarding/OnboardingTour';
+import { cartTour } from '../components/onboarding/onboardingTours';
 import { formatCurrency } from '../lib/currency';
 import { isBulkWeighedPieceItem, isSliceItem } from '../lib/sellingOptions';
 import type { DeliveryDay, CartItem } from '../types';
@@ -17,7 +19,7 @@ import type { DeliveryDay, CartItem } from '../types';
 export default function CartPage() {
   const { user } = useAuth();
   const { cart, removeItem, updateQty, updateEstimatedWeight, updateSlice, setDeliveryDay, subtotal, itemCount } = useCart();
-  const { t, lang } = useLanguage();
+  const { t, lang, language } = useLanguage();
 
   const isWholeFishItem = (item: CartItem) =>
     item.orderingMode === 'whole_fish_by_weight' ||
@@ -56,9 +58,10 @@ export default function CartPage() {
 
       <div className="grid lg:grid-cols-3 gap-8">
         {/* Items */}
-        <div className="lg:col-span-2 space-y-4">
-          {cart.items.map((item) => (
+        <div data-onboarding="cart-items" className="lg:col-span-2 space-y-4">
+          {cart.items.map((item, itemIndex) => (
             <div
+              data-onboarding={itemIndex === 0 ? 'cart-edit' : undefined}
               key={`${item.comboId ?? item.productId}|${item.preparation ?? 'default'}|${item.selectedOrderMode ?? item.pricingType ?? 'default'}`}
               className="card p-4 sm:p-5"
             >
@@ -242,6 +245,7 @@ export default function CartPage() {
             </div>
             <Link
               to="/checkout"
+              data-onboarding="cart-checkout"
               className={`w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl font-semibold transition-all ${
                 cart.deliveryDay
                   ? 'btn-primary'
@@ -259,6 +263,7 @@ export default function CartPage() {
           </div>
         </div>
       </div>
+      <OnboardingTour page="cart" steps={cartTour(language)} />
     </main>
   );
 }
