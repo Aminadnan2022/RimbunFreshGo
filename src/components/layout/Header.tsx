@@ -12,6 +12,7 @@ import { isPageEnabled, type PublicPage } from '../../lib/websiteVisibility';
 import LanguageSwitcher from './LanguageSwitcher';
 import BrandLogo from '../branding/BrandLogo';
 import NotificationBell from '../notifications/NotificationBell';
+import GoogleIcon from '../auth/GoogleIcon';
 import { getUserDisplayName, isUnverifiedEmailError } from '../../lib/authProfile';
 
 function authRedirectUrl(returnTo?: string | null): string {
@@ -101,7 +102,7 @@ function SignInModal({ onClose, onSwitchToCreate, onSuccess, redirectTo }: {
           className="w-full flex items-center justify-center gap-3 rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
           disabled={loading}
         >
-          <span className="text-base font-bold text-[#4285F4]" aria-hidden="true">G</span>
+          <GoogleIcon />
           {t('header.signIn.continueWithGoogle')}
         </button>
 
@@ -274,9 +275,9 @@ function CreateAccountModal({ onClose, onSwitchToSignIn, redirectTo }: { onClose
           type="button"
           onClick={handleGoogleSignIn}
           className="w-full flex items-center justify-center gap-3 rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
-          disabled={loading || !privacyAccepted}
+          disabled={loading}
         >
-          <span className="text-base font-bold text-[#4285F4]" aria-hidden="true">G</span>
+          <GoogleIcon />
           {t('header.createAccount.continueWithGoogle')}
         </button>
 

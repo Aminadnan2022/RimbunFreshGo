@@ -418,12 +418,16 @@ async function main() {
       cleanupSummary = await cleanupCanonicalTestRun(runId);
       if (orderIds.length) {
         const leftovers = await service.from('sales_orders').select('id').in('id', [...new Set(orderIds)]);
+        // Throwing here is intentional: the surrounding cleanup catch records the failure and rechecks leftovers.
+        // eslint-disable-next-line no-unsafe-finally
         if (leftovers.error) throw new Error(`leftover verification failed: ${leftovers.error.message}`);
         leftoverOrderIds = (leftovers.data ?? []).map((row) => row.id);
       }
       if (!leftoverOrderIds.length) {
         for (const { user } of users) {
           const deleted = await service.auth.admin.deleteUser(user.id);
+          // Throwing here is intentional: cleanup must stop before removing the remaining run-scoped users.
+          // eslint-disable-next-line no-unsafe-finally
           if (deleted.error) throw new Error(`cleanup user ${user.id} failed: ${deleted.error.message}`);
         }
         for (const label of ['customer-a', 'customer-b', 'supplier-a', 'supplier-b', 'admin']) {
