@@ -466,7 +466,7 @@ export default function Header() {
             <BrandLogo size="w-7 h-7 sm:w-8 sm:h-8" iconSize={16} className="group-hover:scale-105 transition-transform" />
             <FreshGoWordmark className="text-sm text-jade-600 sm:hidden" />
             <div className="hidden leading-none sm:block">
-              <span className="font-display font-bold text-forest-800 text-lg tracking-tight">{firstName}</span>
+              {firstName === 'FreshGo' ? <FreshGoWordmark className="text-lg" /> : <span className="font-display font-bold text-forest-800 text-lg tracking-tight">{firstName}</span>}
               {restName === 'FreshGo' ? <FreshGoWordmark className="ml-1 text-lg" /> : restName && <span className="font-display font-bold text-jade-600 text-lg tracking-tight"> {restName}</span>}
             </div>
           </Link>
