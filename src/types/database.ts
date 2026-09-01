@@ -1916,6 +1916,89 @@ export type Database = {
           },
         ]
       }
+      guest_sales_order_access: {
+        Row: {
+          access_token_hash: string
+          claimed_at: string | null
+          claimed_customer_id: string | null
+          created_at: string
+          guest_identity_id: string | null
+          last_accessed_at: string | null
+          sales_order_id: string
+        }
+        Insert: {
+          access_token_hash: string
+          claimed_at?: string | null
+          claimed_customer_id?: string | null
+          created_at?: string
+          guest_identity_id?: string | null
+          last_accessed_at?: string | null
+          sales_order_id: string
+        }
+        Update: {
+          access_token_hash?: string
+          claimed_at?: string | null
+          claimed_customer_id?: string | null
+          created_at?: string
+          guest_identity_id?: string | null
+          last_accessed_at?: string | null
+          sales_order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "guest_sales_order_access_sales_order_id_fkey"
+            columns: ["sales_order_id"]
+            isOneToOne: true
+            referencedRelation: "sales_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      guest_sales_order_sessions: {
+        Row: {
+          expires_at: string
+          sales_order_id: string
+          session_identity_id: string
+          verified_at: string
+        }
+        Insert: {
+          expires_at?: string
+          sales_order_id: string
+          session_identity_id: string
+          verified_at?: string
+        }
+        Update: {
+          expires_at?: string
+          sales_order_id?: string
+          session_identity_id?: string
+          verified_at?: string
+        }
+        Relationships: []
+      }
+      guest_sales_order_access_attempts: {
+        Row: {
+          attempted_at: string
+          id: number
+          order_reference_hash: string
+          session_identity_id: string
+          succeeded: boolean
+        }
+        Insert: {
+          attempted_at?: string
+          id?: never
+          order_reference_hash: string
+          session_identity_id: string
+          succeeded: boolean
+        }
+        Update: {
+          attempted_at?: string
+          id?: never
+          order_reference_hash?: string
+          session_identity_id?: string
+          succeeded?: boolean
+        }
+        Relationships: []
+      }
       sales_order_checkout_idempotency: {
         Row: {
           created_at: string
@@ -3341,6 +3424,10 @@ export type Database = {
           supplier_name: string
         }[]
       }
+      get_guest_sales_order: {
+        Args: { p_access_token?: string | null; p_order_number: string }
+        Returns: Json
+      }
       get_my_canonical_rider_orders: {
         Args: never
         Returns: {
@@ -3538,6 +3625,27 @@ export type Database = {
           sales_order_id: string
         }[]
       }
+      place_guest_sales_order: {
+        Args: {
+          p_access_token: string
+          p_customer_snapshot: Json
+          p_delivery_request: Json
+          p_expected_final_total?: number | null
+          p_expected_payment_configuration_version_id?: string | null
+          p_idempotency_key: string
+          p_items: Json
+          p_preparation_answers: Json
+        }
+        Returns: {
+          estimated_total: number
+          final_total: number
+          order_number: string
+          payment_status: string
+          price_status: string
+          requires_supplier_finalisation: boolean
+          sales_order_id: string
+        }[]
+      }
       publish_delivery_method_version: {
         Args: { p_version_id: string }
         Returns: undefined
@@ -3713,6 +3821,17 @@ export type Database = {
         }[]
       }
       submit_sales_order_payment_receipt: {
+        Args: {
+          p_expected_final_total: number
+          p_file_size: number
+          p_mime_type: string
+          p_original_file_name: string
+          p_sales_order_id: string
+          p_storage_path: string
+        }
+        Returns: string
+      }
+      submit_guest_sales_order_payment_receipt: {
         Args: {
           p_expected_final_total: number
           p_file_size: number

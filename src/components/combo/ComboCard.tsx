@@ -4,8 +4,6 @@ import { ShoppingCart, Star, Users, Clock, ChevronRight, Package } from 'lucide-
 import type { ComboWithItems, Product } from '../../types';
 import { buildComboCartItem } from '../../data/combos';
 import { useCart } from '../../context/CartContext';
-import { useAuth } from '../../context/AuthContext';
-import { useAuthModal } from '../../context/AuthModalContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { useDeliveryConfig } from '../../context/DeliveryConfigContext';
 import ProductImage from '../ui/ProductImage';
@@ -26,8 +24,6 @@ const BADGE_STYLES: Record<string, string> = {
 export default function ComboCard({ comboWithItems, products }: Props) {
   const { addItem } = useCart();
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const { openSignIn } = useAuthModal();
   const { t } = useLanguage();
   const { config } = useDeliveryConfig();
   const [added, setAdded] = useState(false);
@@ -49,10 +45,6 @@ export default function ComboCard({ comboWithItems, products }: Props) {
   const handleAdd = () => {
     if (hasCustomerChoice) {
       navigate(`/combos/${combo.slug}`);
-      return;
-    }
-    if (!user) {
-      openSignIn('/combos');
       return;
     }
     addItem(buildComboCartItem(comboWithItems, products));

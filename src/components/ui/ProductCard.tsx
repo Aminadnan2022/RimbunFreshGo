@@ -3,8 +3,6 @@ import { Link } from 'react-router-dom';
 import { ShoppingCart, Zap } from 'lucide-react';
 import type { Product } from '../../types';
 import { useCart } from '../../context/CartContext';
-import { useAuth } from '../../context/AuthContext';
-import { useAuthModal } from '../../context/AuthModalContext';
 import { useLanguage } from '../../context/LanguageContext';
 import QuantityStepper from './QuantityStepper';
 import EstimatedWeightStepper from './EstimatedWeightStepper';
@@ -20,8 +18,6 @@ interface Props {
 
 export default function ProductCard({ product }: Props) {
   const { addItem } = useCart();
-  const { user } = useAuth();
-  const { openSignIn } = useAuthModal();
   const { t, lang } = useLanguage();
   const [qty, setQty] = useState(1);
   const [estimatedWeight, setEstimatedWeight] = useState(500);
@@ -42,11 +38,6 @@ export default function ProductCard({ product }: Props) {
 
   const handleAdd = () => {
     if (product.freshness === 'sold-out') return;
-    if (!user) {
-      openSignIn('/shop');
-      return;
-    }
-
     const itemData = buildCartItem(product, {
       quantity: qty,
       weightG: estimatedWeight,

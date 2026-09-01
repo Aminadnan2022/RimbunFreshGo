@@ -51,6 +51,8 @@
     "test:checkout-customer-choice-staging": "node --experimental-strip-types scripts/check-checkout-customer-choice-staging.mjs",
     "test:phase4b1-place-order": "node scripts/check-phase4b1-place-sales-order.mjs",
     "test:checkout-idempotency": "node scripts/check-place-sales-order-idempotency.mjs",
+    "test:guest-checkout": "node scripts/check-guest-checkout.mjs",
+    "test:guest-checkout:rpc": "node --experimental-strip-types e2e/verify.guest-checkout.ts",
     "test:mixed-cart-version-references": "node --experimental-strip-types scripts/check-mixed-cart-version-references.mjs",
     "test:phase4b2-projection-guard": "node scripts/check-phase4b2-projection-guard.mjs",
     "test:phase4b2-preparation-physical-units": "node scripts/check-phase4b2-preparation-physical-units.mjs",

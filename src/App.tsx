@@ -20,6 +20,7 @@ import ComboListPage from './pages/ComboListPage';
 import CartPage from './pages/CartPage';
 import CheckoutPage from './pages/CheckoutPage';
 import OrderTrackingPage from './pages/OrderTrackingPage';
+import GuestOrderTrackingPage from './pages/GuestOrderTrackingPage';
 import OrdersPage from './pages/OrdersPage';
 import VendorsPage from './pages/VendorsPage';
 import RecurringBasketPage from './pages/RecurringBasketPage';
@@ -101,6 +102,7 @@ function AppRoutes() {
           <Route path="/cart" element={<CartPage />} />
           <Route path="/checkout" element={<CheckoutPage />} />
           <Route path="/order/:id" element={<OrderTrackingPage />} />
+          <Route path="/guest-order/:orderNumber" element={<GuestOrderTrackingPage />} />
           <Route path="/orders" element={<OrdersPage />} />
           <Route path="/vendors" element={
             <FeatureRoute feature="show_suppliers"><VendorsPage /></FeatureRoute>

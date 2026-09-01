@@ -414,6 +414,7 @@ function CreateAccountModal({ onClose, onSwitchToSignIn, redirectTo }: { onClose
 export default function Header() {
   const { itemCount } = useCart();
   const { user, signOut, isAdmin, isSupplier, isRider } = useAuth();
+  const customerUser = user?.is_anonymous === true ? null : user;
   const { state: authModalState, openSignIn, closeSignIn } = useAuthModal();
   const { t } = useLanguage();
   const { settings } = useWebsiteSettings();
@@ -445,7 +446,7 @@ export default function Header() {
     }
   };
 
-  const displayName = getUserDisplayName(user);
+  const displayName = getUserDisplayName(customerUser);
   const initial: string = displayName.charAt(0).toUpperCase();
 
   const siteNameParts = (settings.site_name || 'Rimbun FreshGo').split(/\s+/);
@@ -483,7 +484,7 @@ export default function Header() {
                 {t(link.label)}
               </Link>
             ))}
-            {user && !isSupplier && !isRider && (
+            {customerUser && !isSupplier && !isRider && (
               <>
                 <Link
                   to="/orders"
@@ -553,9 +554,9 @@ export default function Header() {
             {/* Language Switcher */}
             <LanguageSwitcher />
 
-            {user && <NotificationBell />}
+            {customerUser && <NotificationBell />}
 
-            {user ? (
+            {customerUser ? (
               /* Signed-in state */
               <div className="hidden sm:flex items-center gap-2 ml-1">
                 <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-forest-50 border border-forest-100">
@@ -598,7 +599,7 @@ export default function Header() {
             )}
 
             {/* Cart */}
-            {user && !isSupplier && !isRider && (
+            {!isSupplier && !isRider && (
               <Link
                 to="/cart"
                 data-onboarding="cart"
@@ -662,7 +663,7 @@ export default function Header() {
               {t(link.label)}
             </Link>
           ))}
-          {user && !isSupplier && !isRider && (
+          {customerUser && !isSupplier && !isRider && (
             <>
               <Link
                 to="/orders"
@@ -721,7 +722,7 @@ export default function Header() {
             </Link>
           )}
           <div className="pt-1 border-t border-cream-100 mt-1 space-y-1">
-            {user ? (
+            {customerUser ? (
               <>
                 <div className="flex items-center gap-2 px-4 py-2.5">
                   <div className="w-7 h-7 rounded-full bg-forest-700 text-white flex items-center justify-center text-xs font-bold flex-shrink-0">

@@ -19,6 +19,7 @@ import { getCheckoutPaymentPreview, isPriceFinalAtCheckout, paymentQrPublicUrl, 
 import { getUserDisplayName } from '../lib/authProfile';
 import { hasCurrentPrivacyConsent } from '../lib/privacyConsent';
 import { createBrowserUuid } from '../lib/browserUuid';
+import { createGuestAccessToken, ensureGuestAuthIdentity, guestOrderUrl, placeGuestOrder } from '../lib/guestCheckout';
 import type { CustomerDetails, DeliveryDay } from '../types';
 
 const RECEIPT_FILE_ACCEPT =
@@ -44,6 +45,7 @@ const Field = ({ label, required, error, children }: { label: string; required?:
 export default function CheckoutPage() {
   const { cart, subtotal, clearCart } = useCart(); const { user, loading: authLoading } = useAuth(); const { config } = useDeliveryConfig(); const { t, language } = useLanguage(); const { settings } = useWebsiteSettings(); const navigate = useNavigate();
   const [consentChecking, setConsentChecking] = useState(true);
+  const [guestSessionLoading, setGuestSessionLoading] = useState(false);
   const [details, setDetails] = useState(blank); const [points, setPoints] = useState<DeliveryPoint[]>([]); const [deliveryDay, setDeliveryDay] = useState<DeliveryDay | null>(cart.deliveryDay); const [errors, setErrors] = useState<Record<string, string>>({});
   const [deliveryMethod, setDeliveryMethod] = useState<CanonicalDeliveryMethod>('normal_bulk'); const [instantDate, setInstantDate] = useState(''); const [instantTime, setInstantTime] = useState('');
   const [step, setStep] = useState<'details' | 'preparation' | 'review' | 'payment'>('details'); const [targets, setTargets] = useState<PreparationTarget[]>([]); const [answers, setAnswers] = useState<PreparationAnswers>({}); const [prepLoading, setPrepLoading] = useState(true); const [prepError, setPrepError] = useState<string | null>(null); const [prepLoadFailures, setPrepLoadFailures] = useState<PreparationLoadFailure[]>([]); const [placing, setPlacing] = useState(false); const [placeError, setPlaceError] = useState<string | null>(null);
@@ -60,13 +62,24 @@ export default function CheckoutPage() {
   // Retained until confirmed success, so a timeout/error retry uses the same
   // server-side identity but a later deliberate checkout gets a new key.
   const checkoutAttemptKey = useRef<string | null>(null);
+  const guestAccessToken = useRef<string | null>(null);
+  const isGuestCheckout = !user || user.is_anonymous === true;
   const selectedPoint = points.find((p) => p.name === details.deliveryPointName);
   const fee = selectedPoint?.delivery_fee ?? 0; const total = subtotal + fee; const input = (e?: string) => `w-full bg-cream-50 border rounded-2xl px-4 py-3 text-sm ${e ? 'border-red-300 bg-red-50' : 'border-cream-300'}`;
   const priceFinalAtCheckout = isPriceFinalAtCheckout(cart.items);
   useEffect(() => { fetchActiveDeliveryPoints().then(setPoints).catch(() => {}); }, []);
   useEffect(() => {
+    if (authLoading || user) return;
+    let cancelled = false;
+    setGuestSessionLoading(true);
+    void ensureGuestAuthIdentity()
+      .catch(() => { if (!cancelled) setPlaceError('Guest checkout is temporarily unavailable. Please try again.'); })
+      .finally(() => { if (!cancelled) setGuestSessionLoading(false); });
+    return () => { cancelled = true; };
+  }, [authLoading, user]);
+  useEffect(() => {
     if (authLoading) return;
-    if (!user) { setConsentChecking(false); return; }
+    if (!user || user.is_anonymous === true) { setConsentChecking(false); return; }
     let cancelled = false;
     void hasCurrentPrivacyConsent()
       .then((complete) => {
@@ -79,7 +92,7 @@ export default function CheckoutPage() {
     return () => { cancelled = true; };
   }, [authLoading, user, navigate]);
 useEffect(() => {
-  if (!user) return;
+  if (!user || user.is_anonymous === true) return;
 
   let cancelled = false;
 
@@ -225,14 +238,14 @@ useEffect(() => {
   const setField = (field: keyof CustomerDetails) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => { setDetails((x) => ({ ...x, [field]: e.target.value })); setErrors((x) => ({ ...x, [field]: '' })); };
   const setPoint = (name: string) => { const p = points.find((x) => x.name === name); setDetails((x) => ({ ...x, pickupLocation: name, deliveryPointName: name, deliveryMethod: p?.delivery_method ?? '' })); };
   const setAnswer = (target: PreparationTarget, unit: number | null, question: PreparationQuestion, value: unknown) => setAnswers((x) => ({ ...x, [answerKey(target, unit)]: { ...(x[answerKey(target, unit)] ?? {}), [question.code]: value } }));
-  const validateDetails = () => { const e: Record<string, string> = {}; if (!details.name.trim()) e.name = t('checkout.validation.fullNameRequired'); if (!/^((\+?60)|0)\d{8,10}$/.test(details.phone.replace(/\s/g, ''))) e.phone = t('checkout.validation.phoneInvalid'); if (!details.email.includes('@')) e.email = t('checkout.validation.emailInvalid'); if (!details.houseUnit.trim()) e.houseUnit = t('checkout.validation.unitRequired'); if (deliveryMethod === 'normal_bulk' && !details.deliveryPointName) e.deliveryPointName = t('checkout.validation.deliveryPointRequired'); if (deliveryMethod === 'normal_bulk' && !deliveryDay) e.deliveryDay = t('checkout.validation.deliveryDayRequired'); if (deliveryMethod === 'instant_customer_lalamove' && !instantDate) e.deliveryDay = t('checkout.validation.deliveryDayRequired'); if (deliveryMethod === 'instant_customer_lalamove' && !instantTime) e.deliveryTime = t('checkout.validation.deliveryDayRequired'); setErrors(e); return !Object.keys(e).length; };
+  const validateDetails = () => { const e: Record<string, string> = {}; if (!details.name.trim()) e.name = t('checkout.validation.fullNameRequired'); if (!/^((\+?60)|0)\d{8,10}$/.test(details.phone.replace(/\s/g, ''))) e.phone = t('checkout.validation.phoneInvalid'); if (details.email.trim() && !details.email.includes('@')) e.email = t('checkout.validation.emailInvalid'); if (!isGuestCheckout && !details.email.includes('@')) e.email = t('checkout.validation.emailInvalid'); if (!details.houseUnit.trim()) e.houseUnit = t('checkout.validation.unitRequired'); if (deliveryMethod === 'normal_bulk' && !details.deliveryPointName) e.deliveryPointName = t('checkout.validation.deliveryPointRequired'); if (deliveryMethod === 'normal_bulk' && !deliveryDay) e.deliveryDay = t('checkout.validation.deliveryDayRequired'); if (deliveryMethod === 'instant_customer_lalamove' && !instantDate) e.deliveryDay = t('checkout.validation.deliveryDayRequired'); if (deliveryMethod === 'instant_customer_lalamove' && !instantTime) e.deliveryTime = t('checkout.validation.deliveryDayRequired'); setErrors(e); return !Object.keys(e).length; };
   const ensureCheckoutAttemptKey = () => {
     const key = checkoutAttemptKey.current ?? createBrowserUuid();
     checkoutAttemptKey.current = key;
     return key;
   };
   const uploadReceipt = async () => {
-    if (!receiptFile || !paymentPreview || !user) return;
+    if (!receiptFile || !paymentPreview) return;
     setReceiptUploading(true); setReceiptError(null);
     const previousPath = stagedReceipt?.storagePath ?? null;
     let uploadedPath: string | null = null;
@@ -241,8 +254,9 @@ useEffect(() => {
       const extension = allowedTypes[receiptFile.type];
       if (!extension) throw new Error(t('payment.receiptTypeError'));
       if (receiptFile.size <= 0 || receiptFile.size > 5 * 1024 * 1024) throw new Error(t('payment.receiptSizeError'));
+      const identityId = isGuestCheckout ? await ensureGuestAuthIdentity() : user!.id;
       const idempotencyKey = ensureCheckoutAttemptKey();
-      uploadedPath = `staging/${user.id}/${idempotencyKey}/${createBrowserUuid()}.${extension}`;
+      uploadedPath = `staging/${identityId}/${idempotencyKey}/${createBrowserUuid()}.${extension}`;
       const { error: uploadError } = await supabase.storage.from('sales-order-payment-receipts').upload(uploadedPath, receiptFile, { cacheControl: '3600', upsert: false, contentType: receiptFile.type });
       if (uploadError) throw uploadError;
       const { error: stageError } = await supabase.rpc('stage_checkout_payment_receipt', {
@@ -271,7 +285,15 @@ useEffect(() => {
       const idempotencyKey = ensureCheckoutAttemptKey();
       const request = buildCanonicalPlaceOrderRequest({ idempotencyKey, customer: details, items: cart.items, deliveryMethod, deliveryDay, instantDate, instantTime, preparationTargets: targets, preparationAnswers: answers });
       if (priceFinalAtCheckout && paymentPreview) { request.p_expected_final_total = total; request.p_expected_payment_configuration_version_id = paymentPreview.configurationVersionId; }
-      const order = await placeCanonicalOrder(request); checkoutAttemptKey.current = null;
+      const token = isGuestCheckout
+        ? (guestAccessToken.current ?? createGuestAccessToken())
+        : null;
+      if (token) guestAccessToken.current = token;
+      const order = token
+        ? await placeGuestOrder(request, token)
+        : await placeCanonicalOrder(request);
+      checkoutAttemptKey.current = null;
+if (!isGuestCheckout) {
 const { error: profileSaveError } = await supabase
   .from('customer_profiles')
   .upsert({
@@ -290,8 +312,13 @@ const { error: profileSaveError } = await supabase
 if (profileSaveError) {
   console.warn('Unable to save checkout preferences:', profileSaveError);
 }
+}
       placementSucceeded.current = true;
-      navigate(`/order/${order.order_number}`, { replace: true });
+      if (token) {
+        navigate(guestOrderUrl(order.order_number, token), { replace: true });
+      } else {
+        navigate(`/order/${order.order_number}`, { replace: true });
+      }
       clearCart();
     } catch (err) { setPlaceError(err instanceof Error ? err.message : t('checkout.validation.failedToPlaceOrder')); }
     finally { placementLock.current = false; setPlacing(false); }
@@ -495,7 +522,7 @@ const Preparation = () => (
       <div className="flex gap-3"><button className="btn-secondary flex-1" onClick={() => setStep('preparation')}>{t('checkout.back')}</button><button className="btn-primary flex-1" onClick={() => setStep('payment')}>{t('checkout.continueToPayment')}</button></div>
     </div>
   );
-  if (authLoading || consentChecking) return <main className="py-20 text-center">Loading…</main>; if (!user) return <Navigate to="/" replace/>; if (!cart.items.length && !placing && !placementSucceeded.current) return <Navigate to="/cart" replace/>;
+  if (authLoading || consentChecking || guestSessionLoading) return <main className="py-20 text-center">Loading…</main>; if (!cart.items.length && !placing && !placementSucceeded.current) return <Navigate to="/cart" replace/>;
   const steps = [['details', t('checkout.yourDetails')], ['preparation', t('checkout.preparation')], ['review', t('checkout.review')], ['payment', t('checkout.payment')]] as const;
   const selectReceiptFile = (file: File, source: ReceiptSource) => {
     setReceiptFile(file);
@@ -584,5 +611,5 @@ const Preparation = () => (
     </div>
   );
   const payment = <div className="card min-w-0 max-w-full p-5 sm:p-8 space-y-5"><h2 className="font-semibold text-lg">{t('payment.title')}</h2>{priceFinalAtCheckout ? <>{paymentPreviewLoading && <p className="text-sm text-gray-500">{t('payment.loadingQr')}</p>}{paymentPreview && <div className="rounded-2xl border border-forest-200 bg-forest-50/40 p-5 text-center"><p className="text-sm font-semibold text-gray-700 mb-2">{t('payment.amountToPay')}</p><p data-onboarding="payment-amount" className="text-3xl font-bold text-forest-800 mb-5">RM{formatCurrency(total)}</p><div className="mx-auto w-fit rounded-2xl bg-white border border-cream-200 p-3 shadow-sm"><img src={paymentQrPublicUrl(paymentPreview.qrStoragePath)} alt="FreshGo DuitNow QR" className="w-64 max-w-full aspect-square object-contain" /></div><p className="mt-4 font-semibold text-forest-800">{t('payment.scanDuitNow')}</p><p className="mt-2 text-sm text-gray-600 leading-relaxed max-w-lg mx-auto">{t('payment.checkoutPayUploadPlace')}</p><div data-onboarding="payment-submit" className="mt-5 min-w-0 max-w-full rounded-xl border border-cream-200 bg-white p-4 text-left"><label className="block text-sm font-semibold text-gray-800 mb-2">{t('payment.uploadPaymentReceipt')}</label>{receiptPicker}{receiptFile && <button type="button" disabled={receiptUploading || placing} onClick={uploadReceipt} className="btn-secondary mt-3 w-full sm:w-auto inline-flex items-center justify-center gap-2"><Upload size={16}/>{receiptUploading ? t('payment.uploadingReceipt') : t('payment.uploadReceipt')}</button>}{stagedReceipt && <div className="mt-3 flex min-w-0 items-start gap-2 text-sm font-semibold text-green-700"><CheckCircle2 size={17} className="mt-0.5 shrink-0"/><span className="min-w-0 break-all">{t('payment.receiptUploaded')}: {stagedReceipt.fileName}</span></div>}{receiptError && <p className="mt-2 text-sm text-red-600">{receiptError}</p>}</div></div>}{!paymentPreviewLoading && !paymentPreview && <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">{paymentPreviewError || t('payment.qrUnavailable')}</div>}</> : <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800"><Lock size={15} className="inline mr-2"/>{t('payment.weighedOrderInstructions')}</div>}<Totals/><div className="flex min-w-0 gap-3"><button className="btn-secondary min-w-0 flex-1" onClick={() => setStep('review')}>{t('checkout.back')}</button><button disabled={placing || receiptUploading || paymentPreviewLoading || (priceFinalAtCheckout && (!paymentPreview || !stagedReceipt))} className="btn-primary min-w-0 flex-1 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500" onClick={createOrder}>{placing ? t('checkout.placingOrder') : t('checkout.placeOrder', { total: formatCurrency(total) })}</button></div>{placeError && <p className="text-red-600 text-sm">{placeError}</p>}</div>;
-  return <main className="w-full min-w-0 max-w-5xl mx-auto px-4 sm:px-6 py-8"><Link to="/cart" className="inline-flex items-center gap-2 text-sm text-gray-500"><ChevronLeft size={16}/>{t('checkout.backToCart')}</Link><h1 className="section-title mt-5">{t('checkout.title')}</h1><div className="flex gap-2 overflow-x-auto py-6">{steps.map(([id, title], i) => <div key={id} className={`shrink-0 rounded-full px-3 py-1.5 text-sm ${step === id ? 'bg-forest-700 text-white' : steps.findIndex(([x]) => x === step) > i ? 'bg-jade-100 text-jade-700' : 'bg-cream-100 text-gray-500'}`}>{i + 1}. {title}</div>)}</div><div className="grid min-w-0 grid-cols-1 lg:grid-cols-3 gap-6"><div className="min-w-0 lg:col-span-2">{step === 'details' && <div data-onboarding="checkout-address" className="card p-5 sm:p-8 space-y-5"><div className="flex gap-2 text-sm bg-amber-50 p-3 rounded-xl"><Info size={16}/>{t('checkout.estimatedPricingBody')}</div><h2 className="font-semibold text-lg">{t('delivery.deliveryDetails')}</h2><Field label={t('checkout.fullName')} required error={errors.name}><input className={input(errors.name)} value={details.name} onChange={setField('name')}/></Field><Field label={t('checkout.phoneNumber')} required error={errors.phone}><input className={input(errors.phone)} value={details.phone} onChange={setField('phone')}/></Field><Field label={t('checkout.emailAddress')} required error={errors.email}><input className={input(errors.email)} value={details.email} readOnly/></Field><Field label={t('checkout.unitNumber')} required error={errors.houseUnit}><input className={input(errors.houseUnit)} value={details.houseUnit} onChange={setField('houseUnit')}/></Field><Field label="Delivery method" required><select className={input()} value={deliveryMethod} onChange={(e) => setDeliveryMethod(e.target.value as CanonicalDeliveryMethod)}><option value="normal_bulk">Normal bulk delivery</option><option value="instant_customer_lalamove">Instant delivery (book Lalamove)</option></select></Field>{deliveryMethod === 'normal_bulk' && <><Field label={t('checkout.deliveryPoint')} required error={errors.deliveryPointName}><select className={input(errors.deliveryPointName)} value={details.deliveryPointName} onChange={(e) => setPoint(e.target.value)}><option value="">{t('checkout.selectDeliveryPoint')}</option>{points.map((p) => <option key={p.id} value={p.name}>{p.name}</option>)}</select></Field>{selectedPoint?.pickup_notes && <div className="flex gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"><Info size={16} className="mt-0.5 shrink-0"/><span>{selectedPoint.pickup_notes}</span></div>}<div><p className="font-semibold text-sm mb-2">{t('delivery.deliveryDay')} *</p><DeliverySlotSelector selected={deliveryDay} onChange={setDeliveryDay}/>{errors.deliveryDay && <p className="text-red-500 text-xs">{errors.deliveryDay}</p>}</div></>}{deliveryMethod === 'instant_customer_lalamove' && <><Field label="Requested delivery date" required error={errors.deliveryDay}><input className={input(errors.deliveryDay)} type="date" value={instantDate} onChange={(e) => setInstantDate(e.target.value)}/></Field><Field label="Requested delivery time" required error={errors.deliveryTime}><input className={input(errors.deliveryTime)} type="time" value={instantTime} onChange={(e) => setInstantTime(e.target.value)}/></Field></>}<Field label={t('checkout.orderNotes')}><textarea className={input()} value={details.notes} onChange={setField('notes')}/></Field><button data-onboarding="checkout-next" className="btn-primary w-full" onClick={() => validateDetails() && setStep('preparation')}>{t('checkout.continueToPreparation')} <ChevronRight size={16} className="inline"/></button></div>}{step === 'preparation' && <Preparation/>}{step === 'review' && <Review/>}{step === 'payment' && payment}</div><aside data-onboarding="checkout-summary" className="card min-w-0 p-5 h-fit"><h3 className="font-semibold mb-3">{t('checkout.orderSummary')}</h3>{cart.items.map((x, i) => <p key={i} className="text-sm mb-2">{x.name} × {x.quantity}</p>)}<Totals/></aside></div><OnboardingTour page="checkout" steps={checkoutTour(language)} enabled={step === 'details'} /><OnboardingTour page="payment-receipt" steps={paymentReceiptTour(language, 'upload')} enabled={step === 'payment'} /></main>;
+  return <main className="w-full min-w-0 max-w-5xl mx-auto px-4 sm:px-6 py-8"><Link to="/cart" className="inline-flex items-center gap-2 text-sm text-gray-500"><ChevronLeft size={16}/>{t('checkout.backToCart')}</Link><h1 className="section-title mt-5">{isGuestCheckout ? 'Guest Checkout' : t('checkout.title')}</h1>{isGuestCheckout && <p className="mt-2 text-sm text-gray-600">No account needed. We’ll give you a private link for payment and delivery tracking.</p>}<div className="flex gap-2 overflow-x-auto py-6">{steps.map(([id, title], i) => <div key={id} className={`shrink-0 rounded-full px-3 py-1.5 text-sm ${step === id ? 'bg-forest-700 text-white' : steps.findIndex(([x]) => x === step) > i ? 'bg-jade-100 text-jade-700' : 'bg-cream-100 text-gray-500'}`}>{i + 1}. {title}</div>)}</div><div className="grid min-w-0 grid-cols-1 lg:grid-cols-3 gap-6"><div className="min-w-0 lg:col-span-2">{step === 'details' && <div data-onboarding="checkout-address" className="card p-5 sm:p-8 space-y-5"><div className="flex gap-2 text-sm bg-amber-50 p-3 rounded-xl"><Info size={16}/>{t('checkout.estimatedPricingBody')}</div><h2 className="font-semibold text-lg">{t('delivery.deliveryDetails')}</h2><Field label={t('checkout.fullName')} required error={errors.name}><input className={input(errors.name)} value={details.name} onChange={setField('name')} autoComplete="name"/></Field><Field label={t('checkout.phoneNumber')} required error={errors.phone}><input className={input(errors.phone)} value={details.phone} onChange={setField('phone')} inputMode="tel" autoComplete="tel"/></Field><Field label={`${t('checkout.emailAddress')}${isGuestCheckout ? ' (optional)' : ''}`} required={!isGuestCheckout} error={errors.email}><input className={input(errors.email)} type="email" value={details.email} readOnly={!isGuestCheckout} onChange={setField('email')} autoComplete="email"/></Field><Field label={t('checkout.unitNumber')} required error={errors.houseUnit}><input className={input(errors.houseUnit)} value={details.houseUnit} onChange={setField('houseUnit')} autoComplete="street-address"/></Field><Field label="Delivery method" required><select className={input()} value={deliveryMethod} onChange={(e) => setDeliveryMethod(e.target.value as CanonicalDeliveryMethod)}><option value="normal_bulk">Normal bulk delivery</option><option value="instant_customer_lalamove">Instant delivery (book Lalamove)</option></select></Field>{deliveryMethod === 'normal_bulk' && <><Field label={t('checkout.deliveryPoint')} required error={errors.deliveryPointName}><select className={input(errors.deliveryPointName)} value={details.deliveryPointName} onChange={(e) => setPoint(e.target.value)}><option value="">{t('checkout.selectDeliveryPoint')}</option>{points.map((p) => <option key={p.id} value={p.name}>{p.name}</option>)}</select></Field>{selectedPoint?.pickup_notes && <div className="flex gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"><Info size={16} className="mt-0.5 shrink-0"/><span>{selectedPoint.pickup_notes}</span></div>}<div><p className="font-semibold text-sm mb-2">{t('delivery.deliveryDay')} *</p><DeliverySlotSelector selected={deliveryDay} onChange={setDeliveryDay}/>{errors.deliveryDay && <p className="text-red-500 text-xs">{errors.deliveryDay}</p>}</div></>}{deliveryMethod === 'instant_customer_lalamove' && <><Field label="Requested delivery date" required error={errors.deliveryDay}><input className={input(errors.deliveryDay)} type="date" value={instantDate} onChange={(e) => setInstantDate(e.target.value)}/></Field><Field label="Requested delivery time" required error={errors.deliveryTime}><input className={input(errors.deliveryTime)} type="time" value={instantTime} onChange={(e) => setInstantTime(e.target.value)}/></Field></>}<Field label={t('checkout.orderNotes')}><textarea className={input()} value={details.notes} onChange={setField('notes')}/></Field><button data-onboarding="checkout-next" className="btn-primary w-full" onClick={() => validateDetails() && setStep('preparation')}>{t('checkout.continueToPreparation')} <ChevronRight size={16} className="inline"/></button></div>}{step === 'preparation' && <Preparation/>}{step === 'review' && <Review/>}{step === 'payment' && payment}</div><aside data-onboarding="checkout-summary" className="card min-w-0 p-5 h-fit"><h3 className="font-semibold mb-3">{t('checkout.orderSummary')}</h3>{cart.items.map((x, i) => <p key={i} className="text-sm mb-2">{x.name} × {x.quantity}</p>)}<Totals/></aside></div><OnboardingTour page="checkout" steps={checkoutTour(language)} enabled={step === 'details'} /><OnboardingTour page="payment-receipt" steps={paymentReceiptTour(language, 'upload')} enabled={step === 'payment'} /></main>;
 }

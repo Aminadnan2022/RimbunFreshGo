@@ -6,7 +6,6 @@ import { getVendorById } from '../data/vendors';
 import { deleteProduct } from '../data/products';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
-import { useAuthModal } from '../context/AuthModalContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useDeliveryConfig } from '../context/DeliveryConfigContext';
 import { useWebsiteSettings } from '../context/WebsiteSettingsContext';
@@ -26,8 +25,7 @@ export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { addItem } = useCart();
-  const { isAdmin, user } = useAuth();
-  const { openSignIn } = useAuthModal();
+  const { isAdmin } = useAuth();
   const { config } = useDeliveryConfig();
   const { settings, loading: settingsLoading } = useWebsiteSettings();
   const { t, language } = useLanguage();
@@ -87,11 +85,6 @@ export default function ProductDetailPage() {
     .slice(0, 4);
 
   const handleAdd = () => {
-    if (!user) {
-      openSignIn('/shop');
-      return;
-    }
-
     const itemData = buildCartItem(product, {
       quantity: qty,
       weightG: estimatedWeight,

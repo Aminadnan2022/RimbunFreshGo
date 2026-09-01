@@ -1,8 +1,6 @@
 import { Link } from 'react-router-dom';
-import { Navigate } from 'react-router-dom';
 import { ShoppingBag, ArrowRight, Trash2, Clock, Package } from 'lucide-react';
 import { useCart } from '../context/CartContext';
-import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import DeliverySlotSelector from '../components/ui/DeliverySlotSelector';
 import QuantityStepper from '../components/ui/QuantityStepper';
@@ -17,7 +15,6 @@ import { isBulkWeighedPieceItem, isSliceItem } from '../lib/sellingOptions';
 import type { DeliveryDay, CartItem } from '../types';
 
 export default function CartPage() {
-  const { user } = useAuth();
   const { cart, removeItem, updateQty, updateEstimatedWeight, updateSlice, setDeliveryDay, subtotal, itemCount } = useCart();
   const { t, lang, language } = useLanguage();
 
@@ -35,8 +32,6 @@ export default function CartPage() {
     if (item.orderingMode === 'weight_only') return true;
     return item.pricingType === 'per_kg';
   };
-  if (!user) return <Navigate to="/" replace />;
-
   if (cart.items.length === 0) {
     return (
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 flex flex-col items-center text-center">

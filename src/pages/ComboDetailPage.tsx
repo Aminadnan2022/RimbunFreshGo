@@ -11,8 +11,6 @@ import { computeComboItemSubtotal } from '../lib/sellingOptions';
 import type { Product, ComboWithItems, DbComboItem, PreparationOption } from '../types';
 import { useLanguage } from '../context/LanguageContext';
 import { useCart } from '../context/CartContext';
-import { useAuth } from '../context/AuthContext';
-import { useAuthModal } from '../context/AuthModalContext';
 import { useDeliveryConfig } from '../context/DeliveryConfigContext';
 import { useWebsiteSettings } from '../context/WebsiteSettingsContext';
 import ProductImage from '../components/ui/ProductImage';
@@ -41,8 +39,6 @@ function formatComboItemPrice(ci: DbComboItem, product: Product): number {
 export default function ComboDetailPage() {
   const { slug } = useParams<{ slug: string }>();
   const { addItem } = useCart();
-  const { user } = useAuth();
-  const { openSignIn } = useAuthModal();
   const { config } = useDeliveryConfig();
   const { settings, loading: settingsLoading } = useWebsiteSettings();
   const { t } = useLanguage();
@@ -92,10 +88,6 @@ export default function ComboDetailPage() {
   }
 
   const handleAdd = () => {
-    if (!user) {
-      openSignIn('/combos');
-      return;
-    }
     if (!comboWithItems) return;
     if (choiceGroups.some(([key]) => !selectedChoices[key])) {
       setChoiceError(true);
