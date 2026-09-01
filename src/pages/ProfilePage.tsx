@@ -10,7 +10,7 @@ import TutorialModeSwitch from '../components/onboarding/TutorialModeSwitch';
 export default function ProfilePage() {
   const { user, signOut } = useAuth();
 
-  if (!user) return <Navigate to="/" replace />;
+  if (!user || user.is_anonymous === true) return <Navigate to="/" replace />;
 
   const displayName = getUserDisplayName(user);
   const email: string = user.email ?? '';

@@ -32,15 +32,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [role, setRole] = useState<UserRole>(null);
 
-  const checkRole = async (userId: string | undefined) => {
-    if (!userId) {
+  const checkRole = async (user: User | null | undefined) => {
+    if (!user || user.is_anonymous === true) {
       setRole(null);
       return;
     }
     const { data } = await supabase
       .from('user_roles')
       .select('role')
-      .eq('id', userId)
+      .eq('id', user.id)
       .maybeSingle();
     if (data?.role === 'admin' || data?.role === 'supplier' || data?.role === 'delivery_rider') {
       setRole(data.role as UserRole);
@@ -78,7 +78,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (!active) return;
       setSession(storedSession);
-      await checkRole(user.id);
+      await checkRole(user);
       if (active) setLoading(false);
     };
 
@@ -87,7 +87,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, newSession) => {
       (async () => {
         setSession(newSession);
-        await checkRole(newSession?.user?.id);
+        await checkRole(newSession?.user);
         setLoading(false);
       })();
     });

@@ -744,7 +744,7 @@ useEffect(() => {
   const lineCls = (st: 'done' | 'current' | 'future') =>
     st === 'done' ? 'bg-emerald-400' : st === 'current' ? 'bg-blue-300' : 'bg-cream-200';
 
-  if (!user) return <Navigate to="/" replace />;
+  if (!user || user.is_anonymous === true) return <Navigate to="/" replace />;
 
   if (order === undefined && loadError) {
     return (

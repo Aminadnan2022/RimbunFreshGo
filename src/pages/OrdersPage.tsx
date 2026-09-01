@@ -120,7 +120,7 @@ export default function OrdersPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || user.is_anonymous === true) return;
     let active = true;
     (async () => {
       try {
@@ -180,7 +180,7 @@ export default function OrdersPage() {
     );
   }
 
-  if (!user) return <Navigate to="/" replace />;
+  if (!user || user.is_anonymous === true) return <Navigate to="/" replace />;
 
   return (
     <main className="max-w-3xl mx-auto px-4 sm:px-6 py-10">

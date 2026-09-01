@@ -20,7 +20,7 @@ export default function PrivacyConsentPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || user.is_anonymous === true) return;
     let cancelled = false;
     void hasCurrentPrivacyConsent()
       .then((complete) => {
@@ -57,7 +57,7 @@ export default function PrivacyConsentPage() {
   };
 
   if (authLoading) return <main className="min-h-[50vh] flex items-center justify-center"><Loader2 className="animate-spin text-forest-500" size={32} /></main>;
-  if (!user) return <Navigate to="/" replace />;
+  if (!user || user.is_anonymous === true) return <Navigate to="/" replace />;
 
   return (
     <main className="max-w-md mx-auto px-4 sm:px-6 py-14">
