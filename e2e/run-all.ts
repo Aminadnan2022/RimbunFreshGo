@@ -29,13 +29,16 @@ const SUITES: SuiteDef[] = [
   { order: 1, name: 'AUTH + ROLES', file: 'verify.auth.ts', tableLabel: 'AUTH', timeoutMs: 120_000 },
   { order: 2, name: 'ORDERS SCHEMA', file: 'verify.orders.ts', tableLabel: 'ORDERS', timeoutMs: 120_000 },
   { order: 3, name: 'CUSTOMER ORDERS RLS', file: 'verify.orders.rls.ts', tableLabel: 'CUSTOMER RLS', timeoutMs: 120_000 },
-  { order: 4, name: 'SUPPLIER ORDERS RLS', file: 'verify.supplier.rls.ts', tableLabel: 'SUPPLIER RLS', timeoutMs: 120_000 },
-  { order: 5, name: 'RIDER ORDERS RLS', file: 'verify.rider.rls.ts', tableLabel: 'RIDER RLS', timeoutMs: 120_000 },
-  { order: 6, name: 'CHECKOUT', file: 'verify.checkout.ts', tableLabel: 'CHECKOUT', timeoutMs: 120_000 },
-  { order: 7, name: 'ORDER CALCULATION', file: 'verify.order-calculation.ts', tableLabel: 'ORDER CALCULATION', timeoutMs: 120_000 },
-  { order: 8, name: 'PAYMENT INTEGRITY', file: 'verify.payment.ts', tableLabel: 'PAYMENT INTEGRITY', timeoutMs: 180_000 },
-  { order: 9, name: 'DELIVERY / RIDER WORKFLOW', file: 'verify.delivery.workflow.ts', tableLabel: 'DELIVERY WORKFLOW', timeoutMs: 180_000 },
-  { order: 10, name: 'SUPPLIER WRITE GUARDS', file: 'verify.r4.ts', tableLabel: 'SUPPLIER WRITE GUARDS', timeoutMs: 180_000 },
+  { order: 4, name: 'RIDER ORDERS RLS', file: 'verify.rider.rls.ts', tableLabel: 'RIDER RLS', timeoutMs: 120_000 },
+  { order: 5, name: 'CHECKOUT', file: 'verify.checkout.ts', tableLabel: 'CHECKOUT', timeoutMs: 120_000 },
+  // The four known failing legacy verifiers used direct supplier mutations of
+  // public."Orders": verify.supplier.rls.ts, verify.order-calculation.ts,
+  // verify.payment.ts, and verify.r4.ts. verify.delivery.workflow.ts used the
+  // same obsolete path and swallowed its own failure with exit code 0, so it is
+  // retired from the evidence runner as well. The canonical suite below covers
+  // supplier/payment/rider/POD boundaries through the supported sales_orders
+  // RPC and fulfilment model.
+  { order: 6, name: 'CANONICAL PRELAUNCH WORKFLOW', file: 'prelaunch-canonical.ts', tableLabel: 'CANONICAL WORKFLOW', timeoutMs: 300_000 },
 ];
 
 function runSuite(suite: SuiteDef): Promise<SuiteResult> {

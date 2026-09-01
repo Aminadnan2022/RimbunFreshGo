@@ -8,6 +8,8 @@ const sessionConflictFix = read('supabase/migrations/20261202000000_fix_guest_ch
 const e2eCleanup = read('supabase/migrations/20261203000000_service_role_canonical_e2e_cleanup.sql');
 const checkout = read('src/pages/CheckoutPage.tsx');
 const guestClient = read('src/lib/guestCheckout.ts');
+const guestAuth = read('src/lib/guestAuth.ts');
+const captchaPanel = read('src/components/auth/GuestCaptchaPanel.tsx');
 const tracking = read('src/pages/GuestOrderTrackingPage.tsx');
 const cart = read('src/pages/CartPage.tsx');
 const productCard = read('src/components/ui/ProductCard.tsx');
@@ -82,6 +84,15 @@ requireAll('bootstrap token session and URL cleanup', tracking, [
 ]);
 requireAll('client token generation', guestClient, [
   'const TOKEN_BYTES = 32', 'crypto.getRandomValues', "replace(/\\+/g, '-')",
+]);
+requireAll('supported Supabase CAPTCHA handoff', guestAuth, [
+  'captchaConfigured && !normalizedToken',
+  'options: { captchaToken: normalizedToken }',
+  'signInAnonymously(credentials)',
+]);
+requireAll('guest CAPTCHA retry and rapid-tap safety', captchaPanel, [
+  'verificationLock.current', 'expired-callback', 'turnstile.reset',
+  'Security check is unavailable',
 ]);
 requireAll('guest checkout UX', checkout, ['Guest Checkout', 'isGuestCheckout', 'placeGuestOrder', 'guestOrderUrl']);
 if (cart.includes('if (!user)') || productCard.includes('openSignIn') || comboCard.includes('openSignIn')) {

@@ -1,8 +1,11 @@
 import { supabase } from './supabase';
 import type { CanonicalPlaceOrderRequest, CanonicalPlaceOrderResult } from './canonicalCheckout';
 import type { Json } from '../types/database';
+import { ensureGuestAuthIdentityWith } from './guestAuth';
 
 const TOKEN_BYTES = 32;
+export const guestCaptchaSiteKey = import.meta.env.VITE_TURNSTILE_SITE_KEY?.trim() ?? '';
+export const guestCaptchaConfigured = guestCaptchaSiteKey.length > 0;
 
 export function createGuestAccessToken(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(TOKEN_BYTES));
@@ -11,15 +14,8 @@ export function createGuestAccessToken(): string {
   return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/g, '');
 }
 
-export async function ensureGuestAuthIdentity(): Promise<string> {
-  const { data: sessionData } = await supabase.auth.getSession();
-  if (sessionData.session?.user.id) return sessionData.session.user.id;
-
-  const { data, error } = await supabase.auth.signInAnonymously();
-  if (error || !data.user) {
-    throw new Error(error?.message || 'Guest checkout is temporarily unavailable.');
-  }
-  return data.user.id;
+export async function ensureGuestAuthIdentity(captchaToken?: string): Promise<string> {
+  return ensureGuestAuthIdentityWith(supabase.auth, guestCaptchaConfigured, captchaToken);
 }
 
 export async function placeGuestOrder(

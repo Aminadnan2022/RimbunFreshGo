@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ShoppingCart, Search, User, Menu, X, Eye, EyeOff, LogIn, LogOut, ShieldCheck, Warehouse, Truck, BarChart3 } from 'lucide-react';
@@ -14,6 +14,8 @@ import BrandLogo from '../branding/BrandLogo';
 import NotificationBell from '../notifications/NotificationBell';
 import GoogleIcon from '../auth/GoogleIcon';
 import { getUserDisplayName, isUnverifiedEmailError } from '../../lib/authProfile';
+import { guestCaptchaConfigured } from '../../lib/guestCheckout';
+import { TurnstileChallenge, type TurnstileChallengeHandle } from '../auth/GuestCaptchaPanel';
 
 function authRedirectUrl(returnTo?: string | null): string {
   const url = new URL('/auth/redirect', window.location.origin);
@@ -36,16 +38,25 @@ function SignInModal({ onClose, onSwitchToCreate, onSuccess, redirectTo }: {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const captcha = useRef<TurnstileChallengeHandle>(null);
   const { t } = useLanguage();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    if (guestCaptchaConfigured && !captchaToken) {
+      setError('Complete the security check before signing in.');
+      return;
+    }
     setLoading(true);
     const { error: authError } = await supabase.auth.signInWithPassword({
       email: form.email,
       password: form.password,
+      options: { captchaToken: captchaToken ?? undefined },
     });
+    setCaptchaToken(null);
+    captcha.current?.reset();
     setLoading(false);
     if (authError) {
       setError(isUnverifiedEmailError(authError) ? t('header.signIn.emailNotVerified') : authError.message);
@@ -164,13 +175,15 @@ function SignInModal({ onClose, onSwitchToCreate, onSuccess, redirectTo }: {
             </div>
           </div>
 
+          {guestCaptchaConfigured && <TurnstileChallenge ref={captcha} action="registered-sign-in" onToken={setCaptchaToken} onReset={() => setCaptchaToken(null)} busy={loading} title="Security check" description="Complete this check before signing in." />}
+
           {error && (
             <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-2.5">
               {error}
             </p>
           )}
 
-          <button type="submit" className="btn-primary w-full mt-2" disabled={loading}>
+          <button type="submit" className="btn-primary w-full mt-2" disabled={loading || (guestCaptchaConfigured && !captchaToken)}>
             {loading ? t("header.signIn.signingIn") : t("header.signIn.signIn")}
           </button>
         </form>
@@ -202,17 +215,24 @@ function CreateAccountModal({ onClose, onSwitchToSignIn, redirectTo }: { onClose
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmationSent, setConfirmationSent] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const captcha = useRef<TurnstileChallengeHandle>(null);
   const { t } = useLanguage();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setConfirmationSent(false);
+    if (guestCaptchaConfigured && !captchaToken) {
+      setError('Complete the security check before creating your account.');
+      return;
+    }
     setLoading(true);
     const { error: authError } = await supabase.auth.signUp({
       email: form.email,
       password: form.password,
       options: {
+        captchaToken: captchaToken ?? undefined,
         emailRedirectTo: redirectTo,
         data: {
           full_name: form.name,
@@ -222,6 +242,8 @@ function CreateAccountModal({ onClose, onSwitchToSignIn, redirectTo }: { onClose
         },
       },
     });
+    setCaptchaToken(null);
+    captcha.current?.reset();
     setLoading(false);
     if (authError) {
       setError(authError.message);
@@ -375,6 +397,8 @@ function CreateAccountModal({ onClose, onSwitchToSignIn, redirectTo }: { onClose
             <span>{t('header.createAccount.marketingOptIn')}</span>
           </label>
 
+          {guestCaptchaConfigured && <TurnstileChallenge ref={captcha} action="registered-sign-up" onToken={setCaptchaToken} onReset={() => setCaptchaToken(null)} busy={loading} title="Security check" description="Complete this check before creating your account." />}
+
           {error && (
             <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-xl px-4 py-2.5">
               {error}
@@ -387,7 +411,7 @@ function CreateAccountModal({ onClose, onSwitchToSignIn, redirectTo }: { onClose
             </p>
           )}
 
-          <button type="submit" className="btn-primary w-full mt-2" disabled={loading || !privacyAccepted}>
+          <button type="submit" className="btn-primary w-full mt-2" disabled={loading || !privacyAccepted || (guestCaptchaConfigured && !captchaToken)}>
             {loading ? t("header.createAccount.creating") : t("header.createAccount.createAccount")}
           </button>
         </form>

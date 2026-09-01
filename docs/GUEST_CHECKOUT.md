@@ -12,9 +12,13 @@ The access table includes nullable `claimed_customer_id` and `claimed_at` fields
 
 ## Deployment prerequisites
 
-- Enable Anonymous Sign-Ins in the target Supabase project's Authentication settings.
-- Confirm the intended target is production. This worktree is currently linked to the project named `FreshGo Test`, so the migration has intentionally not been pushed.
-- Review the dry run before applying the migration.
+- Confirm the intended target before every configuration action. Gate 3A is limited to
+  `FreshGo Test` (`jypujsyiecgcjtjrqjfx`). Production is `Rimbun FreshGo Project`
+  (`zcfpdmjjmihhvtuwngii`) and must remain unchanged until the production cutover gate.
+- Enable Anonymous Sign-Ins only in the intended target's Authentication settings.
+- Keep the anonymous sign-in rate limit at **30 sign-ins per IP per hour** or lower.
+- Configure Cloudflare Turnstile as described below before enabling Supabase CAPTCHA.
+- Review the dry run before applying any database migration. Gate 3A adds no migration.
 
 ```powershell
 npx supabase link --project-ref <PRODUCTION_PROJECT_REF>
@@ -22,6 +26,34 @@ npx supabase migration list
 npx supabase db push --dry-run
 npx supabase db push
 ```
+
+### Turnstile and Supabase Auth setup (TEST only)
+
+The frontend uses Cloudflare's explicit SPA widget. A solved token is passed directly
+to Supabase Auth with `signInAnonymously({ options: { captchaToken } })`; FreshGo does
+not implement a parallel verification endpoint or bypass. Supabase Auth performs the
+server-side verification with the configured Turnstile secret.
+
+1. In Cloudflare Turnstile, create a widget for the TEST web hostname(s). Add localhost
+   only when local manual testing is required. Copy the public site key and secret key.
+2. Set the public site key as `VITE_TURNSTILE_SITE_KEY` in the TEST frontend environment.
+   It is safe to expose this site key. Never place the Turnstile secret in a `VITE_`
+   variable, repository file, browser bundle, log, screenshot, or test report.
+3. Reconfirm the Supabase dashboard header says `FreshGo Test` and project ref
+   `jypujsyiecgcjtjrqjfx`. Under Authentication > Bot and Abuse Protection, enable
+   CAPTCHA, choose Cloudflare Turnstile, enter the secret, and save.
+4. Test a new private-browser guest checkout, an expired/reset challenge, rapid taps,
+   receipt staging, order placement, and opening the private order link in a second
+   private browser. Then repeat a registered checkout and login.
+5. Confirm the anonymous sign-in rate limit remains 30/IP/hour. Turnstile filters bots;
+   the rate limit remains an independent backstop and must not be weakened.
+
+Do not enable CAPTCHA in Supabase before the matching public site key is deployed: doing
+so makes new auth sessions fail closed. Because Supabase CAPTCHA is project-wide, the
+public registered sign-in and create-account forms also pass a Turnstile token. Existing
+registered sessions bypass the guest widget. Existing anonymous sessions are reused and
+do not create duplicate anonymous accounts. Turnstile tokens are single-use and expire;
+errors and expiry clear the token and reset the widget before retry.
 
 After deployment, regenerate database types from the target if its schema has changed independently:
 
@@ -48,5 +80,7 @@ npm run typecheck
 ## Operational risks
 
 - Anonymous Sign-Ins are a required target-project setting and cannot be enabled by SQL migration.
+- CAPTCHA is an Auth project setting and its secret cannot be supplied by a migration.
+  Code completion does not mean live configuration completion.
 - The built-in per-session attempt limit complements a 256-bit token but is not a distributed IP/WAF rate limit. Add edge-level throttling if abuse is observed.
 - Full guest-to-registered claiming is deliberately deferred; the schema hooks must be paired with a separately reviewed ownership-transfer RPC before use.

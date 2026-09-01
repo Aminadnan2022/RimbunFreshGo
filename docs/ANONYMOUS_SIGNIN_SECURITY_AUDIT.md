@@ -89,9 +89,12 @@ this audit was deployed.
    installed during this audit, so SQL execution was not simulated locally.
 2. Enable Anonymous Sign-Ins only in that disposable/local test environment,
    then run `test:guest-checkout:rpc`. Keep the production setting disabled.
-3. Confirm Supabase anonymous sign-in rate limits and CAPTCHA before production
-   enablement. Pre-order guest receipt staging is deliberately available before
-   an order exists and therefore needs platform abuse controls.
+3. Gate 3A adds the supported Supabase Auth + Cloudflare Turnstile handoff. The browser
+   obtains a token and passes it only as `signInAnonymously({ options: { captchaToken } })`.
+   Supabase remains the server-side verifier. TEST live configuration still requires a
+   Cloudflare TEST widget/site key/secret and enabling Turnstile under Bot and Abuse
+   Protection for `FreshGo Test` (`jypujsyiecgcjtjrqjfx`). The 30 sign-ins/IP/hour
+   limit remains an independent control and must not be weakened.
 4. Repeat the registered customer/admin/supplier/rider RLS suites against the
    same migrated test database before a production change window.
 
@@ -104,6 +107,7 @@ npx supabase db reset
 npx supabase db lint --local --level warning
 npm run test:anonymous-auth-boundaries
 npm run test:guest-checkout
+npm run test:guest-captcha
 npm run typecheck
 npm run build
 ```

@@ -4,7 +4,10 @@ import { Link, useParams } from 'react-router-dom';
 import { createBrowserUuid } from '../lib/browserUuid';
 import { formatCurrency } from '../lib/currency';
 import { ensureGuestAuthIdentity, guestTokenStorageKey } from '../lib/guestCheckout';
+import { guestCaptchaConfigured } from '../lib/guestCheckout';
+import { GuestCaptchaRequiredError } from '../lib/guestAuth';
 import { supabase } from '../lib/supabase';
+import GuestCaptchaPanel from '../components/auth/GuestCaptchaPanel';
 
 const RECEIPT_ACCEPT = 'image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf';
 
@@ -51,6 +54,7 @@ export default function GuestOrderTrackingPage() {
   const [uploading, setUploading] = useState(false);
   const [receiptMessage, setReceiptMessage] = useState<string | null>(null);
   const [proofUrls, setProofUrls] = useState<{ type: string; url: string }[]>([]);
+  const [captchaNeeded, setCaptchaNeeded] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
@@ -65,9 +69,13 @@ export default function GuestOrderTrackingPage() {
       const result = data as unknown as { ok?: boolean; message?: string; order?: GuestOrder };
       if (!result?.ok || !result.order) throw new Error('Order access could not be verified.');
       setOrder(result.order);
-    } catch {
+    } catch (loadError) {
       setOrder(null);
-      setError('Order access could not be verified. Check that you opened the complete private link.');
+      if (loadError instanceof GuestCaptchaRequiredError && guestCaptchaConfigured) {
+        setCaptchaNeeded(true);
+      } else {
+        setError('Order access could not be verified. Check that you opened the complete private link.');
+      }
     } finally { setLoading(false); }
   }, [orderNumber]);
 
@@ -129,6 +137,7 @@ export default function GuestOrderTrackingPage() {
   };
 
   if (loading) return <main className="mx-auto max-w-3xl px-4 py-20 text-center"><div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-2 border-forest-200 border-t-forest-700"/><p>Securely opening your order…</p></main>;
+  if (captchaNeeded) return <main className="mx-auto max-w-xl px-4 py-20"><h1 className="section-title text-center">Open your private order</h1><p className="mb-5 mt-3 text-center text-gray-600">Complete the security check to continue.</p><GuestCaptchaPanel onVerified={() => { setCaptchaNeeded(false); void load(); }}/></main>;
   if (error || !order) return <main className="mx-auto max-w-xl px-4 py-20 text-center"><Package className="mx-auto mb-4 text-gray-400" size={42}/><h1 className="section-title">Private order link required</h1><p className="mt-3 text-gray-600">{error}</p><Link to="/" className="btn-primary mt-6 inline-flex">Back to FreshGo</Link></main>;
 
   const total = order.finalTotal ?? order.estimatedTotal;
