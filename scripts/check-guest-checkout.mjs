@@ -4,6 +4,8 @@ import { resolve } from 'node:path';
 const root = resolve(import.meta.dirname, '..');
 const read = (file) => readFileSync(resolve(root, file), 'utf8');
 const migration = read('supabase/migrations/20261130000000_freshgo_guest_checkout.sql');
+const sessionConflictFix = read('supabase/migrations/20261202000000_fix_guest_checkout_session_conflict.sql');
+const e2eCleanup = read('supabase/migrations/20261203000000_service_role_canonical_e2e_cleanup.sql');
 const checkout = read('src/pages/CheckoutPage.tsx');
 const guestClient = read('src/lib/guestCheckout.ts');
 const tracking = read('src/pages/GuestOrderTrackingPage.tsx');
@@ -48,6 +50,20 @@ requireAll('registered customer regression boundary', migration, [
 requireAll('idempotent retry and server pricing', migration, [
   'p_idempotency_key', 'v_existing_hash <> v_token_hash',
   'p_expected_final_total', 'p_expected_payment_configuration_version_id',
+]);
+requireAll('24-hour scoped guest browser sessions', migration, [
+  "expires_at timestamptz NOT NULL DEFAULT (now() + interval '24 hours')",
+  's.expires_at > now()',
+  'REVOKE ALL ON TABLE public.guest_sales_order_sessions FROM PUBLIC, anon, authenticated',
+]);
+requireAll('unambiguous guest session upsert', sessionConflictFix, [
+  'CREATE OR REPLACE FUNCTION public.place_guest_sales_order(',
+  'ON CONFLICT ON CONSTRAINT guest_sales_order_sessions_pkey DO UPDATE',
+]);
+requireAll('service-role-only canonical E2E cleanup', e2eCleanup, [
+  "IF auth.role() <> 'service_role' THEN",
+  'REVOKE ALL ON FUNCTION public.e2e_cleanup_canonical_orders(uuid[], uuid[]) FROM PUBLIC, anon, authenticated',
+  'GRANT EXECUTE ON FUNCTION public.e2e_cleanup_canonical_orders(uuid[], uuid[]) TO service_role',
 ]);
 requireAll('receipt access scoping', migration, [
   'public.has_guest_sales_order_session_path(split_part(name, \'/\', 2))',

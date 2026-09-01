@@ -128,22 +128,12 @@ export async function cleanupCanonical(input: {
   if (input.deliveryProofPaths?.length) {
     await service.storage.from('delivery-proof').remove(input.deliveryProofPaths);
   }
-  if (uniqueOrders.length) {
-    const notifications = await service.from('notifications').select('id').in('sales_order_id', uniqueOrders);
-    const notificationIds = (notifications.data ?? []).map((row) => row.id);
-    if (notificationIds.length) {
-      await service.from('web_push_delivery_jobs').delete().in('notification_id', notificationIds);
-      await service.from('transactional_email_jobs').delete().in('notification_id', notificationIds);
-    }
-    await service.from('canonical_delivery_proofs').delete().in('sales_order_id', uniqueOrders);
-    await service.from('canonical_sales_order_deliveries').delete().in('sales_order_id', uniqueOrders);
-    await service.from('canonical_supplier_delivery_batch_orders').delete().in('sales_order_id', uniqueOrders);
-    await service.from('notifications').delete().in('sales_order_id', uniqueOrders);
-    const deleted = await service.from('sales_orders').delete().in('id', uniqueOrders);
-    if (deleted.error) throw new Error(`canonical order cleanup failed: ${deleted.error.message}`);
-  }
-  if (uniqueBatches.length) {
-    await service.from('canonical_supplier_delivery_batches').delete().in('id', uniqueBatches);
+  if (uniqueOrders.length || uniqueBatches.length) {
+    const cleaned = await service.rpc('e2e_cleanup_canonical_orders', {
+      p_order_ids: uniqueOrders,
+      p_batch_ids: uniqueBatches,
+    });
+    if (cleaned.error) throw new Error(`canonical order cleanup failed: ${cleaned.error.message}`);
   }
   if (input.pushSubscriptionIds?.length) {
     await service.from('push_subscriptions').delete().in('id', input.pushSubscriptionIds);
