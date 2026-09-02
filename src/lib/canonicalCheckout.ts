@@ -1,6 +1,7 @@
 import type { CartItem, CustomerDetails, DeliveryDay } from '../types';
 import type { PreparationAnswers, PreparationTarget } from './checkoutPreparation';
 import { canonicalCheckoutItems, type CanonicalCheckoutItem } from './canonicalCheckoutItems';
+import { nextBulkDeliveryDate } from './deliverySlots';
 import { supabase } from './supabase';
 
 export type CanonicalDeliveryMethod = 'normal_bulk' | 'instant_customer_lalamove';
@@ -56,31 +57,8 @@ type PlaceOrderRpc = (
   error: { message: string } | null;
 }>;
 
-const weekdayNumbers: Record<string, number> = {
-  sunday: 0,
-  monday: 1,
-  tuesday: 2,
-  wednesday: 3,
-  thursday: 4,
-  friday: 5,
-  saturday: 6,
-};
-
-function localDate(date: Date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-export function nextCanonicalDeliveryDate(day: DeliveryDay): string {
-  const date = new Date();
-  const target = weekdayNumbers[day.toLowerCase()];
-  if (target === undefined) throw new Error(`Unsupported delivery day: ${day}`);
-  let offset = target - date.getDay();
-  if (offset < 0) offset += 7;
-  date.setDate(date.getDate() + offset);
-  return localDate(date);
+export function nextCanonicalDeliveryDate(day: DeliveryDay, now = new Date()): string {
+  return nextBulkDeliveryDate(day, now);
 }
 
 function zoneCodeFromDeliveryPoint(value: string): string | undefined {

@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Truck } from 'lucide-react';
 import { useDeliveryConfig } from '../../context/DeliveryConfigContext';
 import { useLanguage } from '../../context/LanguageContext';
@@ -8,11 +9,18 @@ export default function AnnouncementBar() {
   const { config, loading } = useDeliveryConfig();
   const { t, language } = useLanguage();
   const location = useLocation();
-  const nextSlot = getUpcomingDeliverySlots(config.days)[0];
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const nextSlot = getUpcomingDeliverySlots(config.days, now)[0];
   const landingAnnouncement = nextSlot
     ? t('homepage.announcement.nextDelivery', {
         day: t(`days.${nextSlot.day.toLowerCase()}`),
-        date: nextSlot.date.toLocaleDateString(language === 'ms' ? 'ms-MY' : 'en-MY', { day: 'numeric', month: 'short' }),
+        date: nextSlot.date.toLocaleDateString(language === 'ms' ? 'ms-MY' : 'en-MY', { day: 'numeric', month: 'short', timeZone: 'Asia/Kuala_Lumpur' }),
         time: config.time,
       })
     : config.announcement;

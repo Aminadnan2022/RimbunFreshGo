@@ -17,7 +17,7 @@ import ProductImage from '../components/ui/ProductImage';
 import ProductCard from '../components/ui/ProductCard';
 import ComboCard from '../components/combo/ComboCard';
 import GuestLandingExperience from '../components/home/GuestLandingExperience';
-import { getUpcomingDeliverySlots } from '../lib/deliverySlots';
+import DeliveryTimingBadge from '../components/home/DeliveryTimingBadge';
 
 const categories = [
   {
@@ -55,7 +55,7 @@ export default function HomePage() {
   const { setDeliveryDay } = useCart();
   const { user } = useAuth();
   const { config } = useDeliveryConfig();
-  const { t, language } = useLanguage();
+  const { t } = useLanguage();
   const { settings } = useWebsiteSettings();
   const { products, loading: productsLoading, error: productsError } = useProducts();
   const [combos, setCombos] = useState<ComboWithItems[]>([]);
@@ -82,16 +82,7 @@ export default function HomePage() {
     })();
   }, []);
 
-  const tDays = config.days.map((d) => t("days." + d.toLowerCase())).join(' & ');
   const daysShort = config.days.map((d) => t("days." + d.toLowerCase()).slice(0, 3)).join(' & ');
-  const nextSlot = getUpcomingDeliverySlots(config.days)[0];
-  const heroBadge = nextSlot
-    ? t('homepage.hero.nextDelivery', {
-        day: t(`days.${nextSlot.day.toLowerCase()}`),
-        date: nextSlot.date.toLocaleDateString(language === 'ms' ? 'ms-MY' : 'en-MY', { day: 'numeric', month: 'short' }),
-        time: config.time,
-      })
-    : t("homepage.hero.badge", { days: tDays });
 
   const trustIndicators = [
     {
@@ -126,7 +117,7 @@ export default function HomePage() {
       {/* Hero — only shown when signed out */}
       {!user && (
         <GuestLandingExperience
-          badge={heroBadge}
+          badge={<DeliveryTimingBadge />}
           showShop={isPageEnabled(settings, 'shop')}
           showCombos={isPageEnabled(settings, 'family_combo')}
           deliverySelector={isHomepageSectionEnabled(settings, 'delivery_schedule') ? (

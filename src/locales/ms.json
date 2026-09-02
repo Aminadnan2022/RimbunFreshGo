@@ -486,6 +486,10 @@
     }
   },
   "delivery": {
+    "sameDayCutoff": "Pesan sebelum 3:00 petang untuk penghantaran hari ini ·",
+    "sameDayCutoffLabel": "Pesanan penghantaran hari sama ditutup pada 3:00 petang waktu Malaysia",
+    "cutoffPassed": "Waktu tutup 3:00 petang hari ini telah berlalu. Penghantaran pukal seterusnya: {{date}}.",
+    "today": "Hari ini",
     "deliveryDate": "Tarikh Penghantaran",
     "slot": "Slot Penghantaran",
     "slotLabel": "Slot Penghantaran",

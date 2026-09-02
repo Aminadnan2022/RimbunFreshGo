@@ -486,6 +486,10 @@
     }
   },
   "delivery": {
+    "sameDayCutoff": "Order before 3:00 PM for delivery today ·",
+    "sameDayCutoffLabel": "Same-day delivery ordering closes at 3:00 PM Malaysia time",
+    "cutoffPassed": "Today's 3:00 PM cutoff has passed. Next bulk delivery: {{date}}.",
+    "today": "Today",
     "deliveryDate": "Delivery Date",
     "slot": "Delivery Slot",
     "slotLabel": "Delivery Slot",
