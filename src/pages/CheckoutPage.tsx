@@ -72,7 +72,7 @@ export default function CheckoutPage() {
   const isGuestCheckout = !user || user.is_anonymous === true;
   const guestCaptchaPending = guestCaptchaConfigured && !user && !guestIdentityReady;
   const selectedPoint = points.find((p) => p.name === details.deliveryPointName);
-  const bulkPoints = points.filter((point) => isBulkDeliveryPointEligible(point.name));
+  const bulkPoints = points.filter((point) => isBulkDeliveryPointEligible(`${point.name} ${point.area ?? ''}`));
   const isExternalDelivery = deliveryMethod === 'instant_customer_lalamove';
   const fee = isExternalDelivery ? 0 : BULK_DELIVERY_FEE;
   const total = subtotal + fee;
@@ -81,7 +81,23 @@ export default function CheckoutPage() {
     : deliveryDay ? nextBulkDeliveryDate(deliveryDay) : '';
   const input = (e?: string) => `w-full bg-cream-50 border rounded-2xl px-4 py-3 text-sm ${e ? 'border-red-300 bg-red-50' : 'border-cream-300'}`;
   const priceFinalAtCheckout = isPriceFinalAtCheckout(cart.items);
-  useEffect(() => { fetchActiveDeliveryPoints().then(setPoints).catch(() => {}); }, []);
+  useEffect(() => {
+    const fallbackPoints: DeliveryPoint[] = config.pickupLocations.map((name, index) => ({
+      id: -(index + 1),
+      name,
+      area: null,
+      delivery_fee: BULK_DELIVERY_FEE,
+      delivery_method: 'Customer Come Down',
+      display_order: index + 1,
+      active: true,
+      pickup_notes: null,
+      latitude: null,
+      longitude: null,
+    }));
+    fetchActiveDeliveryPoints()
+      .then((activePoints) => setPoints(activePoints.length > 0 ? activePoints : fallbackPoints))
+      .catch(() => setPoints(fallbackPoints));
+  }, [config.pickupLocations]);
   useEffect(() => {
     if (authLoading) return;
     if (!user || user.is_anonymous === true) { setConsentChecking(false); return; }
@@ -657,7 +673,7 @@ const Preparation = () => (
         <Field label={t('checkout.deliveryPoint')} required error={errors.deliveryPointName}>
           <select className={input(errors.deliveryPointName)} value={details.deliveryPointName} onChange={(event) => setPoint(event.target.value)}>
             <option value="">{t('checkout.selectDeliveryPoint')}</option>
-            {bulkPoints.map((point) => <option key={point.id} value={point.name}>{point.name}</option>)}
+            {bulkPoints.map((point) => <option key={point.id} value={point.name}>{point.name}{point.area && !point.name.toLowerCase().includes(point.area.toLowerCase().replace('residensi ', '')) ? ` · ${point.area}` : ''}</option>)}
           </select>
         </Field>
         {selectedPoint?.pickup_notes && <div className="flex gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"><Info size={16} className="mt-0.5 shrink-0"/><span>{selectedPoint.pickup_notes}</span></div>}
