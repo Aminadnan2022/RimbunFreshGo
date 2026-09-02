@@ -44,6 +44,8 @@ for (const token of [
   'p_expected_payment_configuration_version_id', 'weighedOrderInstructions',
   'stage_checkout_payment_receipt', 'payment.uploadPaymentReceipt',
   '!stagedReceipt', 'disabled:bg-gray-300',
+  'if (isGuestCheckout) await ensureGuestAuthIdentity()',
+  'if (guestCaptchaPending)',
 ]) if (!checkout.includes(token)) failures.push(`missing checkout payment behavior: ${token}`);
 
 for (const token of [
