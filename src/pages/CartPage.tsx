@@ -212,6 +212,7 @@ export default function CartPage() {
               <Clock size={16} className="text-forest-600" />
               <h3 className="font-semibold text-charcoal">{t("delivery.slot")}</h3>
             </div>
+            <p className="mb-3 text-xs leading-5 text-gray-600">{t('delivery.policySummary')}</p>
             <DeliverySlotSelector
               selected={cart.deliveryDay}
               onChange={(day: DeliveryDay) => setDeliveryDay(day)}

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { formatCountdown, getBulkDeliveryCutoffStatus, getUpcomingDeliverySlots, nextBulkDeliveryDate } from '../src/lib/deliverySlots.ts';
+import { formatCountdown, getBulkDeliveryCutoffStatus, getUpcomingDeliverySlots, isBulkDeliveryDate, isDeliveryDateAllowed, nextBulkDeliveryDate } from '../src/lib/deliverySlots.ts';
 
 const at = (iso: string) => new Date(iso);
 const cases = [
@@ -30,5 +30,14 @@ assert.equal(getBulkDeliveryCutoffStatus(utcPreviousDay).isBeforeCutoff, true);
 const oneSecondLeft = getBulkDeliveryCutoffStatus(at('2026-09-02T14:59:59+08:00'));
 assert.equal(oneSecondLeft.millisecondsRemaining, 1000);
 assert.equal(formatCountdown(oneSecondLeft.millisecondsRemaining), '00:00:01');
+
+for (const date of ['2026-09-06', '2026-09-08', '2026-09-09', '2026-09-10', '2026-09-11', '2026-09-12']) {
+  assert.equal(isDeliveryDateAllowed(date), true, `${date} should allow delivery`);
+}
+assert.equal(isDeliveryDateAllowed('2026-09-07'), false, 'Monday must be closed');
+assert.equal(isDeliveryDateAllowed('not-a-date'), false);
+assert.equal(isBulkDeliveryDate('2026-09-09'), true);
+assert.equal(isBulkDeliveryDate('2026-09-11'), true);
+assert.equal(isBulkDeliveryDate('2026-09-12'), false);
 
 console.log('Malaysia bulk-delivery cutoff checks passed');

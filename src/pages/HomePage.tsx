@@ -123,6 +123,7 @@ export default function HomePage() {
           deliverySelector={isHomepageSectionEnabled(settings, 'delivery_schedule') ? (
             <div className="mt-8 max-w-md rounded-3xl border border-white/80 bg-white/70 p-5 shadow-soft backdrop-blur-md">
               <p className="mb-3 text-sm font-semibold text-forest-950">{t("homepage.hero.chooseSlot")}</p>
+              <p className="mb-3 text-xs leading-5 text-gray-600">{t('homepage.hero.deliveryPolicy')}</p>
               <DeliverySlotSelector selected={selectedDay} onChange={handleDaySelect} />
               {selectedDay && (
                 <p className="mt-3 text-xs font-medium text-forest-700">
