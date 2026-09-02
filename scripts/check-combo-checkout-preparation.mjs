@@ -48,10 +48,14 @@ for (const token of [
   'const lineTargets = targets.filter((target) => target.lineKey === `line-${lineIndex}`)',
   'Array.from({ length: item.quantity }, (_, comboIndex)',
   '{comboLabel} #{comboIndex + 1}',
+  "target.questionnaire.questions.filter((q) => q.selection_scope === 'line').map((q)",
   'const answerUnit = comboIndex * unitsPerCombo + componentUnit',
   'const destination = answerKey(target, comboIndex * unitsPerCombo + componentUnit)',
 ]) {
   if (!checkoutPage.includes(token)) failures.push(`per-combo preparation layout is missing ${token}`);
+}
+if (checkoutPage.includes("comboIndex === 0 && target.questionnaire.questions.filter((q) => q.selection_scope === 'line')")) {
+  failures.push('line-scoped combo preparation is still hidden after the first combo card');
 }
 
 // Supplier/order answers use the selected projected component number directly;

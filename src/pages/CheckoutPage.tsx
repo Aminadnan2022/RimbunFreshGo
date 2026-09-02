@@ -445,7 +445,7 @@ const Preparation = () => (
                     return (
                       <div key={`${comboIndex}-${componentNumber}-${target.key}`} className="border-t border-cream-200 pt-4 space-y-4 first:border-t-0 first:pt-0">
                         <h5 className="font-medium text-gray-900">{component.name}</h5>
-                        {comboIndex === 0 && target.questionnaire.questions.filter((q) => q.selection_scope === 'line').map((q) => (
+                        {target.questionnaire.questions.filter((q) => q.selection_scope === 'line').map((q) => (
                           <Question key={q.code} target={target} unit={null} question={q}/>
                         ))}
                         {Array.from({ length: unitsPerCombo }, (_, componentUnit) => {
