@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 const checkout = readFileSync(new URL('../src/pages/CheckoutPage.tsx', import.meta.url), 'utf8');
 const migration = readFileSync(new URL('../supabase/migrations/20261205000000_delivery_schedule_policy.sql', import.meta.url), 'utf8');
 const canonical = readFileSync(new URL('../src/lib/canonicalCheckout.ts', import.meta.url), 'utf8');
+const selector = readFileSync(new URL('../src/components/ui/DeliverySlotSelector.tsx', import.meta.url), 'utf8');
 
 for (const marker of [
   'bulkDeliveryTitle',
@@ -11,7 +12,16 @@ for (const marker of [
   'externalCourierFeePending',
   'fullDeliveryAddress',
   'isDeliveryDateAllowed',
+  'selectedDate={instantDate}',
+  'scope="bulk"',
+  'scope="external"',
 ]) assert.ok(checkout.includes(marker), `Checkout missing ${marker}`);
+
+for (const marker of [
+  'getUpcomingCustomerDeliverySlots',
+  'communityOrCourierSlot',
+  'courierSlot',
+]) assert.ok(selector.includes(marker), `Delivery selector missing ${marker}`);
 
 for (const marker of [
   'ARRAY[0, 2, 3, 4, 5, 6]',

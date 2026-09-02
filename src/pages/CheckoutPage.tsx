@@ -23,7 +23,7 @@ import { createGuestAccessToken, ensureGuestAuthIdentity, guestOrderUrl, placeGu
 import { guestCaptchaConfigured } from '../lib/guestCheckout';
 import GuestCaptchaPanel from '../components/auth/GuestCaptchaPanel';
 import type { CustomerDetails, DeliveryDay } from '../types';
-import { BULK_DELIVERY_FEE, getMalaysiaDateString, isDeliveryDateAllowed, nextBulkDeliveryDate } from '../lib/deliverySlots';
+import { BULK_DELIVERY_FEE, getMalaysiaDateString, isDeliveryDateAllowed, nextBulkDeliveryDate, nextCustomerDeliveryDate } from '../lib/deliverySlots';
 
 const RECEIPT_FILE_ACCEPT =
   'image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf';
@@ -51,8 +51,9 @@ export default function CheckoutPage() {
   const { cart, subtotal, clearCart } = useCart(); const { user, loading: authLoading } = useAuth(); const { config } = useDeliveryConfig(); const { t, language } = useLanguage(); const { settings } = useWebsiteSettings(); const navigate = useNavigate();
   const [consentChecking, setConsentChecking] = useState(true);
   const [guestIdentityReady, setGuestIdentityReady] = useState(false);
+  const cartDayIsBulk = cart.deliveryDay ? ['wednesday', 'friday'].includes(cart.deliveryDay.toLowerCase()) : false;
   const [details, setDetails] = useState(blank); const [points, setPoints] = useState<DeliveryPoint[]>([]); const [deliveryDay, setDeliveryDay] = useState<DeliveryDay | null>(cart.deliveryDay); const [errors, setErrors] = useState<Record<string, string>>({});
-  const [deliveryMethod, setDeliveryMethod] = useState<CanonicalDeliveryMethod>('normal_bulk'); const [instantDate, setInstantDate] = useState(''); const [instantTime, setInstantTime] = useState('');
+  const [deliveryMethod, setDeliveryMethod] = useState<CanonicalDeliveryMethod>(cart.deliveryDay && !cartDayIsBulk ? 'instant_customer_lalamove' : 'normal_bulk'); const [instantDate, setInstantDate] = useState(() => cart.deliveryDay && !cartDayIsBulk ? nextCustomerDeliveryDate(cart.deliveryDay) : ''); const [instantTime, setInstantTime] = useState('');
   const [step, setStep] = useState<'details' | 'preparation' | 'review' | 'payment'>('details'); const [targets, setTargets] = useState<PreparationTarget[]>([]); const [answers, setAnswers] = useState<PreparationAnswers>({}); const [prepLoading, setPrepLoading] = useState(true); const [prepError, setPrepError] = useState<string | null>(null); const [prepLoadFailures, setPrepLoadFailures] = useState<PreparationLoadFailure[]>([]); const [placing, setPlacing] = useState(false); const [placeError, setPlaceError] = useState<string | null>(null);
   const [paymentPreview, setPaymentPreview] = useState<CheckoutPaymentPreview | null>(null); const [paymentPreviewLoading, setPaymentPreviewLoading] = useState(false); const [paymentPreviewError, setPaymentPreviewError] = useState<string | null>(null);
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
@@ -144,10 +145,10 @@ useEffect(() => {
       profile?.last_delivery_method ||
       previousDeliveryMethod;
 
-    if (
+    if (!cart.deliveryDay && (
       savedDeliveryMethod === 'normal_bulk' ||
       savedDeliveryMethod === 'instant_customer_lalamove'
-    ) {
+    )) {
       setDeliveryMethod(savedDeliveryMethod);
     }
 
@@ -186,7 +187,7 @@ useEffect(() => {
   return () => {
     cancelled = true;
   };
-}, [user]);
+}, [user, cart.deliveryDay]);
 
 useEffect(() => {
   let mounted = true;
@@ -640,12 +641,12 @@ const Preparation = () => (
         <legend className="mb-2 block text-sm font-semibold text-gray-700">{t('checkout.deliveryMethodTitle')} *</legend>
         <div className="grid gap-3 sm:grid-cols-2">
           <label className={`cursor-pointer rounded-2xl border-2 p-4 transition-colors ${!isExternalDelivery ? 'border-forest-700 bg-forest-50' : 'border-cream-300 bg-white'}`}>
-            <input type="radio" name="delivery-method" value="normal_bulk" checked={!isExternalDelivery} onChange={() => { setDeliveryMethod('normal_bulk'); setErrors((current) => ({ ...current, apartment: '', deliveryDay: '', deliveryTime: '' })); }} className="sr-only" />
+            <input type="radio" name="delivery-method" value="normal_bulk" checked={!isExternalDelivery} onChange={() => { setDeliveryMethod('normal_bulk'); if (deliveryDay && !['wednesday', 'friday'].includes(deliveryDay.toLowerCase())) setDeliveryDay(null); setErrors((current) => ({ ...current, apartment: '', deliveryDay: '', deliveryTime: '' })); }} className="sr-only" />
             <span className="block text-sm font-bold text-forest-900">{t('checkout.bulkDeliveryTitle')}</span>
             <span className="mt-1 block text-xs leading-5 text-gray-600">{t('checkout.bulkDeliveryDescription')}</span>
           </label>
           <label className={`cursor-pointer rounded-2xl border-2 p-4 transition-colors ${isExternalDelivery ? 'border-forest-700 bg-forest-50' : 'border-cream-300 bg-white'}`}>
-            <input type="radio" name="delivery-method" value="instant_customer_lalamove" checked={isExternalDelivery} onChange={() => { setDeliveryMethod('instant_customer_lalamove'); setErrors((current) => ({ ...current, deliveryPointName: '', deliveryDay: '' })); }} className="sr-only" />
+            <input type="radio" name="delivery-method" value="instant_customer_lalamove" checked={isExternalDelivery} onChange={() => { setDeliveryMethod('instant_customer_lalamove'); if (!instantDate && deliveryDay) setInstantDate(nextCustomerDeliveryDate(deliveryDay)); setErrors((current) => ({ ...current, deliveryPointName: '', deliveryDay: '' })); }} className="sr-only" />
             <span className="block text-sm font-bold text-forest-900">{t('checkout.externalDeliveryTitle')}</span>
             <span className="mt-1 block text-xs leading-5 text-gray-600">{t('checkout.externalDeliveryDescription')}</span>
           </label>
@@ -662,7 +663,7 @@ const Preparation = () => (
         {selectedPoint?.pickup_notes && <div className="flex gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900"><Info size={16} className="mt-0.5 shrink-0"/><span>{selectedPoint.pickup_notes}</span></div>}
         <div>
           <p className="mb-2 text-sm font-semibold">{t('delivery.deliveryDay')} *</p>
-          <DeliverySlotSelector selected={deliveryDay} onChange={setDeliveryDay}/>
+          <DeliverySlotSelector selected={deliveryDay} onChange={setDeliveryDay} scope="bulk"/>
           {errors.deliveryDay && <p className="mt-1 text-xs text-red-500">{errors.deliveryDay}</p>}
         </div>
       </> : <>
@@ -670,9 +671,16 @@ const Preparation = () => (
           <textarea className={input(errors.apartment)} value={details.apartment} onChange={setField('apartment')} rows={3} autoComplete="street-address" placeholder={t('checkout.fullDeliveryAddressPlaceholder')} />
         </Field>
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900">{t('checkout.externalCourierNotice')}</div>
-        <Field label={t('checkout.requestedDeliveryDate')} required error={errors.deliveryDay}>
-          <input className={input(errors.deliveryDay)} type="date" min={getMalaysiaDateString()} value={instantDate} onChange={(event) => { setInstantDate(event.target.value); setErrors((current) => ({ ...current, deliveryDay: '' })); }} />
-        </Field>
+        <div>
+          <p className="mb-2 text-sm font-semibold">{t('checkout.requestedDeliveryDate')} *</p>
+          <DeliverySlotSelector
+            selected={deliveryDay}
+            selectedDate={instantDate}
+            scope="external"
+            onChange={(day, localDate) => { setDeliveryDay(day); setInstantDate(localDate); setErrors((current) => ({ ...current, deliveryDay: '' })); }}
+          />
+          {errors.deliveryDay && <p className="mt-1 text-xs text-red-500">{errors.deliveryDay}</p>}
+        </div>
         <p className="-mt-3 text-xs text-gray-500">{t('checkout.mondayClosed')}</p>
         <Field label={t('checkout.requestedDeliveryTime')} required error={errors.deliveryTime}>
           <input className={input(errors.deliveryTime)} type="time" min="09:00" max="16:00" value={instantTime} onChange={(event) => { setInstantTime(event.target.value); setErrors((current) => ({ ...current, deliveryTime: '' })); }} />

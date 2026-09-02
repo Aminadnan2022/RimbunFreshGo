@@ -59,13 +59,10 @@ export default function FooterContent({
   t: TFunc;
 }) {
   const { language } = useLanguage();
-  const translatedDays = delivery.days.map((day) => t(`days.${day.toLowerCase()}`));
-  const daysText = translatedDays.length > 1
-    ? `${translatedDays.slice(0, -1).join(', ')} & ${translatedDays[translatedDays.length - 1]}`
-    : translatedDays[0] ?? '';
+  const daysText = t('footer.deliveryDays');
 
-  const descriptionSource = language === 'ms' && footer.footer_description.startsWith('Freshly prepared daily proteins')
-    ? 'Protein segar disediakan setiap hari dan dihantar ke pintu anda setiap {{days}}. Tidak dibekukan. Sentiasa tempatan.'
+  const descriptionSource = footer.footer_description.startsWith('Freshly prepared daily proteins')
+    ? t('footer.deliveryPolicyDescription')
     : footer.footer_description;
   const description = descriptionSource.replace(/\{\{days\}\}/g, daysText);
   const copyright = footer.copyright_text.replace(/\{\{year\}\}/g, String(new Date().getFullYear()));
@@ -189,7 +186,7 @@ export default function FooterContent({
               <div className="mt-5 p-3 bg-forest-900 rounded-2xl">
                 <p className="text-xs font-semibold text-jade-400 mb-1">{t('footer.deliverySchedule')}</p>
                 <p className="text-xs text-forest-300">{daysText}</p>
-                <p className="text-xs text-forest-300">{delivery.time}</p>
+                <p className="text-xs text-forest-300">{t('footer.deliveryOptions')}</p>
               </div>
             )}
           </div>

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { formatCountdown, getBulkDeliveryCutoffStatus, getUpcomingDeliverySlots, isBulkDeliveryDate, isDeliveryDateAllowed, nextBulkDeliveryDate } from '../src/lib/deliverySlots.ts';
+import { formatCountdown, getBulkDeliveryCutoffStatus, getUpcomingCustomerDeliverySlots, getUpcomingDeliverySlots, isBulkDeliveryDate, isDeliveryDateAllowed, nextBulkDeliveryDate, nextCustomerDeliveryDate } from '../src/lib/deliverySlots.ts';
 
 const at = (iso: string) => new Date(iso);
 const cases = [
@@ -22,6 +22,19 @@ assert.equal(getBulkDeliveryCutoffStatus(monday).isBulkDeliveryDay, false);
 assert.equal(getBulkDeliveryCutoffStatus(monday).isBeforeCutoff, false);
 assert.equal(getUpcomingDeliverySlots(['Wednesday', 'Friday'], monday)[0].localDate, '2026-09-09');
 assert.equal(getUpcomingDeliverySlots(['Monday'], monday)[0].localDate, '2026-09-14', 'non-bulk days keep the original next-week behavior');
+assert.deepEqual(
+  getUpcomingCustomerDeliverySlots(monday).map((slot) => slot.localDate),
+  ['2026-09-08', '2026-09-09', '2026-09-10', '2026-09-11', '2026-09-12', '2026-09-13'],
+  'customer selector must show Tuesday–Sunday and skip Monday',
+);
+
+const wednesdayAfterCutoff = at('2026-09-02T15:00:01+08:00');
+assert.equal(
+  getUpcomingCustomerDeliverySlots(wednesdayAfterCutoff)[0].localDate,
+  '2026-09-02',
+  'Wednesday remains selectable for courier after the RM2 cutoff',
+);
+assert.equal(nextCustomerDeliveryDate('Sunday', monday), '2026-09-13');
 
 const utcPreviousDay = at('2026-09-01T18:30:00Z');
 assert.equal(nextBulkDeliveryDate('Wednesday', utcPreviousDay), '2026-09-02', 'Malaysia date must win over UTC date');

@@ -5,7 +5,6 @@ import type { ComboWithItems, Product } from '../../types';
 import { buildComboCartItem } from '../../data/combos';
 import { useCart } from '../../context/CartContext';
 import { useLanguage } from '../../context/LanguageContext';
-import { useDeliveryConfig } from '../../context/DeliveryConfigContext';
 import ProductImage from '../ui/ProductImage';
 import { formatCurrency } from '../../lib/currency';
 
@@ -26,7 +25,6 @@ export default function ComboCard({ comboWithItems, products, hideDescription = 
   const { addItem } = useCart();
   const navigate = useNavigate();
   const { t } = useLanguage();
-  const { config } = useDeliveryConfig();
   const [added, setAdded] = useState(false);
 
   const combo = comboWithItems.combo;
@@ -55,7 +53,6 @@ export default function ComboCard({ comboWithItems, products, hideDescription = 
 
   const badgeClass = BADGE_STYLES[combo.badge] ?? 'bg-forest-700 text-white';
   const badgeLabel = combo.badge === 'Best Value' ? t('homepage.combo.badge') : combo.badge;
-  const daysShort = config.days.map((d) => t('days.' + d.toLowerCase()).slice(0, 3)).join(' · ');
 
   return (
     <article className="card card-hover flex flex-col h-full">
@@ -130,7 +127,7 @@ export default function ComboCard({ comboWithItems, products, hideDescription = 
             <Users size={13} /> {t("comboList.feedsLabel", { count: combo.servings })}
           </span>
           <span className="inline-flex items-center gap-1">
-            <Clock size={13} /> {t("comboList.deliveryBadge", { days: daysShort })}
+            <Clock size={13} /> {t("comboList.deliveryBadge")}
           </span>
         </div>
 
