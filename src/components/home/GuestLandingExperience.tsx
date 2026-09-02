@@ -48,7 +48,7 @@ function LightweightHeroVisual() {
 }
 
 interface GuestLandingExperienceProps {
-  badge: string;
+  badge: ReactNode;
   deliverySelector?: ReactNode;
   showShop: boolean;
   showCombos: boolean;
