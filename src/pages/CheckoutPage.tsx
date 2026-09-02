@@ -436,19 +436,23 @@ const Preparation = () => (
               {Array.from({ length: item.quantity }, (_, comboIndex) => (
                 <div key={comboIndex} className="rounded-2xl border border-cream-200 bg-cream-50/60 p-4 space-y-5">
                   <h4 className="font-semibold text-gray-900">{comboLabel} #{comboIndex + 1}</h4>
-                  {lineTargets.map((target) => {
+                  {item.comboItems!.map((component, componentIndex) => {
+                    const componentNumber = componentIndex + 1;
+                    const target = lineTargets.find((candidate) => candidate.componentNumber === componentNumber);
+                    if (!target) return null;
+
                     const unitsPerCombo = target.unitsPerCombo ?? 1;
                     return (
-                      <div key={target.key} className="border-t border-cream-200 pt-4 space-y-4 first:border-t-0 first:pt-0">
-                        <h5 className="font-medium text-gray-900">{target.name}</h5>
+                      <div key={`${comboIndex}-${componentNumber}-${target.key}`} className="border-t border-cream-200 pt-4 space-y-4 first:border-t-0 first:pt-0">
+                        <h5 className="font-medium text-gray-900">{component.name}</h5>
                         {comboIndex === 0 && target.questionnaire.questions.filter((q) => q.selection_scope === 'line').map((q) => (
                           <Question key={q.code} target={target} unit={null} question={q}/>
                         ))}
                         {Array.from({ length: unitsPerCombo }, (_, componentUnit) => {
                           const answerUnit = comboIndex * unitsPerCombo + componentUnit;
                           return (
-                            <div key={componentUnit} className="space-y-4">
-                              {unitsPerCombo > 1 && <p className="text-sm font-medium text-gray-700">{target.name} #{componentUnit + 1}</p>}
+                            <div key={`${comboIndex}-${componentNumber}-${componentUnit}`} className="space-y-4">
+                              {unitsPerCombo > 1 && <p className="text-sm font-medium text-gray-700">{component.name} #{componentUnit + 1}</p>}
                               {target.questionnaire.questions.filter((q) => q.selection_scope === 'physical_unit').map((q) => (
                                 <Question key={q.code} target={target} unit={answerUnit} question={q}/>
                               ))}
