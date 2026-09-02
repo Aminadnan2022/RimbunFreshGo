@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { CheckCircle2, ExternalLink, Package, RefreshCw, Upload, Wallet } from 'lucide-react';
+import { CheckCircle2, Copy, ExternalLink, Mail, MessageCircle, Package, RefreshCw, Upload, Wallet } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { createBrowserUuid } from '../lib/browserUuid';
 import { formatCurrency } from '../lib/currency';
@@ -44,6 +44,14 @@ function readBootstrapToken(orderNumber: string): string | null {
   try { return sessionStorage.getItem(guestTokenStorageKey(orderNumber)); } catch { return null; }
 }
 
+function whatsappNumber(phone: string): string | null {
+  const digits = phone.replace(/\D/g, '');
+  if (!digits) return null;
+  if (digits.startsWith('60')) return digits;
+  if (digits.startsWith('0')) return `60${digits.slice(1)}`;
+  return `60${digits}`;
+}
+
 export default function GuestOrderTrackingPage() {
   const { orderNumber = '' } = useParams<{ orderNumber: string }>();
   const token = useRef<string | null>(null);
@@ -53,6 +61,7 @@ export default function GuestOrderTrackingPage() {
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [receiptMessage, setReceiptMessage] = useState<string | null>(null);
+  const [trackingLinkMessage, setTrackingLinkMessage] = useState<string | null>(null);
   const [proofUrls, setProofUrls] = useState<{ type: string; url: string }[]>([]);
   const [captchaNeeded, setCaptchaNeeded] = useState(false);
 
@@ -136,6 +145,15 @@ export default function GuestOrderTrackingPage() {
     } finally { setUploading(false); }
   };
 
+  const copyTrackingLink = async (privateTrackingLink: string) => {
+    try {
+      await navigator.clipboard.writeText(privateTrackingLink);
+      setTrackingLinkMessage('Private tracking link copied. Save it somewhere safe.');
+    } catch {
+      setTrackingLinkMessage('Could not copy the link automatically. Use WhatsApp or email to save it.');
+    }
+  };
+
   if (loading) return <main className="mx-auto max-w-3xl px-4 py-20 text-center"><div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-2 border-forest-200 border-t-forest-700"/><p>Securely opening your order…</p></main>;
   if (captchaNeeded) return <main className="mx-auto max-w-xl px-4 py-20"><h1 className="section-title text-center">Open your private order</h1><p className="mb-5 mt-3 text-center text-gray-600">Complete the security check to continue.</p><GuestCaptchaPanel onVerified={() => { setCaptchaNeeded(false); void load(); }}/></main>;
   if (error || !order) return <main className="mx-auto max-w-xl px-4 py-20 text-center"><Package className="mx-auto mb-4 text-gray-400" size={42}/><h1 className="section-title">Private order link required</h1><p className="mt-3 text-gray-600">{error}</p><Link to="/" className="btn-primary mt-6 inline-flex">Back to FreshGo</Link></main>;
@@ -145,11 +163,34 @@ export default function GuestOrderTrackingPage() {
   const qrUrl = order.payment?.qrStoragePath
     ? supabase.storage.from('payment-qr').getPublicUrl(order.payment.qrStoragePath).data.publicUrl : null;
   const stages = ['Order received', 'Payment confirmed', 'Preparing', 'Supplier dispatch', 'At FreshGo hub', 'Out for delivery', 'Delivered'];
+  const privateTrackingLink = token.current
+    ? `${window.location.origin}${window.location.pathname}#token=${encodeURIComponent(token.current)}`
+    : null;
+  const trackingMessage = privateTrackingLink
+    ? `FreshGo order ${order.orderNumber}\n\nUse this private link to return to payment and delivery tracking:\n${privateTrackingLink}`
+    : null;
+  const customerWhatsApp = whatsappNumber(order.customer.phone);
+  const whatsappHref = trackingMessage && customerWhatsApp
+    ? `https://wa.me/${customerWhatsApp}?text=${encodeURIComponent(trackingMessage)}`
+    : null;
+  const emailHref = trackingMessage && order.customer.email
+    ? `mailto:${encodeURIComponent(order.customer.email)}?subject=${encodeURIComponent(`FreshGo order ${order.orderNumber}`)}&body=${encodeURIComponent(trackingMessage)}`
+    : null;
 
   return <main className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6">
     <div className="gradient-forest rounded-3xl p-6 text-center text-white sm:p-8">
       <CheckCircle2 className="mx-auto mb-3" size={34}/><h1 className="text-2xl font-bold">Your FreshGo order</h1>
       <p className="mt-2 font-mono font-bold">{order.orderNumber}</p><p className="mt-1 text-sm text-forest-100">Keep this private link to return to payment and tracking.</p>
+      {privateTrackingLink && <div className="mx-auto mt-5 max-w-xl rounded-2xl border border-white/25 bg-white/10 p-4 text-left">
+        <p className="text-sm font-semibold">Save your private tracking link</p>
+        <p className="mt-1 text-sm text-forest-100">Use it to return to this order from any device. Do not share it publicly.</p>
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button type="button" onClick={() => void copyTrackingLink(privateTrackingLink)} className="inline-flex items-center gap-2 rounded-xl bg-white px-3 py-2 text-sm font-semibold text-forest-800 transition hover:bg-forest-50 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-forest-700"><Copy size={15}/>Copy private link</button>
+          {whatsappHref && <a href={whatsappHref} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl border border-white/40 px-3 py-2 text-sm font-semibold text-white transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-forest-700"><MessageCircle size={15}/>Send via WhatsApp</a>}
+          {emailHref && <a href={emailHref} className="inline-flex items-center gap-2 rounded-xl border border-white/40 px-3 py-2 text-sm font-semibold text-white transition hover:bg-white/10 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-forest-700"><Mail size={15}/>Email link</a>}
+        </div>
+        {trackingLinkMessage && <p role="status" className="mt-3 text-sm text-forest-100">{trackingLinkMessage}</p>}
+      </div>}
     </div>
 
     <section className="card mt-6 p-5 sm:p-7"><div className="flex items-center justify-between gap-3"><h2 className="font-semibold">Order progress</h2><button onClick={() => void load()} className="btn-secondary inline-flex items-center gap-2 px-3 py-2"><RefreshCw size={15}/>Refresh</button></div>
