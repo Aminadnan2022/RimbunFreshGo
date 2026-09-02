@@ -21,6 +21,10 @@
     font-family: 'Inter', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
   }
+  :where(a, button, input, select, textarea):focus-visible {
+    outline: 2px solid #196848;
+    outline-offset: 3px;
+  }
 }
 
 @layer components {
@@ -79,6 +83,70 @@
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: #f5f1e8; }
 ::-webkit-scrollbar-thumb { background: #2ea36e; border-radius: 3px; }
+
+/* Guest landing experience */
+.freshgo-hero {
+  background:
+    radial-gradient(circle at 78% 28%, rgba(75, 214, 144, 0.18), transparent 31%),
+    linear-gradient(145deg, #fdfcf8 0%, #f2f7ef 48%, #e6f5ec 100%);
+}
+.freshgo-hero::after {
+  position: absolute;
+  inset: 0;
+  content: '';
+  pointer-events: none;
+  opacity: 0.32;
+  background-image: radial-gradient(rgba(19, 69, 48, 0.16) 0.7px, transparent 0.7px);
+  background-size: 18px 18px;
+  mask-image: linear-gradient(to bottom, black, transparent 82%);
+}
+.freshgo-hero-glow { position: absolute; border-radius: 999px; filter: blur(70px); pointer-events: none; }
+.freshgo-hero-glow-left { left: -10rem; top: 14rem; width: 24rem; height: 24rem; background: rgba(242, 190, 89, 0.14); }
+.freshgo-hero-glow-right { right: -8rem; top: -8rem; width: 34rem; height: 34rem; background: rgba(34, 197, 100, 0.16); }
+.freshgo-hero-visual { position: relative; z-index: 1; min-height: 32rem; height: min(66vw, 42rem); width: 100%; }
+.freshgo-webgl { position: absolute; inset: 0; z-index: 2; }
+.freshgo-orbit { position: absolute; left: 50%; top: 50%; border: 1px solid rgba(25, 104, 72, 0.13); border-radius: 50%; transform: translate(-50%, -50%) rotate(-12deg); }
+.freshgo-orbit-one { width: 82%; aspect-ratio: 1; }
+.freshgo-orbit-two { width: 60%; aspect-ratio: 1; transform: translate(-50%, -50%) rotate(22deg); }
+.freshgo-float-label { position: absolute; z-index: 3; border: 1px solid rgba(255,255,255,.85); border-radius: 999px; background: rgba(255,255,255,.7); padding: .55rem .8rem; color: #16533b; font-size: .72rem; font-weight: 700; box-shadow: 0 10px 30px rgba(10,42,30,.1); backdrop-filter: blur(12px); }
+.freshgo-label-market { left: 8%; bottom: 18%; transform: rotate(-5deg); }
+.freshgo-label-fresh { right: 5%; top: 22%; transform: rotate(6deg); }
+.freshgo-real-phone { position: absolute; z-index: 2; left: 50%; top: 50%; width: 13rem; height: 26rem; overflow: hidden; padding: .42rem; border: 3px solid #071b15; border-radius: 2.2rem; background: #071b15; box-shadow: 0 35px 70px rgba(10,42,30,.28); transform: translate(-50%, -50%) rotate(5deg); }
+.freshgo-real-phone img { width: 100%; height: 100%; border-radius: 1.65rem; object-fit: cover; object-position: top center; }
+.freshgo-real-speaker { position: absolute; z-index: 3; left: 50%; top: .75rem; width: 3rem; height: .3rem; border-radius: 999px; background: #071b15; transform: translateX(-50%); }
+.freshgo-real-phone-animated { animation: freshgoPhoneFloat 6s ease-in-out infinite; }
+.freshgo-real-product { position: absolute; z-index: 1; width: 9rem; aspect-ratio: 4 / 3; border-radius: 1.25rem; object-fit: cover; box-shadow: 0 18px 40px rgba(10,42,30,.16); opacity: .92; }
+.freshgo-real-fish { left: 3%; top: 20%; transform: rotate(-9deg); }
+.freshgo-real-prawn { right: 1%; top: 18%; transform: rotate(8deg); }
+.freshgo-real-chicken { right: 5%; bottom: 13%; transform: rotate(-7deg); }
+@keyframes freshgoPhoneFloat {
+  0%, 100% { transform: translate(-50%, -50%) rotate(5deg) translateY(0); }
+  50% { transform: translate(-50%, -50%) rotate(4deg) translateY(-8px); }
+}
+
+@media (max-width: 1023px) {
+  .freshgo-hero-visual { min-height: 22rem; height: 24rem; max-height: 28rem; }
+  .freshgo-real-phone { width: 10rem; height: 20rem; }
+  .freshgo-real-product { width: 7rem; }
+}
+@media (max-width: 640px) {
+  .freshgo-hero-visual { min-height: 15rem; height: 16rem; }
+  .freshgo-real-phone { width: 7.2rem; height: 14.4rem; border-width: 2px; border-radius: 1.35rem; padding: .25rem; }
+  .freshgo-real-phone img { border-radius: 1rem; }
+  .freshgo-real-speaker { top: .45rem; width: 1.8rem; height: .2rem; }
+  .freshgo-real-product { width: 4.5rem; border-radius: .75rem; }
+  .freshgo-real-fish { left: 2%; top: 18%; }
+  .freshgo-real-prawn { right: 0; top: 15%; }
+  .freshgo-real-chicken { right: 2%; bottom: 10%; }
+  .freshgo-float-label { font-size: .65rem; }
+  .freshgo-label-market { left: 1%; bottom: 12%; }
+  .freshgo-label-fresh { right: 0; top: 16%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .freshgo-real-phone-animated { animation: none; }
+  .card-hover, .freshgo-real-product { transition: none !important; }
+}
 
 /* Quantity stepper */
 .qty-btn {

@@ -4,6 +4,7 @@ import type { FooterSettings, WebsiteSettings } from '../../types';
 import type { DeliveryConfig } from '../../context/DeliveryConfigContext';
 import { isPageEnabled } from '../../lib/websiteVisibility';
 import BrandLogo from '../branding/BrandLogo';
+import { useLanguage } from '../../context/LanguageContext';
 
 type TFunc = (key: string, params?: Record<string, string | number>) => string;
 
@@ -57,11 +58,16 @@ export default function FooterContent({
   delivery: DeliveryConfig;
   t: TFunc;
 }) {
-  const daysText = delivery.days.length > 1
-    ? `${delivery.days.slice(0, -1).join(', ')} & ${delivery.days[delivery.days.length - 1]}`
-    : delivery.days[0] ?? '';
+  const { language } = useLanguage();
+  const translatedDays = delivery.days.map((day) => t(`days.${day.toLowerCase()}`));
+  const daysText = translatedDays.length > 1
+    ? `${translatedDays.slice(0, -1).join(', ')} & ${translatedDays[translatedDays.length - 1]}`
+    : translatedDays[0] ?? '';
 
-  const description = footer.footer_description.replace(/\{\{days\}\}/g, daysText);
+  const descriptionSource = language === 'ms' && footer.footer_description.startsWith('Freshly prepared daily proteins')
+    ? 'Protein segar disediakan setiap hari dan dihantar ke pintu anda setiap {{days}}. Tidak dibekukan. Sentiasa tempatan.'
+    : footer.footer_description;
+  const description = descriptionSource.replace(/\{\{days\}\}/g, daysText);
   const copyright = footer.copyright_text.replace(/\{\{year\}\}/g, String(new Date().getFullYear()));
 
   const showShop = footer.footer_show_shop && isPageEnabled(website, 'shop');
@@ -169,13 +175,13 @@ export default function FooterContent({
               {footer.contact_address && (
                 <li className="flex items-start gap-2.5">
                   <MapPin size={15} className="mt-0.5 flex-shrink-0 text-jade-400" />
-                  <span>{footer.contact_address}</span>
+                  <span>{language === 'ms' && footer.contact_address === 'Delivering across Klang Valley, Selangor' ? 'Penghantaran di seluruh Lembah Klang, Selangor' : footer.contact_address}</span>
                 </li>
               )}
               {footer.delivery_area && (
                 <li className="flex items-start gap-2.5">
                   <MapPin size={15} className="mt-0.5 flex-shrink-0 text-jade-400" />
-                  <span>{footer.delivery_area}</span>
+                  <span>{language === 'ms' && footer.delivery_area === 'Klang Valley, Selangor' ? 'Lembah Klang, Selangor' : footer.delivery_area}</span>
                 </li>
               )}
             </ul>
@@ -194,7 +200,7 @@ export default function FooterContent({
           {(footer.footer_show_privacy || footer.footer_show_terms) && (
             <div className="flex gap-4">
               {footer.footer_show_privacy && <Link to="/privacy" className="hover:text-jade-400 transition-colors">{t('footer.privacy')}</Link>}
-              {footer.footer_show_terms && <a href="#" className="hover:text-jade-400 transition-colors">{t('footer.terms')}</a>}
+              {footer.footer_show_terms && <span className="text-forest-500" title={t('footer.termsUnavailable')}>{t('footer.terms')}</span>}
             </div>
           )}
         </div>

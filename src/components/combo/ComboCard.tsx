@@ -12,6 +12,7 @@ import { formatCurrency } from '../../lib/currency';
 interface Props {
   comboWithItems: ComboWithItems;
   products: Product[];
+  hideDescription?: boolean;
 }
 
 const BADGE_STYLES: Record<string, string> = {
@@ -21,7 +22,7 @@ const BADGE_STYLES: Record<string, string> = {
   'New': 'bg-jade-500 text-white',
 };
 
-export default function ComboCard({ comboWithItems, products }: Props) {
+export default function ComboCard({ comboWithItems, products, hideDescription = false }: Props) {
   const { addItem } = useCart();
   const navigate = useNavigate();
   const { t } = useLanguage();
@@ -53,6 +54,7 @@ export default function ComboCard({ comboWithItems, products }: Props) {
   };
 
   const badgeClass = BADGE_STYLES[combo.badge] ?? 'bg-forest-700 text-white';
+  const badgeLabel = combo.badge === 'Best Value' ? t('homepage.combo.badge') : combo.badge;
   const daysShort = config.days.map((d) => t('days.' + d.toLowerCase()).slice(0, 3)).join(' · ');
 
   return (
@@ -65,7 +67,7 @@ export default function ComboCard({ comboWithItems, products }: Props) {
         />
         {combo.badge && (
           <span className={`absolute top-3 left-3 inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full shadow ${badgeClass}`}>
-            <Star size={11} className="fill-current" /> {combo.badge}
+            <Star size={11} className="fill-current" /> {badgeLabel}
           </span>
         )}
         {savingsPct > 0 && (
@@ -85,9 +87,11 @@ export default function ComboCard({ comboWithItems, products }: Props) {
           <Link to={`/combos/${combo.slug}`} className="hover:text-forest-700 transition-colors">
             <h3 className="font-semibold text-charcoal leading-snug">{combo.name}</h3>
           </Link>
-          <p className="text-xs text-gray-500 mt-1.5 line-clamp-2 leading-relaxed">
-            {combo.tagline || combo.description}
-          </p>
+          {!hideDescription && (
+            <p className="text-xs text-gray-500 mt-1.5 line-clamp-2 leading-relaxed">
+              {combo.tagline || combo.description}
+            </p>
+          )}
         </div>
 
         {/* Included product thumbnails */}

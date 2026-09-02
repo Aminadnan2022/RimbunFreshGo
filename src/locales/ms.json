@@ -100,14 +100,17 @@
     "deliverySchedule": "Jadual Penghantaran",
     "privacy": "Dasar Privasi",
     "terms": "Terma Perkhidmatan",
+    "termsUnavailable": "Halaman Terma Perkhidmatan belum diterbitkan.",
     "copyright": "\u00a9 {{year}} Rimbun FreshGo. Hak cipta terpelihara."
   },
   "homepage": {
     "announcement": {
-      "loading": "Memuatkan..."
+      "loading": "Memuatkan...",
+      "nextDelivery": "Penghantaran seterusnya: {{day}}, {{date}} · {{time}}"
     },
     "hero": {
       "badge": "Penghantaran segar {{days}} ini",
+      "nextDelivery": "Penghantaran seterusnya · {{day}}, {{date}} · {{time}}",
       "title": "Disediakan segar.",
       "titleHighlight": "Terus ke pintu anda.",
       "description": "Protein segar premium \u2014 ayam keseluruhan, ikan tempatan, udang, dan sotong \u2014 disediakan setiap pagi dan dihantar pada hari yang sama. Tiada pembekuan. Tiada kompromi.",
@@ -115,6 +118,40 @@
       "selectedSlot": "Hebat! Anda telah memilih penghantaran {{day}} {{time}}.",
       "shopNow": "Beli Sekarang",
       "viewFamilyCombo": "Lihat Kombo Keluarga"
+    },
+    "landingHero": {
+      "title": "Segar dari pasar.",
+      "titleHighlight": "Terus ke pintu rumah.",
+      "description": "Pesan ayam, ikan, udang dan sotong segar tanpa perlu bersesak di pasar. Kami siapkan dan hantar terus untuk anda masak.",
+      "shop": "Mula Membeli",
+      "explore": "Lihat Cara FreshGo",
+      "proofFresh": "Segar dari pasar",
+      "proofPrepared": "Disiapkan untuk anda",
+      "proofLocal": "Penghantaran setempat"
+    },
+    "story": {
+      "eyebrow": "Pasar dalam poket anda",
+      "title": "Tak sempat pergi pasar? Biar pasar datang kepada anda.",
+      "description": "FreshGo mudahkan urusan beli barang segar. Pilih apa yang keluarga perlukan, beritahu cara penyediaan, kemudian tunggu di rumah.",
+      "comboCta": "Lihat kombo FreshGo",
+      "steps": {
+        "choose": { "title": "Pilih", "desc": "Pilih ayam, ikan, makanan laut atau kombo keluarga." },
+        "prepare": { "title": "Kami siapkan", "desc": "Pilih cara potong dan penyediaan yang sesuai untuk masakan anda." },
+        "pack": { "title": "Dibungkus segar", "desc": "Pesanan anda diurus dengan teliti supaya kekal segar." },
+        "deliver": { "title": "Kami hantar", "desc": "Terima pesanan segar pada waktu penghantaran yang dipilih." }
+      }
+    },
+    "install": {
+      "eyebrow": "FreshGo dalam telefon",
+      "title": "Pasar segar cuma beberapa tap sahaja.",
+      "description": "FreshGo boleh digunakan seperti aplikasi dalam telefon. Tambah ke Home Screen untuk akses pantas—tak perlu App Store atau Play Store.",
+      "cta": "Buka FreshGo",
+      "install": "Pasang FreshGo",
+      "open": "Buka FreshGo",
+      "instructions": "Cara memasang",
+      "shop": "Mula Membeli",
+      "iosGuide": "Dalam Safari, tekan Kongsi, kemudian pilih Tambah ke Skrin Utama.",
+      "manualGuide": "Buka menu browser dan pilih Pasang aplikasi atau Tambah ke Skrin Utama. Jika pilihan itu tiada, anda masih boleh menggunakan FreshGo dalam browser ini."
     },
     "categories": {
       "title": "Beli Mengikut Kategori",

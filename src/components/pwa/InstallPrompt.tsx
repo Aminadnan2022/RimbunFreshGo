@@ -1,6 +1,7 @@
 import { Download, Share2, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
+import { useLocation } from 'react-router-dom';
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
@@ -60,6 +61,7 @@ function rememberDismissal(): void {
 }
 
 export default function InstallPrompt() {
+  const location = useLocation();
   const { language } = useLanguage();
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const [showIosGuide, setShowIosGuide] = useState(false);
@@ -68,7 +70,7 @@ export default function InstallPrompt() {
   useEffect(() => {
     // The in-app guidance belongs only on devices where adding to the home
     // screen is useful. Do not suppress a desktop browser's native install UI.
-    if (!isEligibleMobileBrowser() || isStandalone() || recentlyDismissed()) return;
+    if (location.pathname === '/' || !isEligibleMobileBrowser() || isStandalone() || recentlyDismissed()) return;
 
     if (isIosSafari()) {
       setVisible(true);
@@ -93,7 +95,7 @@ export default function InstallPrompt() {
       window.removeEventListener('beforeinstallprompt', onBeforeInstallPrompt);
       window.removeEventListener('appinstalled', onAppInstalled);
     };
-  }, []);
+  }, [location.pathname]);
 
   const dismiss = () => {
     rememberDismissal();
@@ -115,7 +117,7 @@ export default function InstallPrompt() {
     setVisible(false);
   };
 
-  if (!visible) return null;
+  if (!visible || location.pathname === '/') return null;
 
   const malay = language === 'ms';
   const title = malay ? 'Pasang FreshGo' : 'Install FreshGo';

@@ -100,14 +100,17 @@
     "deliverySchedule": "Delivery Schedule",
     "privacy": "Privacy Policy",
     "terms": "Terms of Service",
+    "termsUnavailable": "A Terms of Service page has not been published yet.",
     "copyright": "\u00a9 {{year}} Rimbun FreshGo. All rights reserved."
   },
   "homepage": {
     "announcement": {
-      "loading": "Loading..."
+      "loading": "Loading...",
+      "nextDelivery": "Next delivery: {{day}}, {{date}} · {{time}}"
     },
     "hero": {
       "badge": "Fresh deliveries this {{days}}",
+      "nextDelivery": "Next delivery · {{day}}, {{date}} · {{time}}",
       "title": "Freshly prepared.",
       "titleHighlight": "Straight to your door.",
       "description": "Premium fresh proteins \u2014 whole chicken, local fish, prawns, and squid \u2014 prepared every morning and delivered same day. No freezing. No compromise.",
@@ -115,6 +118,40 @@
       "selectedSlot": "Great! You've selected {{day}} {{time}} delivery.",
       "shopNow": "Shop Now",
       "viewFamilyCombo": "View Family Combo"
+    },
+    "landingHero": {
+      "title": "Fresh from the market.",
+      "titleHighlight": "Straight to your door.",
+      "description": "Order fresh chicken, fish, prawns and squid without the market rush. We prepare it for you and deliver it ready for your kitchen.",
+      "shop": "Start Shopping",
+      "explore": "See How It Works",
+      "proofFresh": "Market-fresh",
+      "proofPrepared": "Prepared for you",
+      "proofLocal": "Local delivery"
+    },
+    "story": {
+      "eyebrow": "Your market, in your pocket",
+      "title": "No time for the market? Let the market come to you.",
+      "description": "FreshGo makes buying fresh ingredients feel simple. Choose what your family needs, tell us how to prepare it, and receive it at your door.",
+      "comboCta": "Explore FreshGo combos",
+      "steps": {
+        "choose": { "title": "Choose", "desc": "Pick chicken, fish, seafood or a family combo." },
+        "prepare": { "title": "We prepare", "desc": "Choose the preparation that suits the way you cook." },
+        "pack": { "title": "Packed fresh", "desc": "Your order is handled carefully and kept fresh." },
+        "deliver": { "title": "Delivered", "desc": "Receive your fresh order at the selected delivery time." }
+      }
+    },
+    "install": {
+      "eyebrow": "FreshGo on your phone",
+      "title": "Your fresh market is only a few taps away.",
+      "description": "FreshGo works like an app on your phone. Add it to your home screen for quick access—no App Store or Play Store needed.",
+      "cta": "Open FreshGo",
+      "install": "Install FreshGo",
+      "open": "Open FreshGo",
+      "instructions": "How to install",
+      "shop": "Start Shopping",
+      "iosGuide": "In Safari, tap Share, then choose Add to Home Screen.",
+      "manualGuide": "Open your browser menu and choose Install app or Add to Home Screen. If that option is unavailable, you can continue using FreshGo in this browser."
     },
     "categories": {
       "title": "Shop by Category",
