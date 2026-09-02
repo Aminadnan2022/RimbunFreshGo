@@ -193,6 +193,8 @@ interface SupplierOrder {
   /** Canonical state is retained separately because the legacy badge has only three labels. */
   canonicalPaymentStatus: string | null;
   canonicalPriceStatus: 'estimated' | 'final' | null;
+  /** Customer-facing total only; no supplier cost or margin breakdown. */
+  orderTotal: number | null;
   orderNotes: string;
   paidAt: string | null;
   packingStartedAt: string | null;
@@ -415,13 +417,29 @@ export default function SupplierDashboardPage() {
     setError(null);
 
     try {
-      const [legacyOrderRes, canonicalWorkRes] = await Promise.all([
+      const [legacyOrderRes, canonicalWorkRes, orderTotalsRes] = await Promise.all([
         supabase.rpc('supplier_list_legacy_orders'),
         supabase.rpc('supplier_get_canonical_work'),
+        supabase.rpc('supplier_get_order_totals'),
       ]);
 
       if (legacyOrderRes.error) throw legacyOrderRes.error;
       if (canonicalWorkRes.error) throw canonicalWorkRes.error;
+
+      const orderTotals = (orderTotalsRes.data ?? {}) as {
+        canonical?: { id?: string; total?: number | string | null }[];
+        legacy?: { id?: number | string; total?: number | string | null }[];
+      };
+      const validTotal = (value: unknown): number | null => {
+        const amount = Number(value);
+        return value != null && Number.isFinite(amount) && amount >= 0 ? amount : null;
+      };
+      const canonicalTotals = new Map(
+        (orderTotals.canonical ?? []).map((entry) => [String(entry.id ?? ''), validTotal(entry.total)]),
+      );
+      const legacyTotals = new Map(
+        (orderTotals.legacy ?? []).map((entry) => [String(entry.id ?? ''), validTotal(entry.total)]),
+      );
 
       const canonicalWork = (canonicalWorkRes.data ?? {}) as {
         orders?: any[];
@@ -456,6 +474,7 @@ export default function SupplierDashboardPage() {
           paymentStatus: (r.payment_status as PaymentStatus) ?? 'Pending',
           canonicalPaymentStatus: null,
           canonicalPriceStatus: null,
+          orderTotal: legacyTotals.get(String(r.id)) ?? null,
           orderNotes: r.order_notes ?? '',
           paidAt: r.paid_at ?? null,
           packingStartedAt: r.packing_started_at ?? null,
@@ -741,6 +760,7 @@ export default function SupplierDashboardPage() {
             paymentStatus: canonicalPaymentStatus(row.payment_status),
             canonicalPaymentStatus: row.payment_status ?? null,
             canonicalPriceStatus: row.price_status === 'final' ? ('final' as const) : ('estimated' as const),
+            orderTotal: canonicalTotals.get(String(row.id)) ?? null,
             orderNotes: String(customer.notes ?? ''),
             paidAt: row.paid_at ?? null,
 
@@ -2104,6 +2124,7 @@ function WeightEntryView({
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [serverOrderTotal, setServerOrderTotal] = useState<number | null>(order.orderTotal);
   const initiallySaved = new Set(order.items.map((_, i) => i).filter((i) => !needsWeighing(order.items[i]) || order.supplierWeights[String(i)] != null));
   const [savedProducts, setSavedProducts] = useState<Set<number>>(initiallySaved);
   const [completed, setCompleted] = useState(() => {
@@ -2143,6 +2164,28 @@ function WeightEntryView({
     const weightKg = lineWeightKg(item, index);
     return weightKg == null ? null : total + item.price * weightKg;
   }, 0);
+  const displayedTotal = calculatedTotal ?? serverOrderTotal;
+
+  useEffect(() => {
+    setServerOrderTotal(order.orderTotal);
+  }, [order.dbId, order.orderTotal]);
+
+  const refreshOrderTotal = async () => {
+    const { data, error: totalError } = await supabase.rpc('supplier_get_order_totals');
+    if (totalError) return;
+
+    const projection = (data ?? {}) as {
+      canonical?: { id?: string; total?: number | string | null }[];
+      legacy?: { id?: number | string; total?: number | string | null }[];
+    };
+    const rows = order.source === 'canonical' ? projection.canonical : projection.legacy;
+    const match = (rows ?? []).find((entry) => String(entry.id ?? '') === order.dbId);
+    const amount = Number(match?.total);
+
+    if (match?.total != null && Number.isFinite(amount) && amount >= 0) {
+      setServerOrderTotal(amount);
+    }
+  };
 
   const remainingCount = perKgItems.filter(
     ({ index, perKg }) => perKg && !savedProducts.has(index),
@@ -2270,6 +2313,7 @@ function WeightEntryView({
       );
 
       if (allItemsSaved) {
+        await refreshOrderTotal();
         setCompleted(true);
       } else {
         const next = order.items.findIndex(
@@ -2385,6 +2429,7 @@ function WeightEntryView({
         );
 
         if (allSaved) {
+          await refreshOrderTotal();
           setCompleted(true);
         } else {
           const next = order.items.findIndex(
@@ -2435,6 +2480,7 @@ function WeightEntryView({
       onWeightsSaved?.(order.dbId, allWeights);
 
       if (editMode && allSaved) {
+        await refreshOrderTotal();
         onComplete?.();
         return;
       }
@@ -2445,6 +2491,7 @@ function WeightEntryView({
       setTimeout(() => setLastSavedIndex(null), 1500);
 
       if (allSaved) {
+        await refreshOrderTotal();
         setCompleted(true);
       } else {
         const next = order.items.findIndex((item, i) => needsWeighing(item) && !newSaved.has(i));
@@ -2480,7 +2527,7 @@ function WeightEntryView({
         <p className="text-[28px] font-bold text-green-700 mb-2">{editMode ? t("weightEntry.buttons.completed") : t("weightEntry.messages.saved")}</p>
         <p className="text-[18px] text-gray-500 mb-2">{order.customerName}</p>
         <p className="text-[18px] font-bold text-forest-900 mb-4">
-          {t("supplierOrder.labels.totalPrice")}: {calculatedTotal == null ? '—' : formatMoney(calculatedTotal)}
+          {t("supplierOrder.labels.totalPrice")}: {displayedTotal == null ? '—' : formatMoney(displayedTotal)}
         </p>
         <p className="text-[16px] text-gray-400 mb-10">{editMode ? t("weightEntry.messages.weightSavedMsg") : t("weightEntry.messages.allSavedMsg")}</p>
         <div className="flex flex-col gap-4 w-full max-w-md">
@@ -2738,7 +2785,7 @@ function WeightEntryView({
 
       <div className="flex items-center justify-between rounded-2xl border-2 border-forest-200 bg-forest-50 px-5 py-4 text-[18px] font-bold text-forest-900">
         <span>{t("supplierOrder.labels.totalPrice")}</span>
-        <span>{calculatedTotal == null ? '—' : formatMoney(calculatedTotal)}</span>
+        <span>{displayedTotal == null ? '—' : formatMoney(displayedTotal)}</span>
       </div>
 
       {error && (

@@ -3900,6 +3900,10 @@ export type Database = {
         Args: never
         Returns: Json
       }
+      supplier_get_order_totals: {
+        Args: never
+        Returns: Json
+      }
       supplier_mark_legacy_order_ready: {
         Args: { p_order_id: number }
         Returns: undefined

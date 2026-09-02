@@ -7,6 +7,7 @@ const supplier = read('src/pages/SupplierDashboardPage.tsx');
 const reports = read('src/pages/BusinessReportsPage.tsx');
 const adminHistory = read('src/pages/AdminHistoricalDataPage.tsx');
 const migration = read('supabase/migrations/20261117000000_secure_legacy_supplier_order_operations.sql');
+const totalProjection = read('supabase/migrations/20261207000000_supplier_order_total_projection.sql');
 const failures = [];
 
 const supplierOnlyLabels = [
@@ -111,6 +112,21 @@ for (const field of [
 
 for (const token of ['businessReports.table.profit', 'businessReports.table.cost', 'businessReports.table.margin']) {
   if (!reports.includes(token)) failures.push(`admin reporting metric was unexpectedly removed: ${token}`);
+}
+
+for (const token of [
+  'CREATE OR REPLACE FUNCTION public.supplier_get_order_totals()',
+  'public.is_supplier_for_sales_order(o.id)',
+  "COALESCE(o.final_total, o.estimated_total, o.total)",
+  'REVOKE ALL ON FUNCTION public.supplier_get_order_totals()',
+]) {
+  if (!totalProjection.includes(token)) failures.push(`supplier order-total projection is missing: ${token}`);
+}
+for (const forbidden of ['unit_cost_price', 'supplier_cost', 'gross_profit', 'profit_margin', 'delivery_fee']) {
+  if (totalProjection.includes(forbidden)) failures.push(`supplier order-total projection exposes internal field: ${forbidden}`);
+}
+for (const token of ["supabase.rpc('supplier_get_order_totals')", 'displayedTotal']) {
+  if (!supplier.includes(token)) failures.push(`supplier total UI is missing: ${token}`);
 }
 
 for (const token of ['supplier_cost_amount', 'gross_profit_amount']) {
