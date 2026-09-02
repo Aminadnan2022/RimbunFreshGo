@@ -82,6 +82,10 @@ requireAll('bootstrap token session and URL cleanup', tracking, [
   "supabase.rpc('get_guest_sales_order'", "supabase.rpc('submit_guest_sales_order_payment_receipt'",
   'capture="environment"',
 ]);
+requireAll('private guest tracking link recovery', tracking, [
+  'navigator.clipboard.writeText', 'Copy private link', 'https://wa.me/', 'mailto:',
+  'Do not share it publicly.',
+]);
 requireAll('client token generation', guestClient, [
   'const TOKEN_BYTES = 32', 'crypto.getRandomValues', "replace(/\\+/g, '-')",
 ]);
