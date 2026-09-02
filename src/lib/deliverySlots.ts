@@ -6,6 +6,7 @@ const DAY_INDEX: Record<string, number> = {
 
 export const MALAYSIA_TIME_ZONE = 'Asia/Kuala_Lumpur';
 export const BULK_DELIVERY_CUTOFF_HOUR = 15;
+export const BULK_DELIVERY_FEE = 2;
 const MALAYSIA_OFFSET_MS = 8 * 60 * 60 * 1000;
 
 interface MalaysiaDateTime {
@@ -54,6 +55,28 @@ function malaysiaMidnightUtc({ year, month, day }: Pick<MalaysiaDateTime, 'year'
 function formatMalaysiaDate(date: Date): string {
   const local = malaysiaDateTime(date);
   return `${local.year}-${String(local.month).padStart(2, '0')}-${String(local.day).padStart(2, '0')}`;
+}
+
+export function getMalaysiaDateString(now = new Date()): string {
+  return formatMalaysiaDate(now);
+}
+
+function calendarWeekday(localDate: string): number | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(localDate);
+  if (!match) return null;
+  const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+  if (Number.isNaN(date.getTime())) return null;
+  return date.getUTCDate() === Number(match[3]) ? date.getUTCDay() : null;
+}
+
+export function isDeliveryDateAllowed(localDate: string): boolean {
+  const weekday = calendarWeekday(localDate);
+  return weekday !== null && weekday !== DAY_INDEX.monday;
+}
+
+export function isBulkDeliveryDate(localDate: string): boolean {
+  const weekday = calendarWeekday(localDate);
+  return weekday === DAY_INDEX.wednesday || weekday === DAY_INDEX.friday;
 }
 
 export function getUpcomingDeliverySlots(days: string[], now = new Date()): UpcomingDeliverySlot[] {

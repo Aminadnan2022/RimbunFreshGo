@@ -61,7 +61,7 @@ export function nextCanonicalDeliveryDate(day: DeliveryDay, now = new Date()): s
   return nextBulkDeliveryDate(day, now);
 }
 
-function zoneCodeFromDeliveryPoint(value: string): string | undefined {
+export function zoneCodeFromDeliveryPoint(value: string): string | undefined {
   const normalized = value.toLowerCase();
   const residences: Array<[string, string]> = [
     ['rimbun', 'residensi_rimbun'],
@@ -72,6 +72,10 @@ function zoneCodeFromDeliveryPoint(value: string): string | undefined {
     ['zamrud', 'residensi_zamrud'],
   ];
   return residences.find(([needle]) => normalized.includes(needle))?.[1];
+}
+
+export function isBulkDeliveryPointEligible(value: string): boolean {
+  return zoneCodeFromDeliveryPoint(value) !== undefined;
 }
 
 function preparationAnswerPayload(
