@@ -568,7 +568,7 @@ export default function Header() {
             {!isSupplier && !isRider && (
               <button
                 onClick={() => setSearchOpen(!searchOpen)}
-                className="touch-target p-2.5 rounded-xl text-gray-500 hover:text-forest-700 hover:bg-forest-50 transition-all"
+                className="touch-target hidden p-2.5 rounded-xl text-gray-500 hover:text-forest-700 hover:bg-forest-50 transition-all sm:inline-flex sm:items-center sm:justify-center"
                 aria-label={t("header.search")}
               >
                 <Search size={20} />
@@ -676,6 +676,11 @@ export default function Header() {
       {/* Mobile nav */}
       {menuOpen && (
         <div id="mobile-navigation" className="mobile-menu-panel safe-area-x safe-area-bottom md:hidden border-t border-cream-200 bg-white py-3 space-y-1">
+          {!isSupplier && !isRider && (
+            <button onClick={() => { setMenuOpen(false); setSearchOpen(true); }} className="flex w-full items-center gap-2 rounded-xl px-4 py-2.5 text-left text-sm font-medium text-gray-600 hover:bg-forest-50 hover:text-forest-700">
+              <Search size={17} aria-hidden="true" /> {t('header.search')}
+            </button>
+          )}
           {!isSupplier && navLinks.map((link) => (
             <Link
               key={link.to}

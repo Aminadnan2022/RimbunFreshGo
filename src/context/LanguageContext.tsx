@@ -58,6 +58,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, language);
+    document.documentElement.lang = language;
     setTranslations(flattenTranslations(loadTranslations(language)));
     setEnFallback(flattenTranslations(loadTranslations('en')));
   }, [language]);

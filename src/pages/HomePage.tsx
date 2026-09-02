@@ -16,6 +16,8 @@ import { useProducts } from '../hooks/useProducts';
 import ProductImage from '../components/ui/ProductImage';
 import ProductCard from '../components/ui/ProductCard';
 import ComboCard from '../components/combo/ComboCard';
+import GuestLandingExperience from '../components/home/GuestLandingExperience';
+import { getUpcomingDeliverySlots } from '../lib/deliverySlots';
 
 const categories = [
   {
@@ -53,7 +55,7 @@ export default function HomePage() {
   const { setDeliveryDay } = useCart();
   const { user } = useAuth();
   const { config } = useDeliveryConfig();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { settings } = useWebsiteSettings();
   const { products, loading: productsLoading, error: productsError } = useProducts();
   const [combos, setCombos] = useState<ComboWithItems[]>([]);
@@ -82,6 +84,14 @@ export default function HomePage() {
 
   const tDays = config.days.map((d) => t("days." + d.toLowerCase())).join(' & ');
   const daysShort = config.days.map((d) => t("days." + d.toLowerCase()).slice(0, 3)).join(' & ');
+  const nextSlot = getUpcomingDeliverySlots(config.days)[0];
+  const heroBadge = nextSlot
+    ? t('homepage.hero.nextDelivery', {
+        day: t(`days.${nextSlot.day.toLowerCase()}`),
+        date: nextSlot.date.toLocaleDateString(language === 'ms' ? 'ms-MY' : 'en-MY', { day: 'numeric', month: 'short' }),
+        time: config.time,
+      })
+    : t("homepage.hero.badge", { days: tDays });
 
   const trustIndicators = [
     {
@@ -115,50 +125,22 @@ export default function HomePage() {
     <main>
       {/* Hero — only shown when signed out */}
       {!user && (
-      <section className="gradient-hero relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10 pointer-events-none bg-[radial-gradient(ellipse_at_top_right,_rgba(255,255,255,0.3),_transparent_60%)]" />
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-28 lg:py-32">
-          <div className="max-w-3xl">
-            <span className="inline-flex items-center gap-1.5 bg-white/10 border border-white/20 text-jade-300 text-xs font-semibold px-3 py-1.5 rounded-full mb-6">
-              <span className="w-1.5 h-1.5 bg-jade-400 rounded-full animate-pulse" />
-              {t("homepage.hero.badge", { days: tDays })}
-            </span>
-            <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl font-bold text-white leading-tight mb-6">
-              {t("homepage.hero.title")}{' '}
-              <span className="text-jade-400">{t("homepage.hero.titleHighlight")}</span>
-            </h1>
-            <p className="text-forest-200 text-lg sm:text-xl leading-relaxed mb-8 max-w-2xl">
-              {t("homepage.hero.description")}
-            </p>
-
-            {/* Delivery slot selector */}
-            {isHomepageSectionEnabled(settings, 'delivery_schedule') && (
-            <div className="bg-white/10 backdrop-blur-sm rounded-3xl p-5 border border-white/15 mb-8 max-w-md">
-              <p className="text-white font-semibold mb-3 text-sm">{t("homepage.hero.chooseSlot")}</p>
+        <GuestLandingExperience
+          badge={heroBadge}
+          showShop={isPageEnabled(settings, 'shop')}
+          showCombos={isPageEnabled(settings, 'family_combo')}
+          deliverySelector={isHomepageSectionEnabled(settings, 'delivery_schedule') ? (
+            <div className="mt-8 max-w-md rounded-3xl border border-white/80 bg-white/70 p-5 shadow-soft backdrop-blur-md">
+              <p className="mb-3 text-sm font-semibold text-forest-950">{t("homepage.hero.chooseSlot")}</p>
               <DeliverySlotSelector selected={selectedDay} onChange={handleDaySelect} />
               {selectedDay && (
-                <p className="text-jade-300 text-xs mt-3 font-medium">
+                <p className="mt-3 text-xs font-medium text-forest-700">
                   {t("homepage.hero.selectedSlot", { day: selectedDay.charAt(0).toUpperCase() + selectedDay.slice(1), time: config.time })}
                 </p>
               )}
             </div>
-            )}
-
-            <div className="flex flex-wrap gap-3">
-              {isPageEnabled(settings, 'shop') && (
-                <Link to="/shop" className="btn-primary bg-jade-500 hover:bg-jade-600 shadow-none flex items-center gap-2">
-                  {t("homepage.hero.shopNow")} <ArrowRight size={16} />
-                </Link>
-              )}
-              {isPageEnabled(settings, 'family_combo') && (
-                <Link to="/combos" className="bg-white/15 hover:bg-white/25 text-white font-semibold px-6 py-3 rounded-2xl transition-all border border-white/20 flex items-center gap-2">
-                  {t("homepage.hero.viewFamilyCombo")} <ChevronRight size={16} />
-                </Link>
-              )}
-            </div>
-          </div>
-        </div>
-      </section>
+          ) : undefined}
+        />
       )}
 
       {/* Categories */}
@@ -216,7 +198,7 @@ export default function HomePage() {
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
               {combos.slice(0, 4).map((cw) => (
-                <ComboCard key={cw.combo.id} comboWithItems={cw} products={products} />
+                <ComboCard key={cw.combo.id} comboWithItems={cw} products={products} hideDescription />
               ))}
             </div>
           </>
@@ -244,7 +226,7 @@ export default function HomePage() {
           ) : productsError ? (
             <div className="col-span-full text-center py-16 text-red-500 text-sm">{productsError}</div>
           ) : popularProducts.map((product) => (
-            <ProductCard key={product.id} product={product} />
+            <ProductCard key={product.id} product={product} hideDescription />
           ))}
         </div>
       </section>

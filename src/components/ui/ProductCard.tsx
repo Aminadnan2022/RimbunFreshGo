@@ -14,9 +14,10 @@ import { formatCurrency } from '../../lib/currency';
 
 interface Props {
   product: Product;
+  hideDescription?: boolean;
 }
 
-export default function ProductCard({ product }: Props) {
+export default function ProductCard({ product, hideDescription = false }: Props) {
   const { addItem } = useCart();
   const { t, lang } = useLanguage();
   const [qty, setQty] = useState(1);
@@ -30,6 +31,9 @@ export default function ProductCard({ product }: Props) {
     'sold-out': { label: t("product.status.soldOut"), color: 'bg-red-100 text-red-600' },
   };
   const freshness = freshnessConfig[product.freshness];
+  const categoryLabel = ['chicken', 'fish', 'prawns', 'squid'].includes(product.category)
+    ? t(`homepage.categories.${product.category}`)
+    : product.category;
 
   const productUnitLabel = product.weight
     ? product.weight
@@ -132,14 +136,16 @@ export default function ProductCard({ product }: Props) {
       <div className="flex flex-col flex-1 p-4 gap-3">
         <div>
           <p className="text-xs text-forest-500 font-medium uppercase tracking-wide mb-0.5">
-            {product.category}
+            {categoryLabel}
           </p>
           <Link to={`/product/${product.id}`} className="hover:text-forest-700 transition-colors">
             <h3 className="font-semibold text-charcoal leading-snug">{product.name}</h3>
           </Link>
-          <p className="text-xs text-gray-500 mt-1.5 line-clamp-2 leading-relaxed">
-            {product.description}
-          </p>
+          {!hideDescription && (
+            <p className="text-xs text-gray-500 mt-1.5 line-clamp-2 leading-relaxed">
+              {product.description}
+            </p>
+          )}
         </div>
 
         <div className="flex min-w-0 items-end justify-between gap-2 mt-auto pt-1">

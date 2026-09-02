@@ -2,6 +2,7 @@ import { Calendar } from 'lucide-react';
 import type { DeliveryDay } from '../../types';
 import { useDeliveryConfig } from '../../context/DeliveryConfigContext';
 import { useLanguage } from '../../context/LanguageContext';
+import { getUpcomingDeliverySlots } from '../../lib/deliverySlots';
 
 interface Props {
   selected: DeliveryDay | null;
@@ -9,31 +10,15 @@ interface Props {
   compact?: boolean;
 }
 
-const DAY_MAP: Record<string, number> = {
-  sunday: 0, monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5, saturday: 6,
-};
-
-function getNextDate(dayName: string): string {
-  const target = DAY_MAP[dayName.toLowerCase()];
-  if (target === undefined) return '';
-  const today = new Date();
-  const current = today.getDay();
-  let diff = target - current;
-  if (diff <= 0) diff += 7;
-  const next = new Date(today);
-  next.setDate(today.getDate() + diff);
-  return next.toLocaleDateString('en-MY', { day: 'numeric', month: 'short' });
-}
-
 export default function DeliverySlotSelector({ selected, onChange, compact = false }: Props) {
   const { config } = useDeliveryConfig();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
 
-  const slots = config.days.map((day) => ({
+  const slots = getUpcomingDeliverySlots(config.days).map(({ day, date }) => ({
     day: day.toLowerCase(),
     label: t("days." + day.toLowerCase()),
     dayLabel: t("days." + day.toLowerCase()).slice(0, 3),
-    date: getNextDate(day),
+    date: date.toLocaleDateString(language === 'ms' ? 'ms-MY' : 'en-MY', { day: 'numeric', month: 'short' }),
   }));
 
   return (
