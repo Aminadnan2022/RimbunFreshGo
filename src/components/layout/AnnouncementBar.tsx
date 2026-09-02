@@ -1,35 +1,16 @@
-import { useEffect, useState } from 'react';
 import { Truck } from 'lucide-react';
 import { useDeliveryConfig } from '../../context/DeliveryConfigContext';
 import { useLanguage } from '../../context/LanguageContext';
-import { useLocation } from 'react-router-dom';
-import { getUpcomingDeliverySlots } from '../../lib/deliverySlots';
 
 export default function AnnouncementBar() {
-  const { config, loading } = useDeliveryConfig();
-  const { t, language } = useLanguage();
-  const location = useLocation();
-  const [now, setNow] = useState(() => new Date());
-
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(new Date()), 1000);
-    return () => window.clearInterval(timer);
-  }, []);
-
-  const nextSlot = getUpcomingDeliverySlots(config.days, now)[0];
-  const landingAnnouncement = nextSlot
-    ? t('homepage.announcement.nextDelivery', {
-        day: t(`days.${nextSlot.day.toLowerCase()}`),
-        date: nextSlot.date.toLocaleDateString(language === 'ms' ? 'ms-MY' : 'en-MY', { day: 'numeric', month: 'short', timeZone: 'Asia/Kuala_Lumpur' }),
-        time: config.time,
-      })
-    : config.announcement;
+  const { loading } = useDeliveryConfig();
+  const { t } = useLanguage();
 
   return (
     <div className="gradient-forest text-white py-2.5 px-4 text-center text-sm font-medium">
       <div className="flex items-center justify-center gap-2">
         <Truck size={15} className="opacity-90 flex-shrink-0" />
-        <span>{loading ? t("homepage.announcement.loading") : location.pathname === '/' ? landingAnnouncement : config.announcement}</span>
+        <span>{loading ? t("homepage.announcement.loading") : t('delivery.availabilityHeadline')}</span>
       </div>
     </div>
   );

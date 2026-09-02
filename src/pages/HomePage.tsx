@@ -5,7 +5,6 @@ import {
 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
-import { useDeliveryConfig } from '../context/DeliveryConfigContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useWebsiteSettings } from '../context/WebsiteSettingsContext';
 import { isHomepageSectionEnabled, isPageEnabled } from '../lib/websiteVisibility';
@@ -54,7 +53,6 @@ export default function HomePage() {
   const [selectedDay, setSelectedDay] = useState<DeliveryDay | null>(null);
   const { setDeliveryDay } = useCart();
   const { user } = useAuth();
-  const { config } = useDeliveryConfig();
   const { t } = useLanguage();
   const { settings } = useWebsiteSettings();
   const { products, loading: productsLoading, error: productsError } = useProducts();
@@ -82,8 +80,6 @@ export default function HomePage() {
     })();
   }, []);
 
-  const daysShort = config.days.map((d) => t("days." + d.toLowerCase()).slice(0, 3)).join(' & ');
-
   const trustIndicators = [
     {
       icon: CheckCircle2,
@@ -98,7 +94,7 @@ export default function HomePage() {
     {
       icon: Clock,
       title: t("homepage.trust.scheduledDelivery.title"),
-      desc: t("homepage.trust.scheduledDelivery.desc", { days: daysShort, time: config.time }),
+      desc: t("homepage.trust.scheduledDelivery.desc"),
     },
     {
       icon: Shield,
@@ -127,7 +123,7 @@ export default function HomePage() {
               <DeliverySlotSelector selected={selectedDay} onChange={handleDaySelect} />
               {selectedDay && (
                 <p className="mt-3 text-xs font-medium text-forest-700">
-                  {t("homepage.hero.selectedSlot", { day: selectedDay.charAt(0).toUpperCase() + selectedDay.slice(1), time: config.time })}
+                  {t("homepage.hero.selectedSlot", { day: t(`days.${selectedDay.toLowerCase()}`) })}
                 </p>
               )}
             </div>

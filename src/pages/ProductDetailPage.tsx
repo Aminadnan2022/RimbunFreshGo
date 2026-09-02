@@ -7,7 +7,6 @@ import { deleteProduct } from '../data/products';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
-import { useDeliveryConfig } from '../context/DeliveryConfigContext';
 import { useWebsiteSettings } from '../context/WebsiteSettingsContext';
 import QuantityStepper from '../components/ui/QuantityStepper';
 import EstimatedWeightStepper from '../components/ui/EstimatedWeightStepper';
@@ -26,7 +25,6 @@ export default function ProductDetailPage() {
   const navigate = useNavigate();
   const { addItem } = useCart();
   const { isAdmin } = useAuth();
-  const { config } = useDeliveryConfig();
   const { settings, loading: settingsLoading } = useWebsiteSettings();
   const { t, language } = useLanguage();
   const { product, loading, error } = useProduct(id);
@@ -204,7 +202,7 @@ export default function ProductDetailPage() {
           <div className="flex items-center gap-2.5 bg-jade-50 border border-jade-200 rounded-2xl px-4 py-3 mb-6">
             <Clock size={16} className="text-jade-600 flex-shrink-0" />
             <p className="text-jade-800 text-sm font-medium">
-              {t("productDetail.deliveryReminder")} <strong>{config.days.map((d) => t("days." + d.toLowerCase())).join(' & ')}</strong>, {config.time}
+              {t("productDetail.deliveryReminder")}
             </p>
           </div>
 

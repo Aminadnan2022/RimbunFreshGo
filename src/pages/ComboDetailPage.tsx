@@ -11,7 +11,6 @@ import { computeComboItemSubtotal } from '../lib/sellingOptions';
 import type { Product, ComboWithItems, DbComboItem, PreparationOption } from '../types';
 import { useLanguage } from '../context/LanguageContext';
 import { useCart } from '../context/CartContext';
-import { useDeliveryConfig } from '../context/DeliveryConfigContext';
 import { useWebsiteSettings } from '../context/WebsiteSettingsContext';
 import ProductImage from '../components/ui/ProductImage';
 import ComboCard from '../components/combo/ComboCard';
@@ -39,7 +38,6 @@ function formatComboItemPrice(ci: DbComboItem, product: Product): number {
 export default function ComboDetailPage() {
   const { slug } = useParams<{ slug: string }>();
   const { addItem } = useCart();
-  const { config } = useDeliveryConfig();
   const { settings, loading: settingsLoading } = useWebsiteSettings();
   const { t } = useLanguage();
   const { products } = useProducts();
@@ -273,7 +271,7 @@ export default function ComboDetailPage() {
           {/* Delivery */}
           <div className="flex items-center gap-2.5 bg-jade-50 border border-jade-200 rounded-2xl px-4 py-3 mb-6">
             <Clock size={16} className="text-jade-600 flex-shrink-0" />
-            <p className="text-jade-800 text-sm font-medium" dangerouslySetInnerHTML={{ __html: t("comboDetail.deliveryReminder", { days: config.days.join(' & '), time: config.time }) }} />
+            <p className="text-jade-800 text-sm font-medium">{t("comboDetail.deliveryReminder")}</p>
           </div>
 
           {/* Add to cart */}

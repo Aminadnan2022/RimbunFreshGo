@@ -7,6 +7,8 @@ const DAY_INDEX: Record<string, number> = {
 export const MALAYSIA_TIME_ZONE = 'Asia/Kuala_Lumpur';
 export const BULK_DELIVERY_CUTOFF_HOUR = 15;
 export const BULK_DELIVERY_FEE = 2;
+export const CUSTOMER_DELIVERY_DAYS = ['Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'] as const;
+export const BULK_DELIVERY_DAYS = ['Wednesday', 'Friday'] as const;
 const MALAYSIA_OFFSET_MS = 8 * 60 * 60 * 1000;
 
 interface MalaysiaDateTime {
@@ -98,6 +100,27 @@ export function getUpcomingDeliverySlots(days: string[], now = new Date()): Upco
     .sort((left, right) => left.date.getTime() - right.date.getTime());
 }
 
+export function getUpcomingCustomerDeliverySlots(now = new Date()): UpcomingDeliverySlot[] {
+  const localNow = malaysiaDateTime(now);
+  const localMidnight = malaysiaMidnightUtc(localNow);
+
+  return Array.from({ length: 7 }, (_, difference) => {
+    const date = new Date(localMidnight + difference * 24 * 60 * 60 * 1000);
+    const localDate = formatMalaysiaDate(date);
+    if (!isDeliveryDateAllowed(localDate)) return null;
+    const weekday = malaysiaDateTime(date).weekday;
+    const day = CUSTOMER_DELIVERY_DAYS.find((candidate) => DAY_INDEX[candidate.toLowerCase()] === weekday);
+    return day ? { day, date, localDate, isToday: difference === 0 } : null;
+  }).filter((slot): slot is NonNullable<typeof slot> => slot !== null);
+}
+
+export function nextCustomerDeliveryDate(day: string, now = new Date()): string {
+  const normalized = day.toLowerCase();
+  const slot = getUpcomingCustomerDeliverySlots(now).find((candidate) => candidate.day.toLowerCase() === normalized);
+  if (!slot) throw new Error(`Unsupported customer delivery day: ${day}`);
+  return slot.localDate;
+}
+
 export function nextBulkDeliveryDate(day: string, now = new Date()): string {
   const slot = getUpcomingDeliverySlots([day], now)[0];
   if (!slot) throw new Error(`Unsupported delivery day: ${day}`);
@@ -110,7 +133,7 @@ export function getBulkDeliveryCutoffStatus(now = new Date()): BulkDeliveryCutof
   const cutoff = malaysiaMidnightUtc(localNow) + BULK_DELIVERY_CUTOFF_HOUR * 60 * 60 * 1000;
   const millisecondsRemaining = Math.max(0, cutoff - now.getTime());
   const isBeforeCutoff = isBulkDeliveryDay && millisecondsRemaining > 0;
-  const nextSlot = getUpcomingDeliverySlots(['Wednesday', 'Friday'], now)[0];
+  const nextSlot = getUpcomingDeliverySlots([...BULK_DELIVERY_DAYS], now)[0];
   return {
     isBulkDeliveryDay,
     isBeforeCutoff,
