@@ -358,6 +358,8 @@ export function CartProvider({
 }) {
   const [cart, dispatch] = useReducer(cartReducer, emptyCart);
   const userIdRef = useRef<string | null>(null);
+  const cartRef = useRef(cart);
+  cartRef.current = cart;
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
@@ -376,7 +378,15 @@ export function CartProvider({
       const newUserId = session?.user?.id ?? null;
 
       if (newUserId !== userIdRef.current) {
+        const previousUserId = userIdRef.current;
         userIdRef.current = newUserId;
+
+        // CAPTCHA creates the anonymous Supabase identity after the guest has
+        // already assembled a cart. Preserve that cart for the new identity.
+        if (!previousUserId && newUserId && cartRef.current.items.length > 0) {
+          localStorage.setItem(storageKey(newUserId), JSON.stringify(cartRef.current));
+          return;
+        }
 
         dispatch({
           type: 'LOAD_CART',

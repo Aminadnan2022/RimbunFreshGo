@@ -12,6 +12,7 @@ const guestAuth = read('src/lib/guestAuth.ts');
 const captchaPanel = read('src/components/auth/GuestCaptchaPanel.tsx');
 const tracking = read('src/pages/GuestOrderTrackingPage.tsx');
 const cart = read('src/pages/CartPage.tsx');
+const cartContext = read('src/context/CartContext.tsx');
 const productCard = read('src/components/ui/ProductCard.tsx');
 const comboCard = read('src/components/combo/ComboCard.tsx');
 const failures = [];
@@ -99,6 +100,11 @@ requireAll('guest CAPTCHA retry and rapid-tap safety', captchaPanel, [
   'Security check is unavailable',
 ]);
 requireAll('guest checkout UX', checkout, ['Guest Checkout', 'isGuestCheckout', 'placeGuestOrder', 'guestOrderUrl']);
+requireAll('guest cart survives anonymous identity creation', cartContext, [
+  'const previousUserId = userIdRef.current',
+  '!previousUserId && newUserId && cartRef.current.items.length > 0',
+  'localStorage.setItem(storageKey(newUserId), JSON.stringify(cartRef.current))',
+]);
 if (cart.includes('if (!user)') || productCard.includes('openSignIn') || comboCard.includes('openSignIn')) {
   failures.push('storefront still forces sign-in before guest checkout');
 }
