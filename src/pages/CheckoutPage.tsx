@@ -592,15 +592,22 @@ const Preparation = () => (
     setReceiptError(null);
     setStagedReceipt(null);
   };
-  const captureReceiptFile = (event: FormEvent<HTMLInputElement>) => {
-    const input = event.currentTarget;
-    const file = input.files?.[0];
-    if (!file) return;
+  const captureReceiptFile = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const input = event.currentTarget;
+  const file = input.files?.[0];
 
-    const source: ReceiptSource = input.dataset.receiptSource === 'camera' ? 'Camera' : 'Files';
-    selectReceiptFile(file, source);
-    input.value = '';
-  };
+  if (!file) return;
+
+  // Capture the File object before resetting the native input.
+  // This keeps Android file selection safe and allows the same file
+  // to be selected again later.
+  const selectedFile = file;
+  const source: ReceiptSource =
+    input.dataset.receiptSource === 'camera' ? 'Camera' : 'Files';
+
+  input.value = '';
+  selectReceiptFile(selectedFile, source);
+};
   const changeReceipt = () => {
     setReceiptFile(null);
     setReceiptSource(null);
@@ -620,7 +627,6 @@ const Preparation = () => (
             type="file"
             accept={RECEIPT_FILE_ACCEPT}
             disabled={receiptPickerDisabled}
-            onInput={captureReceiptFile}
             onChange={captureReceiptFile}
             className="sr-only"
           />
@@ -640,7 +646,6 @@ const Preparation = () => (
             accept="image/*"
             capture="environment"
             disabled={receiptPickerDisabled}
-            onInput={captureReceiptFile}
             onChange={captureReceiptFile}
             className="sr-only"
           />
