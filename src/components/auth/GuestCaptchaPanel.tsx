@@ -23,7 +23,7 @@ function loadTurnstile(): Promise<TurnstileApi> {
     const script = existing ?? document.createElement('script');
     const finish = () => {
       if (!window.turnstile) return reject(new Error('Security check did not load.'));
-      window.turnstile.ready(() => resolve(window.turnstile!));
+      resolve(window.turnstile);
     };
     script.addEventListener('load', finish, { once: true });
     script.addEventListener('error', () => reject(new Error('Security check is unavailable.')), { once: true });
