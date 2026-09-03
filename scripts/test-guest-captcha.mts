@@ -53,6 +53,8 @@ const guestClient = readFileSync(resolve(root, 'src/lib/guestCheckout.ts'), 'utf
 const header = readFileSync(resolve(root, 'src/components/layout/Header.tsx'), 'utf8');
 assert.match(panel, /verificationLock\.current/, 'CAPTCHA callback must reject rapid duplicate verification');
 assert.match(panel, /turnstile\.reset/, 'failed and expired challenges must be resettable');
+assert.match(panel, /resolve\(window\.turnstile\)/, 'the explicit loader must resolve immediately after the script load event');
+assert.doesNotMatch(panel, /window\.turnstile\.ready/, 'the explicit loader must not wait forever on turnstile.ready after load');
 assert.match(checkout, /placementLock\.current/, 'checkout must retain its rapid-tap lock');
 assert.match(checkout, /guestCaptchaPending/, 'configured CAPTCHA must disable guest placement until verified');
 assert.match(header, /signInWithPassword\([\s\S]*captchaToken/, 'registered password sign-in must keep working when project CAPTCHA is enabled');
