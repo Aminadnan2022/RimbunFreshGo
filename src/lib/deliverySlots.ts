@@ -149,3 +149,13 @@ export function formatCountdown(milliseconds: number): string {
   const seconds = totalSeconds % 60;
   return [hours, minutes, seconds].map((value) => String(value).padStart(2, '0')).join(':');
 }
+
+export function formatDeliveryCutoffCountdown(milliseconds: number, language: 'en' | 'ms'): string {
+  const totalMinutes = Math.max(0, Math.ceil(milliseconds / 60_000));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  const duration = hours > 0
+    ? `${hours}${language === 'ms' ? 'j' : 'h'} ${minutes}m`
+    : `${minutes}m`;
+  return language === 'ms' ? `Tutup dalam ${duration}` : `Closes in ${duration}`;
+}
