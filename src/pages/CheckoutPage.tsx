@@ -1,6 +1,6 @@
-import { cloneElement, isValidElement, useEffect, useId, useRef, useState, type FormEvent } from 'react';
+import { cloneElement, isValidElement, useEffect, useId, useRef, useState } from 'react';
 import { Navigate, Link, useNavigate } from 'react-router-dom';
-import { CheckCircle2, ChevronLeft, ChevronRight, Info, Lock, Upload } from 'lucide-react';
+import { CheckCircle2, ChevronLeft, ChevronRight, ClipboardList, HelpCircle, Info, LocateFixed, Lock, MapPin, Upload } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
 import { useDeliveryConfig } from '../context/DeliveryConfigContext';
@@ -41,11 +41,34 @@ const formatDeliveryDate = (localDate: string, language: 'en' | 'ms') => new Dat
   language === 'ms' ? 'ms-MY' : 'en-MY',
   { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'Asia/Kuala_Lumpur' },
 );
-const Field = ({ label, required, error, children }: { label: string; required?: boolean; error?: string; children: React.ReactNode }) => {
+const Field = ({ label, required, error, hint, children }: { label: string; required?: boolean; error?: string; hint?: string; children: React.ReactNode }) => {
   const id = useId();
   const control = isValidElement<{ id?: string }>(children) ? cloneElement(children, { id }) : children;
-  return <div><label htmlFor={id} className="block text-sm font-semibold text-gray-700 mb-1.5">{label}{required && ' *'}</label>{control}{error && <p className="mt-1 text-xs text-red-500">{error}</p>}</div>;
+  return <div><label htmlFor={id} className="block text-sm font-semibold text-gray-700 mb-1.5">{label}{required && ' *'}</label>{hint && <p className="-mt-0.5 mb-2 text-xs leading-5 text-gray-500">{hint}</p>}{control}{error && <p className="mt-1 text-xs text-red-500">{error}</p>}</div>;
 };
+
+function isPreparationAnswerFilled(value: unknown): boolean {
+  return value !== undefined && value !== null && value !== '' && !(Array.isArray(value) && value.length === 0);
+}
+
+function preparationTargetStats(target: PreparationTarget, answers: PreparationAnswers) {
+  return target.questionnaire.questions.reduce((stats, question) => {
+    const units = question.selection_scope === 'physical_unit'
+      ? Array.from({ length: Math.max(0, target.quantity) }, (_, unit) => unit)
+      : [null];
+
+    units.forEach((unit) => {
+      const filled = isPreparationAnswerFilled(answers[answerKey(target, unit)]?.[question.code]);
+      stats.total += 1;
+      if (filled) stats.answered += 1;
+      if (question.required) {
+        stats.requiredTotal += 1;
+        if (filled) stats.requiredAnswered += 1;
+      }
+    });
+    return stats;
+  }, { total: 0, answered: 0, requiredTotal: 0, requiredAnswered: 0 });
+}
 
 export default function CheckoutPage() {
   const { cart, subtotal, clearCart } = useCart(); const { user, loading: authLoading } = useAuth(); const { config } = useDeliveryConfig(); const { t, language } = useLanguage(); const { settings } = useWebsiteSettings(); const navigate = useNavigate();
@@ -377,26 +400,101 @@ if (profileSaveError) {
     } catch (err) { setPlaceError(err instanceof Error ? err.message : t('checkout.validation.failedToPlaceOrder')); }
     finally { placementLock.current = false; setPlacing(false); }
   };
-  const Question = ({ target, unit, question }: { target: PreparationTarget; unit: number | null; question: PreparationQuestion }) => { const value = answers[answerKey(target, unit)]?.[question.code]; if (question.answer_type === 'boolean') return <fieldset><legend className="text-sm font-medium">{display(question)}{question.required && ' *'}</legend><div className="mt-2 flex gap-3"><button type="button" onClick={() => setAnswer(target, unit, question, true)} className={`rounded-xl px-4 py-2 text-sm ${value === true ? 'bg-forest-700 text-white' : 'bg-cream-100'}`}>{t('checkout.yes')}</button><button type="button" onClick={() => setAnswer(target, unit, question, false)} className={`rounded-xl px-4 py-2 text-sm ${value === false ? 'bg-forest-700 text-white' : 'bg-cream-100'}`}>{t('checkout.no')}</button></div></fieldset>; if (question.answer_type === 'single_select') return <Field label={`${display(question)}${question.required ? ' *' : ''}`}><select className={input()} value={String(value ?? '')} onChange={(e) => setAnswer(target, unit, question, e.target.value)}><option value="">{t('checkout.selectOption')}</option>{question.options.map((o) => <option key={o.code} value={o.code}>{display(o)}</option>)}</select></Field>; return <Field label={`${display(question)}${question.required ? ' *' : ''}`}><input className={input()} value={String(value ?? '')} onChange={(e) => setAnswer(target, unit, question, e.target.value)} /></Field>; };
-  const Totals = () => <div className="border-t pt-3 space-y-1 text-sm">
+  const Question = ({ target, unit, question }: { target: PreparationTarget; unit: number | null; question: PreparationQuestion }) => {
+    const value = answers[answerKey(target, unit)]?.[question.code];
+    const helpText = language === 'ms' ? question.help_text_ms : question.help_text;
+
+    if (question.answer_type === 'boolean') {
+      return (
+        <fieldset>
+          <legend className="text-sm font-semibold text-forest-900">{display(question)}{question.required && ' *'}</legend>
+          {helpText && <p className="mt-1 text-xs leading-5 text-gray-500">{helpText}</p>}
+          <div className="mt-3 grid grid-cols-2 gap-2 sm:flex" role="group" aria-label={display(question)}>
+            <button type="button" aria-pressed={value === true} onClick={() => setAnswer(target, unit, question, true)} className={`rounded-xl border px-4 py-2.5 text-sm font-semibold transition-colors ${value === true ? 'border-forest-700 bg-forest-700 text-white' : 'border-cream-300 bg-white text-forest-800 hover:border-forest-400 hover:bg-forest-50'}`}>{t('checkout.yes')}</button>
+            <button type="button" aria-pressed={value === false} onClick={() => setAnswer(target, unit, question, false)} className={`rounded-xl border px-4 py-2.5 text-sm font-semibold transition-colors ${value === false ? 'border-forest-700 bg-forest-700 text-white' : 'border-cream-300 bg-white text-forest-800 hover:border-forest-400 hover:bg-forest-50'}`}>{t('checkout.no')}</button>
+          </div>
+        </fieldset>
+      );
+    }
+
+    if (question.answer_type === 'single_select') {
+      return <Field label={display(question)} required={question.required} hint={helpText}>
+        <select className={input()} value={String(value ?? '')} onChange={(e) => setAnswer(target, unit, question, e.target.value)}>
+          <option value="">{t('checkout.selectOption')}</option>
+          {question.options.map((o) => <option key={o.code} value={o.code}>{display(o)}</option>)}
+        </select>
+      </Field>;
+    }
+
+    return <Field label={display(question)} required={question.required} hint={helpText}>
+      <input className={input()} value={String(value ?? '')} onChange={(e) => setAnswer(target, unit, question, e.target.value)} />
+    </Field>;
+  };
+const Totals = () => <div className="border-t pt-3 space-y-1 text-sm">
     <p className="flex justify-between"><span>{priceFinalAtCheckout ? t('checkout.subtotal') : t('checkout.estimatedSubtotal')}</span><span>RM{formatCurrency(subtotal)}</span></p>
     <p data-onboarding="checkout-delivery-fee" className="flex justify-between gap-3"><span>{t('checkout.delivery')}</span><span className="text-right">{isExternalDelivery ? t('checkout.externalCourierFeePending') : `RM${formatCurrency(fee)}`}</span></p>
     <p className="flex justify-between gap-3 font-bold"><span>{isExternalDelivery ? t('checkout.totalExcludingCourier') : priceFinalAtCheckout ? t('checkout.total') : t('checkout.estimatedTotal')}</span><span>RM{formatCurrency(total)}</span></p>
   </div>;
+
+  const preparationStats = targets.reduce((total, target) => {
+    const stats = preparationTargetStats(target, answers);
+    return {
+      total: total.total + stats.total,
+      answered: total.answered + stats.answered,
+      requiredTotal: total.requiredTotal + stats.requiredTotal,
+      requiredAnswered: total.requiredAnswered + stats.requiredAnswered,
+    };
+  }, { total: 0, answered: 0, requiredTotal: 0, requiredAnswered: 0 });
+
 const Preparation = () => (
-  <div className="card p-5 sm:p-8 space-y-6">
-    <h2 className="font-semibold text-lg">
-      {t('checkout.preparationTitle')}
-    </h2>
+  <div className="card overflow-hidden">
+    <div className="relative overflow-hidden border-b border-forest-800 bg-gradient-to-br from-forest-950 via-forest-900 to-forest-700 px-5 py-6 text-white sm:px-8 sm:py-8">
+      <div className="pointer-events-none absolute -right-16 -top-20 h-48 w-48 rounded-full border border-white/10" />
+      <div className="pointer-events-none absolute -bottom-24 right-12 h-40 w-40 rounded-full border border-jade-300/20" />
+      <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+        <div className="max-w-xl">
+          <div className="mb-3 inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-jade-300">
+            <ClipboardList size={16} aria-hidden="true" />
+            {t('checkout.preparation')}
+          </div>
+          <h2 className="font-display text-2xl font-bold leading-tight sm:text-3xl">{t('checkout.preparationTitle')}</h2>
+          <p className="mt-3 max-w-lg text-sm leading-6 text-forest-100 sm:text-base">{t('checkout.preparationIntro')}</p>
+        </div>
+        {!prepLoading && !prepError && targets.length > 0 && (
+          <div className="w-full max-w-sm rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur-sm">
+            <div className="flex items-center justify-between gap-3 text-xs font-semibold text-forest-100">
+              <span>{t('checkout.preparationProgress')}</span>
+              <span className="text-white">{preparationStats.answered}/{preparationStats.total}</span>
+            </div>
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-black/20" role="progressbar" aria-valuemin={0} aria-valuemax={preparationStats.total} aria-valuenow={preparationStats.answered}>
+              <div className="h-full rounded-full bg-jade-300 transition-all duration-300" style={{ width: `${preparationStats.total ? Math.round((preparationStats.answered / preparationStats.total) * 100) : 0}%` }} />
+            </div>
+            <p className="mt-2 text-xs text-forest-100">{preparationStats.requiredAnswered === preparationStats.requiredTotal ? t('checkout.preparationAllRequiredComplete') : t('checkout.preparationRequiredProgress', { done: preparationStats.requiredAnswered, total: preparationStats.requiredTotal })}</p>
+          </div>
+        )}
+      </div>
+    </div>
+
+    <div className="space-y-6 p-5 sm:p-8">
+      {!prepLoading && !prepError && targets.length > 0 && (
+        <div className="flex items-start gap-3 rounded-2xl border border-jade-200 bg-jade-50/70 p-4 text-sm text-forest-900">
+          <HelpCircle size={18} className="mt-0.5 shrink-0 text-jade-700" aria-hidden="true" />
+          <p className="leading-6">{t('checkout.preparationRequiredHint')}</p>
+        </div>
+      )}
 
     {prepLoading && (
-      <p>{t('checkout.preparationLoading')}</p>
+      <div className="space-y-4" aria-live="polite" aria-busy="true">
+        <p className="text-sm font-semibold text-gray-600">{t('checkout.preparationLoading')}</p>
+        <div className="h-28 animate-pulse rounded-2xl bg-cream-100" />
+        <div className="h-28 animate-pulse rounded-2xl bg-cream-100" />
+      </div>
     )}
 
     {!prepLoading && !prepError && targets.length === 0 && (
-      <p className="text-gray-500">
-        {t('checkout.noPreparationNeeded')}
-      </p>
+      <div className="rounded-2xl border border-cream-200 bg-cream-50 p-5 text-sm leading-6 text-gray-600">
+        <p className="font-semibold text-forest-900">{t('checkout.noPreparationNeeded')}</p>
+      </div>
     )}
 
     {cart.items.map((item, lineIndex) => {
@@ -405,37 +503,68 @@ const Preparation = () => (
 
       if (item.isCombo && item.comboItems?.length) {
         const comboLabel = language === 'ms' ? 'Kombo' : 'Combo';
+        const comboStats = lineTargets.reduce((total, target) => {
+          const stats = preparationTargetStats(target, answers);
+          return {
+            total: total.total + stats.total,
+            answered: total.answered + stats.answered,
+            requiredTotal: total.requiredTotal + stats.requiredTotal,
+            requiredAnswered: total.requiredAnswered + stats.requiredAnswered,
+          };
+        }, { total: 0, answered: 0, requiredTotal: 0, requiredAnswered: 0 });
+        const comboComplete = comboStats.requiredAnswered === comboStats.requiredTotal;
         return (
-          <section key={lineIndex} className="space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h3 className="font-semibold text-forest-900">{item.name} × {item.quantity}</h3>
-              {item.quantity > 1 && (
-                <button
-                  type="button"
-                  className="text-sm text-forest-700 underline"
-                  onClick={() => setAnswers((current) => {
-                    const copied = { ...current };
-                    lineTargets.forEach((target) => {
-                      const unitsPerCombo = target.unitsPerCombo ?? 1;
-                      for (let comboIndex = 1; comboIndex < item.quantity; comboIndex += 1) {
-                        for (let componentUnit = 0; componentUnit < unitsPerCombo; componentUnit += 1) {
-                          const source = answerKey(target, componentUnit);
-                          const destination = answerKey(target, comboIndex * unitsPerCombo + componentUnit);
-                          copied[destination] = { ...(current[destination] ?? {}), ...(current[source] ?? {}) };
-                        }
-                      }
-                    });
-                    return copied;
-                  })}
-                >
-                  {t('checkout.applySameToAll')}
-                </button>
-              )}
+          <section key={lineIndex} className="overflow-hidden rounded-3xl border border-cream-300 bg-cream-50/40">
+            <div className="flex flex-col gap-4 border-b border-cream-200 bg-white p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+              <div className="flex items-start gap-3">
+                <div className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${comboComplete ? 'bg-jade-100 text-jade-700' : 'bg-forest-100 text-forest-700'}`}>
+                  <span className="text-sm font-bold">{lineIndex + 1}</span>
+                </div>
+                <div>
+                  <h3 className="font-display text-xl font-bold text-forest-950">{item.name} <span className="font-sans text-sm font-semibold text-gray-500">× {item.quantity}</span></h3>
+                  <p className="mt-1 text-xs text-gray-500">{t('checkout.preparationChoiceCount', { count: comboStats.total })}</p>
+                </div>
+              </div>
+              <span className={`inline-flex w-fit items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold ${comboComplete ? 'bg-jade-100 text-jade-800' : 'bg-amber-100 text-amber-800'}`}>
+                {comboComplete && <CheckCircle2 size={14} aria-hidden="true" />}
+                {comboComplete ? t('checkout.preparationItemComplete') : t('checkout.preparationItemNeedsAttention')}
+              </span>
             </div>
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-4 p-4 sm:p-6">
+              {item.quantity > 1 && (
+                <div className="flex flex-col gap-3 rounded-2xl border border-jade-200 bg-jade-50/70 p-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-forest-900">{t('checkout.applySameToAll')}</p>
+                    <p className="mt-1 text-xs leading-5 text-gray-600">{t('checkout.preparationApplySameToAllHint')}</p>
+                  </div>
+                  <button
+                    type="button"
+                    className="btn-secondary w-full shrink-0 px-4 py-2.5 text-sm sm:w-auto"
+                    onClick={() => setAnswers((current) => {
+                      const copied = { ...current };
+                      lineTargets.forEach((target) => {
+                        const unitsPerCombo = target.unitsPerCombo ?? 1;
+                        for (let comboIndex = 1; comboIndex < item.quantity; comboIndex += 1) {
+                          for (let componentUnit = 0; componentUnit < unitsPerCombo; componentUnit += 1) {
+                            const source = answerKey(target, componentUnit);
+                            const destination = answerKey(target, comboIndex * unitsPerCombo + componentUnit);
+                            copied[destination] = { ...(current[destination] ?? {}), ...(current[source] ?? {}) };
+                          }
+                        }
+                      });
+                      return copied;
+                    })}
+                  >
+                    {t('checkout.applySameToAll')}
+                  </button>
+                </div>
+              )}
               {Array.from({ length: item.quantity }, (_, comboIndex) => (
-                <div key={comboIndex} className="rounded-2xl border border-cream-200 bg-cream-50/60 p-4 space-y-5">
-                  <h4 className="font-semibold text-gray-900">{comboLabel} #{comboIndex + 1}</h4>
+                <div key={comboIndex} className="rounded-2xl border border-cream-300 bg-white p-4 shadow-soft sm:p-5">
+                  <div className="flex items-center justify-between gap-3 border-b border-cream-200 pb-4">
+                    <h4 className="font-semibold text-forest-950">{comboLabel} #{comboIndex + 1}</h4>
+                    <span className="text-xs font-medium text-gray-500">{t('checkout.preparationUnitHelp')}</span>
+                  </div>
                   {item.comboItems!.map((component, componentIndex) => {
                     const componentNumber = componentIndex + 1;
                     const target = lineTargets.find((candidate) => candidate.componentNumber === componentNumber);
@@ -443,8 +572,8 @@ const Preparation = () => (
 
                     const unitsPerCombo = target.unitsPerCombo ?? 1;
                     return (
-                      <div key={`${comboIndex}-${componentNumber}-${target.key}`} className="border-t border-cream-200 pt-4 space-y-4 first:border-t-0 first:pt-0">
-                        <h5 className="font-medium text-gray-900">{component.name}</h5>
+                      <div key={`${comboIndex}-${componentNumber}-${target.key}`} className="space-y-4 border-t border-cream-200 pt-5 first:border-t-0 first:pt-0">
+                        <h5 className="text-base font-semibold text-forest-900">{component.name}</h5>
                         {target.questionnaire.questions.filter((q) => q.selection_scope === 'line').map((q) => (
                           <Question key={q.code} target={target} unit={null} question={q}/>
                         ))}
@@ -471,12 +600,32 @@ const Preparation = () => (
 
       return lineTargets.map((target) => {
         const physical = target.questionnaire.questions.some((q) => q.selection_scope === 'physical_unit');
+        const stats = preparationTargetStats(target, answers);
+        const complete = stats.requiredAnswered === stats.requiredTotal;
         return (
-          <section key={target.key} className="border border-cream-200 rounded-2xl p-4 space-y-4">
-            <h3 className="font-semibold">{target.name}</h3>
-            {physical && target.quantity > 1 && <button type="button" className="text-sm text-forest-700 underline" onClick={() => { const first = answers[answerKey(target, 0)] ?? {}; setAnswers((current) => ({ ...current, ...Object.fromEntries(Array.from({ length: target.quantity }, (_, unit) => [answerKey(target, unit), { ...(current[answerKey(target, unit)] ?? {}), ...first }])) })); }}>{t('checkout.applySameToAll')}</button>}
-            {target.questionnaire.questions.filter((q) => q.selection_scope === 'line').map((q) => <Question key={q.code} target={target} unit={null} question={q}/>)}
-            {physical && Array.from({ length: target.quantity }, (_, unit) => <div key={unit} className="border-t pt-4 space-y-4"><h4 className="font-medium">{conciseReviewLabel(target, unit, language)}</h4>{target.questionnaire.questions.filter((q) => q.selection_scope === 'physical_unit').map((q) => <Question key={q.code} target={target} unit={unit} question={q}/>)}</div>)}
+          <section key={target.key} className="overflow-hidden rounded-3xl border border-cream-300 bg-white shadow-soft">
+            <div className="flex flex-col gap-4 border-b border-cream-200 bg-cream-50/60 p-5 sm:flex-row sm:items-center sm:justify-between sm:p-6">
+              <div className="flex items-start gap-3">
+                <div className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl ${complete ? 'bg-jade-100 text-jade-700' : 'bg-forest-100 text-forest-700'}`}>
+                  {complete ? <CheckCircle2 size={20} aria-hidden="true" /> : <span className="text-sm font-bold">{lineIndex + 1}</span>}
+                </div>
+                <div>
+                  <h3 className="font-display text-xl font-bold text-forest-950">{target.name}</h3>
+                  <p className="mt-1 text-xs text-gray-500">{t('checkout.preparationChoiceCount', { count: stats.total })}</p>
+                </div>
+              </div>
+              <span className={`inline-flex w-fit items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold ${complete ? 'bg-jade-100 text-jade-800' : 'bg-amber-100 text-amber-800'}`}>
+                {complete && <CheckCircle2 size={14} aria-hidden="true" />}
+                {complete ? t('checkout.preparationItemComplete') : t('checkout.preparationItemNeedsAttention')}
+              </span>
+            </div>
+            <div className="space-y-5 p-5 sm:p-6">
+              {physical && target.quantity > 1 && <div className="flex flex-col gap-3 rounded-2xl border border-jade-200 bg-jade-50/70 p-4 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-sm font-semibold text-forest-900">{t('checkout.applySameToAll')}</p><p className="mt-1 text-xs leading-5 text-gray-600">{t('checkout.preparationApplySameToAllHint')}</p></div><button type="button" className="btn-secondary w-full shrink-0 px-4 py-2.5 text-sm sm:w-auto" onClick={() => { const first = answers[answerKey(target, 0)] ?? {}; setAnswers((current) => ({ ...current, ...Object.fromEntries(Array.from({ length: target.quantity }, (_, unit) => [answerKey(target, unit), { ...(current[answerKey(target, unit)] ?? {}), ...first }])) })); }}>{t('checkout.applySameToAll')}</button></div>}
+              <div className="space-y-5">
+                {target.questionnaire.questions.filter((q) => q.selection_scope === 'line').map((q) => <Question key={q.code} target={target} unit={null} question={q}/>)}
+                {physical && Array.from({ length: target.quantity }, (_, unit) => <div key={unit} className="space-y-5 border-t border-cream-200 pt-5 first:border-t-0 first:pt-0"><div className="flex items-center justify-between gap-3"><h4 className="font-semibold text-forest-900">{conciseReviewLabel(target, unit, language)}</h4><span className="text-xs font-medium text-gray-500">{unit + 1} / {target.quantity}</span></div>{target.questionnaire.questions.filter((q) => q.selection_scope === 'physical_unit').map((q) => <Question key={q.code} target={target} unit={unit} question={q}/>)}</div>)}
+              </div>
+            </div>
           </section>
         );
       });
@@ -489,33 +638,26 @@ const Preparation = () => (
     )}
 
     {prepError && (
-      <p className="text-sm text-red-600">
+      <p className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
         {prepError}
       </p>
     )}
+    </div>
 
-    <div className="flex gap-3">
-      <button
-        className="btn-secondary flex-1"
-        onClick={() => setStep('details')}
-      >
+    <div className="flex flex-col-reverse gap-3 border-t border-cream-200 bg-cream-50/60 p-5 sm:flex-row sm:justify-between sm:p-6">
+      <button className="btn-secondary w-full sm:w-auto sm:min-w-40" onClick={() => setStep('details')}>
         {t('checkout.back')}
       </button>
+      <button className="btn-primary w-full sm:min-w-56" disabled={prepLoading} onClick={() => {
+        if (requiredMissing(targets, answers)) {
+          setPrepError(t('checkout.preparationRequired'));
+          return;
+        }
 
-      <button
-        className="btn-primary flex-1"
-        disabled={prepLoading}
-        onClick={() => {
-          if (requiredMissing(targets, answers)) {
-            setPrepError(t('checkout.preparationRequired'));
-            return;
-          }
-
-          setPrepError(null);
-          setStep('review');
-        }}
-      >
-        {t('checkout.continueToReview')}
+        setPrepError(null);
+        setStep('review');
+      }}>
+        {t('checkout.continueToReview')} <ChevronRight size={16} className="inline" aria-hidden="true" />
       </button>
     </div>
   </div>
