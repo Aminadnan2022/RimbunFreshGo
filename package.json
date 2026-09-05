@@ -45,6 +45,7 @@
     "test:checkout-placement-sql-identifiers": "node scripts/check-checkout-placement-sql-identifiers.mjs",
     "test:post-place-order-navigation": "node scripts/check-post-place-order-navigation.mjs",
     "test:post-order-payment-tracking": "node --experimental-strip-types scripts/check-post-order-payment-tracking.mjs",
+    "test:lalamove-tracking-branching": "node scripts/check-lalamove-tracking-branching.mjs",
     "test:order-number-prefix": "node scripts/check-order-number-prefix.mjs",
     "test:delivery-points-delete-access": "node scripts/check-delivery-points-delete-access.mjs",
     "test:fixed-combo-customer-price-finalisation": "node --experimental-strip-types scripts/check-fixed-combo-customer-price-finalisation.mjs",

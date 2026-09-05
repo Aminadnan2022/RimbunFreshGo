@@ -65,6 +65,8 @@ export default function GuestOrderTrackingPage() {
   const [trackingLinkMessage, setTrackingLinkMessage] = useState<string | null>(null);
   const [proofUrls, setProofUrls] = useState<{ type: string; url: string }[]>([]);
   const [captchaNeeded, setCaptchaNeeded] = useState(false);
+  const isInstantLalamove =
+    order?.delivery.method_code === 'instant_customer_lalamove';
 
   const load = useCallback(async () => {
     setLoading(true); setError(null);
@@ -103,6 +105,11 @@ export default function GuestOrderTrackingPage() {
   const stage = useMemo(() => {
     if (!order) return 0;
     const tracking = order.tracking;
+    if (isInstantLalamove) {
+      if (tracking.packingStartedAt) return 2;
+      if (order.paymentStatus === 'paid') return 1;
+      return 0;
+    }
     if (tracking.deliveredAt) return 6;
     if (tracking.deliveryStartedAt) return 5;
     if (tracking.readyForRiderAt || tracking.supplierDispatchCompletedAt) return 4;
@@ -110,7 +117,7 @@ export default function GuestOrderTrackingPage() {
     if (tracking.packingStartedAt) return 2;
     if (order.paymentStatus === 'paid') return 1;
     return 0;
-  }, [order]);
+  }, [isInstantLalamove, order]);
 
   const selectReceipt = (event: FormEvent<HTMLInputElement>) => {
     const file = event.currentTarget.files?.[0] ?? null;
@@ -163,7 +170,9 @@ export default function GuestOrderTrackingPage() {
   const canUpload = order.priceStatus === 'final' && ['pending', 'rejected'].includes(order.paymentStatus);
   const qrUrl = order.payment?.qrStoragePath
     ? supabase.storage.from('payment-qr').getPublicUrl(order.payment.qrStoragePath).data.publicUrl : null;
-  const stages = ['Order received', 'Payment confirmed', 'Preparing', 'Supplier dispatch', 'At FreshGo hub', 'Out for delivery', 'Delivered'];
+  const stages = isInstantLalamove
+    ? ['Order received', 'Payment confirmed', 'Preparing']
+    : ['Order received', 'Payment confirmed', 'Preparing', 'Supplier dispatch', 'At FreshGo hub', 'Out for delivery', 'Delivered'];
   const privateTrackingLink = token.current
     ? `${window.location.origin}${window.location.pathname}#token=${encodeURIComponent(token.current)}`
     : null;
@@ -196,8 +205,10 @@ export default function GuestOrderTrackingPage() {
 
     <section className="card mt-6 p-5 sm:p-7"><div className="flex items-center justify-between gap-3"><h2 className="font-semibold">Order progress</h2><button onClick={() => void load()} className="btn-secondary inline-flex items-center gap-2 px-3 py-2"><RefreshCw size={15}/>Refresh</button></div>
       <div className="mt-5 space-y-3">{stages.map((label, index) => <div key={label} className="flex items-center gap-3"><span className={`h-3 w-3 shrink-0 rounded-full ${index <= stage ? 'bg-forest-600' : 'bg-gray-200'}`}/><span className={index <= stage ? 'font-semibold text-gray-800' : 'text-gray-400'}>{label}</span></div>)}</div>
-      {order.tracking.trackingUrl && <a href={order.tracking.trackingUrl} target="_blank" rel="noreferrer" className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-forest-700">Track supplier delivery <ExternalLink size={14}/></a>}
-      {order.tracking.riderName && <div className="mt-5 rounded-xl border border-forest-100 bg-forest-50 p-4"><p className="font-semibold text-forest-900">Your rider: {order.tracking.riderName}</p>{order.tracking.riderPhone && <a href={`tel:${order.tracking.riderPhone.replace(/[^\d+]/g, '')}`} className="mt-2 block text-sm font-medium text-forest-700">Call {order.tracking.riderPhone}</a>}{order.tracking.riderWhatsapp && whatsappNumber(order.tracking.riderWhatsapp) && <a href={`https://wa.me/${whatsappNumber(order.tracking.riderWhatsapp)}`} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-2 text-sm font-semibold text-forest-700"><MessageCircle size={15}/>Message rider on WhatsApp</a>}</div>}
+      {isInstantLalamove ? <div className="mt-5 rounded-xl border border-blue-100 bg-blue-50 p-4"><p className="font-semibold text-blue-900">Lalamove delivery</p><p className="mt-1 text-sm text-blue-800">Your Lalamove tracking link will appear here after the delivery has been booked.</p></div> : <>
+        {order.tracking.trackingUrl && <a href={order.tracking.trackingUrl} target="_blank" rel="noreferrer" className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-forest-700">Track supplier delivery <ExternalLink size={14}/></a>}
+        {order.tracking.riderName && <div className="mt-5 rounded-xl border border-forest-100 bg-forest-50 p-4"><p className="font-semibold text-forest-900">Your rider: {order.tracking.riderName}</p>{order.tracking.riderPhone && <a href={`tel:${order.tracking.riderPhone.replace(/[^\d+]/g, '')}`} className="mt-2 block text-sm font-medium text-forest-700">Call {order.tracking.riderPhone}</a>}{order.tracking.riderWhatsapp && whatsappNumber(order.tracking.riderWhatsapp) && <a href={`https://wa.me/${whatsappNumber(order.tracking.riderWhatsapp)}`} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-2 text-sm font-semibold text-forest-700"><MessageCircle size={15}/>Message rider on WhatsApp</a>}</div>}
+      </>}
       {proofUrls.length > 0 && <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">{proofUrls.map(proof => <figure key={proof.type} className="overflow-hidden rounded-xl border bg-white"><img src={proof.url} alt={`${proof.type} delivery proof`} className="aspect-video w-full object-cover"/><figcaption className="p-2 text-center text-xs font-semibold capitalize">{proof.type} delivery proof</figcaption></figure>)}</div>}
     </section>
 

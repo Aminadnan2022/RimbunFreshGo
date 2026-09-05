@@ -192,6 +192,7 @@ export default function OrderTrackingPage() {
   const { t, language } = useLanguage();
 
   const [order, setOrder] = useState<Order | null | undefined>(undefined);
+  const [deliveryMethodCode, setDeliveryMethodCode] = useState<string | null>(null);
   const [riderName, setRiderName] = useState<string | null>(null);
   const [riderContact, setRiderContact] = useState<RiderContact | null>(null);
   const [deliveryProofs, setDeliveryProofs] =
@@ -232,6 +233,7 @@ const [initialLoading, setInitialLoading] = useState(true);
     if (!o) {
       // Only here does the order truly not exist.
       setOrder(null);
+      setDeliveryMethodCode(null);
       setRiderName(null);
       setRiderContact(null);
       setDeliveryProofs([]);
@@ -239,6 +241,7 @@ const [initialLoading, setInitialLoading] = useState(true);
       setLoadError(null);
       return;
     }
+    setDeliveryMethodCode(o.customer.deliveryMethod || null);
     setLoadError(null);
 
     // Canonical payment metadata is intentionally loaded separately.
@@ -246,7 +249,7 @@ const [initialLoading, setInitialLoading] = useState(true);
     try {
       const canonicalLookup = supabase
         .from('sales_orders')
-        .select('id, price_status, payment_status, final_subtotal, final_total, delivery_fee');
+        .select('id, price_status, payment_status, final_subtotal, final_total, delivery_fee, delivery_snapshot');
       const isCanonicalId = /^[0-9a-f-]{36}$/i.test(ref);
       const { data: canonicalRow, error: canonicalError } = await (
         isCanonicalId
@@ -257,6 +260,14 @@ const [initialLoading, setInitialLoading] = useState(true);
       if (canonicalError) throw canonicalError;
 
       if (canonicalRow) {
+        const deliverySnapshot = canonicalRow.delivery_snapshot as Record<string, unknown> | null;
+        const isInstantLalamove =
+          deliverySnapshot?.method_code === 'instant_customer_lalamove';
+        setDeliveryMethodCode(
+          typeof deliverySnapshot?.method_code === 'string'
+            ? deliverySnapshot.method_code
+            : null,
+        );
         let rejectionReason: string | null = null;
 
         if (canonicalRow.payment_status === 'rejected') {
@@ -391,12 +402,14 @@ const [initialLoading, setInitialLoading] = useState(true);
         const {
           data: deliveryTrackingData,
           error: deliveryTrackingError,
-        } = await supabase.rpc(
-          'get_sales_order_canonical_delivery_tracking',
-          {
-            p_sales_order_id: canonicalRow.id,
-          }
-        );
+        } = isInstantLalamove
+          ? { data: null, error: null }
+          : await supabase.rpc(
+              'get_sales_order_canonical_delivery_tracking',
+              {
+                p_sales_order_id: canonicalRow.id,
+              }
+            );
 
         if (deliveryTrackingError) {
           console.warn('[tracking] Supplier batch tracking unavailable:', deliveryTrackingError.message);
@@ -409,12 +422,14 @@ const [initialLoading, setInitialLoading] = useState(true);
         const {
           data: riderTrackingData,
           error: riderTrackingError,
-        } = await supabase.rpc(
-          'get_sales_order_canonical_rider_tracking',
-          {
-            p_sales_order_id: canonicalRow.id,
-          }
-        );
+        } = isInstantLalamove
+          ? { data: null, error: null }
+          : await supabase.rpc(
+              'get_sales_order_canonical_rider_tracking',
+              {
+                p_sales_order_id: canonicalRow.id,
+              }
+            );
 
         if (riderTrackingError) {
           console.warn('[tracking] Rider tracking unavailable:', riderTrackingError.message);
@@ -497,10 +512,11 @@ const [initialLoading, setInitialLoading] = useState(true);
             deliveryTracking?.supplier_dispatch_started_at ?? null,
           supplierDispatchCompletedAt:
             deliveryTracking?.supplier_dispatch_completed_at ?? null,
-          // Canonical supplier-to-hub batches own this URL. Keep it on the
-          // customer tracking projection so the existing timeline can render
-          // the same customer-safe link as legacy order dispatches.
-          lalamoveTrackingUrl: deliveryTracking?.tracking_url ?? null,
+          // This URL belongs to the supplier-to-hub batch. It must never be
+          // presented as the instant customer's final-mile Lalamove tracker.
+          lalamoveTrackingUrl: isInstantLalamove
+            ? null
+            : deliveryTracking?.tracking_url ?? null,
           readyForRiderAt:
             riderTracking?.ready_for_rider_at ?? null,
           deliveryStartedAt:
@@ -511,6 +527,7 @@ const [initialLoading, setInitialLoading] = useState(true);
             riderTracking?.delivered_at ?? null,
         };
       } else {
+        setDeliveryMethodCode(o.customer.deliveryMethod || null);
         setCanonicalPayment(null);
         setCanonicalPaymentDisplay(null);
         setDeliveryProofs([]);
@@ -720,6 +737,17 @@ useEffect(() => {
     canonicalPriceStatus: canonicalPayment?.priceStatus,
     legacyPaymentStatus: order?.paymentStatus,
   });
+
+  const isInstantLalamove =
+    deliveryMethodCode === 'instant_customer_lalamove';
+  const visibleTrackingStages = isInstantLalamove
+    ? TRACKING_STAGES.filter(
+        (stage) =>
+          stage !== 'supplierDispatch' &&
+          stage !== 'arrivedHub' &&
+          stage !== 'readyForRider',
+      )
+    : TRACKING_STAGES;
 
   const isTerminalDelivered = currentIndex === TRACKING_STAGES.length - 1;
   const stageTimestamp = (key: (typeof TRACKING_STAGES)[number]) => {
@@ -1092,8 +1120,9 @@ useEffect(() => {
       <div data-onboarding="tracking-timeline" className="card p-6 sm:p-8 mb-6">
         <h2 className="font-semibold text-charcoal mb-6">{t("tracking.live.title")}</h2>
         <div className="relative pl-1">
-          {TRACKING_STAGES.map((key, i) => {
-            const st = stageState(i);
+          {visibleTrackingStages.map((key, visibleIndex) => {
+            const stageIndex = TRACKING_STAGES.indexOf(key);
+            const st = stageState(stageIndex);
             const Icon = STAGE_ICONS[key];
             const isPaymentSubmittedStage =
               key === 'awaitingPayment' && paymentPresentation.awaitingVerification;
@@ -1125,7 +1154,7 @@ useEffect(() => {
                 }
                 className="relative pl-14 pb-7 last:pb-0"
               >
-                {i < TRACKING_STAGES.length - 1 && (
+                {visibleIndex < visibleTrackingStages.length - 1 && (
                   <div className={`absolute top-11 bottom-0 left-[19px] w-0.5 rounded-full ${lineCls(st)}`} />
                 )}
                 <div className={`absolute top-0 left-0 w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 transition-colors ${circleCls(st)}`}>
@@ -1238,6 +1267,20 @@ useEffect(() => {
           </div>
         </div>
       </div>
+
+      {isInstantLalamove && (
+        <div className="card p-6 mb-6 border border-blue-100 bg-blue-50/40">
+          <div className="flex items-start gap-3">
+            <Truck className="mt-0.5 text-blue-700" size={20} />
+            <div>
+              <h2 className="font-semibold text-charcoal">Lalamove delivery</h2>
+              <p className="mt-1 text-sm text-gray-600">
+                Your Lalamove tracking link will appear here after the delivery has been booked.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Proof of delivery */}
       {(currentIndex === TRACKING_STAGES.length - 1 ||
@@ -1476,7 +1519,7 @@ useEffect(() => {
       )}
 
       {/* Rider info */}
-      {riderName && (
+      {!isInstantLalamove && riderName && (
         <div className="card p-6 mb-6">
           <h2 className="font-semibold text-charcoal mb-4">{t("tracking.live.rider")}</h2>
           <div className="flex items-center gap-3">
