@@ -64,7 +64,27 @@ Deno.serve(async (req: Request) => {
       throw listError;
     }
 
-    const result = users.map((u) => ({ id: u.id, email: u.email ?? "" }));
+    const { data: riderProfiles, error: profilesError } = await serviceClient
+      .from("delivery_rider_profiles")
+      .select("user_id, display_name, phone, whatsapp");
+
+    if (profilesError) {
+      throw profilesError;
+    }
+
+    const profileByUserId = new Map(
+      (riderProfiles ?? []).map((profile) => [profile.user_id, {
+        displayName: profile.display_name,
+        phone: profile.phone,
+        whatsapp: profile.whatsapp,
+      }]),
+    );
+
+    const result = users.map((u) => ({
+      id: u.id,
+      email: u.email ?? "",
+      riderProfile: profileByUserId.get(u.id) ?? null,
+    }));
 
     return new Response(JSON.stringify(result), {
       status: 200,

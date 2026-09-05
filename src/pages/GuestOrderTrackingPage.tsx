@@ -20,6 +20,7 @@ type GuestTracking = {
   supplierDispatchStartedAt: string | null; supplierDispatchCompletedAt: string | null;
   readyForRiderAt: string | null; deliveryStartedAt: string | null;
   deliveredAt: string | null; deliveryStatus: string | null; trackingUrl: string | null;
+  riderName: string | null; riderPhone: string | null; riderWhatsapp: string | null;
 };
 type GuestOrder = {
   id: string; orderNumber: string; createdAt: string; status: string;
@@ -196,6 +197,7 @@ export default function GuestOrderTrackingPage() {
     <section className="card mt-6 p-5 sm:p-7"><div className="flex items-center justify-between gap-3"><h2 className="font-semibold">Order progress</h2><button onClick={() => void load()} className="btn-secondary inline-flex items-center gap-2 px-3 py-2"><RefreshCw size={15}/>Refresh</button></div>
       <div className="mt-5 space-y-3">{stages.map((label, index) => <div key={label} className="flex items-center gap-3"><span className={`h-3 w-3 shrink-0 rounded-full ${index <= stage ? 'bg-forest-600' : 'bg-gray-200'}`}/><span className={index <= stage ? 'font-semibold text-gray-800' : 'text-gray-400'}>{label}</span></div>)}</div>
       {order.tracking.trackingUrl && <a href={order.tracking.trackingUrl} target="_blank" rel="noreferrer" className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-forest-700">Track supplier delivery <ExternalLink size={14}/></a>}
+      {order.tracking.riderName && <div className="mt-5 rounded-xl border border-forest-100 bg-forest-50 p-4"><p className="font-semibold text-forest-900">Your rider: {order.tracking.riderName}</p>{order.tracking.riderPhone && <a href={`tel:${order.tracking.riderPhone.replace(/[^\d+]/g, '')}`} className="mt-2 block text-sm font-medium text-forest-700">Call {order.tracking.riderPhone}</a>}{order.tracking.riderWhatsapp && whatsappNumber(order.tracking.riderWhatsapp) && <a href={`https://wa.me/${whatsappNumber(order.tracking.riderWhatsapp)}`} target="_blank" rel="noreferrer" className="mt-2 inline-flex items-center gap-2 text-sm font-semibold text-forest-700"><MessageCircle size={15}/>Message rider on WhatsApp</a>}</div>}
       {proofUrls.length > 0 && <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">{proofUrls.map(proof => <figure key={proof.type} className="overflow-hidden rounded-xl border bg-white"><img src={proof.url} alt={`${proof.type} delivery proof`} className="aspect-video w-full object-cover"/><figcaption className="p-2 text-center text-xs font-semibold capitalize">{proof.type} delivery proof</figcaption></figure>)}</div>}
     </section>
 

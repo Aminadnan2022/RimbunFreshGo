@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef, type FormEvent } fro
 import { useParams, Link, Navigate } from 'react-router-dom';
 import {
   CheckCircle2, PackageCheck, Package, Truck, Home, Bike, Check,
-  ExternalLink, MapPin, User, ChevronRight, CalendarDays, Wallet, BadgeCheck, PackageX, ZoomIn, X,
+  ExternalLink, MapPin, User, Phone, MessageCircle, ChevronRight, CalendarDays, Wallet, BadgeCheck, PackageX, ZoomIn, X,
 } from 'lucide-react';
 import { useOrders } from '../context/OrderContext';
 import { useAuth } from '../context/AuthContext';
@@ -170,6 +170,20 @@ type CanonicalFinalPriceItem = {
   finalPrice: number;
 };
 
+type RiderContact = {
+  name: string;
+  phone: string | null;
+  whatsapp: string | null;
+};
+
+function riderWhatsAppHref(value: string): string | null {
+  const digits = value.replace(/\D/g, '');
+  if (!digits) return null;
+  if (digits.startsWith('60')) return `https://wa.me/${digits}`;
+  if (digits.startsWith('0')) return `https://wa.me/60${digits.slice(1)}`;
+  return `https://wa.me/60${digits}`;
+}
+
 export default function OrderTrackingPage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
@@ -179,6 +193,7 @@ export default function OrderTrackingPage() {
 
   const [order, setOrder] = useState<Order | null | undefined>(undefined);
   const [riderName, setRiderName] = useState<string | null>(null);
+  const [riderContact, setRiderContact] = useState<RiderContact | null>(null);
   const [deliveryProofs, setDeliveryProofs] =
     useState<CustomerDeliveryProof[]>([]);
   const [deliveryProofError, setDeliveryProofError] =
@@ -218,6 +233,7 @@ const [initialLoading, setInitialLoading] = useState(true);
       // Only here does the order truly not exist.
       setOrder(null);
       setRiderName(null);
+      setRiderContact(null);
       setDeliveryProofs([]);
       setDeliveryProofError(null);
       setLoadError(null);
@@ -415,6 +431,15 @@ const [initialLoading, setInitialLoading] = useState(true);
             ? String(riderTracking.rider_name)
             : null
         );
+        setRiderContact(
+          riderTracking?.rider_name
+            ? {
+                name: String(riderTracking.rider_name),
+                phone: riderTracking.rider_phone ? String(riderTracking.rider_phone) : null,
+                whatsapp: riderTracking.rider_whatsapp ? String(riderTracking.rider_whatsapp) : null,
+              }
+            : null,
+        );
 
         const canonicalDeliveryStatus =
           riderTracking?.delivery_status
@@ -490,6 +515,7 @@ const [initialLoading, setInitialLoading] = useState(true);
         setCanonicalPaymentDisplay(null);
         setDeliveryProofs([]);
         setDeliveryProofError(null);
+        setRiderContact(null);
       }
     } catch (err) {
       console.error('[tracking] Failed to fetch canonical payment metadata:', err);
@@ -497,6 +523,7 @@ const [initialLoading, setInitialLoading] = useState(true);
       setCanonicalPaymentDisplay(null);
       setDeliveryProofs([]);
       setDeliveryProofError(null);
+      setRiderContact(null);
     }
 
     setOrder(o);
@@ -517,6 +544,7 @@ const [initialLoading, setInitialLoading] = useState(true);
           err
         );
         setRiderName(null);
+        setRiderContact(null);
       }
     }
   }, [getOrder]);
@@ -1455,7 +1483,15 @@ useEffect(() => {
             <div className="w-11 h-11 rounded-full bg-green-100 text-green-700 flex items-center justify-center flex-shrink-0">
               <User size={20} />
             </div>
-            <p className="font-semibold text-forest-800">{riderName}</p>
+            <div>
+              <p className="font-semibold text-forest-800">{riderName}</p>
+              {riderContact?.phone && (
+                <a href={`tel:${riderContact.phone.replace(/[^\d+]/g, '')}`} className="mt-1 inline-flex items-center gap-1 text-sm font-medium text-forest-700 hover:text-forest-900"><Phone size={14} />{riderContact.phone}</a>
+              )}
+              {riderContact?.whatsapp && riderWhatsAppHref(riderContact.whatsapp) && (
+                <a href={riderWhatsAppHref(riderContact.whatsapp) ?? '#'} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex items-center gap-1 text-sm font-medium text-forest-700 hover:text-forest-900"><MessageCircle size={14} />WhatsApp rider</a>
+              )}
+            </div>
           </div>
         </div>
       )}

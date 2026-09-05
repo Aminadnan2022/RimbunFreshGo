@@ -1630,6 +1630,10 @@
       "email": "Email",
       "role": "Role",
       "supplier": "Assigned supplier",
+      "riderContact": "Rider contact",
+      "riderName": "Rider name",
+      "riderPhone": "Rider phone",
+      "riderWhatsapp": "Rider WhatsApp",
       "actions": "Actions",
       "you": "(you)",
       "selectSupplier": "Select supplier"
@@ -1647,6 +1651,7 @@
       "makeCustomer": "Make Customer",
       "makeSupplier": "Make Supplier",
       "saveSupplier": "Save supplier",
+      "saveRiderProfile": "Save rider contact",
       "makeRider": "Make Delivery Rider",
       "makeAdmin": "Make Admin"
     },
@@ -1654,6 +1659,7 @@
       "failedLoad": "Failed to load users",
       "failedUpdate": "Failed to update role",
       "failedSupplierAssignment": "Failed to save supplier assignment",
+      "failedRiderProfile": "Failed to save rider contact",
       "selectSupplierFirst": "Select a supplier before assigning this user as a supplier",
       "cannotChangeOwnRole": "Cannot change your own role"
     }
