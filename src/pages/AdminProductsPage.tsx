@@ -1066,6 +1066,13 @@ type UserRow = {
   email: string;
   role: UserRoleValue;
   supplierId: number | null;
+  riderProfile: RiderProfile | null;
+};
+
+type RiderProfile = {
+  displayName: string;
+  phone: string | null;
+  whatsapp: string | null;
 };
 
 type SupplierOption = {
@@ -1089,6 +1096,7 @@ function UsersTab() {
   const [mutating, setMutating] = useState<string | null>(null); // userId being mutated
   const [suppliers, setSuppliers] = useState<SupplierOption[]>([]);
   const [supplierSelections, setSupplierSelections] = useState<Record<string, number>>({});
+  const [riderContactDrafts, setRiderContactDrafts] = useState<Record<string, RiderProfile>>({});
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -1106,7 +1114,7 @@ function UsersTab() {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.error ?? `Request failed (${res.status})`);
       }
-      const authUsers: { id: string; email: string }[] = await res.json();
+      const authUsers: { id: string; email: string; riderProfile?: RiderProfile | null }[] = await res.json();
 
       const [roleRes, supplierRes, supplierUserRes] = await Promise.all([
         supabase.from('user_roles').select('id, role'),
@@ -1134,7 +1142,13 @@ function UsersTab() {
         const r = roleMap.get(u.id);
         const role: UserRoleValue =
           r === 'admin' ? 'admin' : r === 'supplier' ? 'supplier' : r === 'delivery_rider' ? 'delivery_rider' : 'customer';
-        return { id: u.id, email: u.email, role, supplierId: supplierByUser.get(u.id) ?? null };
+        return {
+          id: u.id,
+          email: u.email,
+          role,
+          supplierId: supplierByUser.get(u.id) ?? null,
+          riderProfile: u.riderProfile ?? null,
+        };
       });
 
       merged.sort((a, b) => {
@@ -1148,6 +1162,11 @@ function UsersTab() {
         merged
           .filter((user) => user.supplierId !== null)
           .map((user) => [user.id, user.supplierId as number]),
+      ));
+      setRiderContactDrafts(Object.fromEntries(
+        merged
+          .filter((user) => user.riderProfile !== null)
+          .map((user) => [user.id, user.riderProfile as RiderProfile]),
       ));
     } catch (err) {
       setError(userManagementErrorMessage(err, t("adminUsers.messages.failedLoad")));
@@ -1222,6 +1241,64 @@ function UsersTab() {
     }
   };
 
+  const saveRiderProfile = async (targetUser: UserRow) => {
+    const draft = riderContactDrafts[targetUser.id] ?? {
+      displayName: '', phone: null, whatsapp: null,
+    };
+    setMutating(targetUser.id);
+    setError(null);
+    try {
+      const { error: profileError } = await supabase.rpc('admin_upsert_delivery_rider_profile', {
+        p_user_id: targetUser.id,
+        p_display_name: draft.displayName,
+        p_phone: draft.phone,
+        p_whatsapp: draft.whatsapp,
+      });
+      if (profileError) throw profileError;
+      await load();
+    } catch (err) {
+      setError(userManagementErrorMessage(err, t('adminUsers.messages.failedRiderProfile')));
+    } finally {
+      setMutating(null);
+    }
+  };
+
+  const RiderContactControl = ({ user, compact = false }: { user: UserRow; compact?: boolean }) => {
+    if (user.role !== 'delivery_rider') return null;
+    const draft = riderContactDrafts[user.id] ?? {
+      displayName: user.riderProfile?.displayName ?? '',
+      phone: user.riderProfile?.phone ?? null,
+      whatsapp: user.riderProfile?.whatsapp ?? null,
+    };
+    const isLoading = mutating === user.id;
+    const update = (field: keyof RiderProfile, value: string) => {
+      setRiderContactDrafts((current) => ({
+        ...current,
+        [user.id]: {
+          ...draft,
+          [field]: field === 'displayName' ? value : value || null,
+        },
+      }));
+    };
+    return (
+      <div className={compact ? 'space-y-2' : 'min-w-56 space-y-2'}>
+        <input aria-label={t('adminUsers.labels.riderName')} value={draft.displayName ?? ''}
+          disabled={isLoading} onChange={(event) => update('displayName', event.target.value)}
+          placeholder={t('adminUsers.labels.riderName')} className="min-h-9 w-full rounded-lg border border-cream-300 bg-white px-2 py-1.5 text-xs text-gray-800 disabled:cursor-not-allowed disabled:opacity-50" />
+        <input aria-label={t('adminUsers.labels.riderPhone')} value={draft.phone ?? ''}
+          disabled={isLoading} onChange={(event) => update('phone', event.target.value)}
+          placeholder={t('adminUsers.labels.riderPhone')} inputMode="tel" className="min-h-9 w-full rounded-lg border border-cream-300 bg-white px-2 py-1.5 text-xs text-gray-800 disabled:cursor-not-allowed disabled:opacity-50" />
+        <input aria-label={t('adminUsers.labels.riderWhatsapp')} value={draft.whatsapp ?? ''}
+          disabled={isLoading} onChange={(event) => update('whatsapp', event.target.value)}
+          placeholder={t('adminUsers.labels.riderWhatsapp')} inputMode="tel" className="min-h-9 w-full rounded-lg border border-cream-300 bg-white px-2 py-1.5 text-xs text-gray-800 disabled:cursor-not-allowed disabled:opacity-50" />
+        <button type="button" onClick={() => saveRiderProfile(user)} disabled={isLoading}
+          className="min-h-9 rounded-lg border border-forest-200 px-3 py-1.5 text-xs font-semibold text-forest-700 transition-colors hover:bg-forest-50 disabled:cursor-not-allowed disabled:opacity-40">
+          {t('adminUsers.buttons.saveRiderProfile')}
+        </button>
+      </div>
+    );
+  };
+
   const SupplierAssignmentControl = ({ user, compact = false }: { user: UserRow; compact?: boolean }) => {
     const isSelf = user.id === currentUser?.id;
     const isLoading = mutating === user.id;
@@ -1288,6 +1365,7 @@ function UsersTab() {
               <th className="text-left px-4 py-3 font-semibold text-gray-700">{t("adminUsers.labels.email")}</th>
               <th className="text-left px-4 py-3 font-semibold text-gray-700">{t("adminUsers.labels.role")}</th>
               <th className="text-right px-4 py-3 font-semibold text-gray-700">{t("adminUsers.labels.supplier")}</th>
+              <th className="text-left px-4 py-3 font-semibold text-gray-700">{t("adminUsers.labels.riderContact")}</th>
               <th className="text-right px-4 py-3 font-semibold text-gray-700">{t("adminUsers.labels.actions")}</th>
             </tr>
           </thead>
@@ -1336,6 +1414,9 @@ function UsersTab() {
                   </td>
                   <td className="px-4 py-3">
                     <SupplierAssignmentControl user={u} />
+                  </td>
+                  <td className="px-4 py-3 align-top">
+                    <RiderContactControl user={u} />
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center justify-end gap-2 flex-wrap">
@@ -1387,6 +1468,12 @@ function UsersTab() {
                 <p className="mb-1 text-xs font-semibold text-gray-500">{t('adminUsers.labels.supplier')}</p>
                 <SupplierAssignmentControl user={u} compact />
               </div>
+              {u.role === 'delivery_rider' && (
+                <div className="mt-3">
+                  <p className="mb-1 text-xs font-semibold text-gray-500">{t('adminUsers.labels.riderContact')}</p>
+                  <RiderContactControl user={u} compact />
+                </div>
+              )}
               <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {isLoading ? <Loader2 size={18} className="animate-spin text-forest-500" /> : actions.map((action) => (
                   <button key={action.to} onClick={() => changeRole(u, action.to)} disabled={isSelf} title={isSelf ? t("adminUsers.messages.cannotChangeOwnRole") : undefined} className={`min-h-11 rounded-xl px-3 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-30 ${action.danger ? 'border border-red-200 text-red-600 hover:bg-red-50' : 'border border-forest-200 text-forest-700 hover:bg-forest-50'}`}>{action.label}</button>

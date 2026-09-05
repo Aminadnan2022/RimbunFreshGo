@@ -1630,6 +1630,10 @@
       "email": "E-mel",
       "role": "Peranan",
       "supplier": "Pembekal ditugaskan",
+      "riderContact": "Hubungan penghantar",
+      "riderName": "Nama penghantar",
+      "riderPhone": "Telefon penghantar",
+      "riderWhatsapp": "WhatsApp penghantar",
       "actions": "Tindakan",
       "you": "(anda)",
       "selectSupplier": "Pilih pembekal"
@@ -1647,6 +1651,7 @@
       "makeCustomer": "Jadikan Pelanggan",
       "makeSupplier": "Jadikan Pembekal",
       "saveSupplier": "Simpan pembekal",
+      "saveRiderProfile": "Simpan hubungan penghantar",
       "makeRider": "Jadikan Penghantar",
       "makeAdmin": "Jadikan Admin"
     },
@@ -1654,6 +1659,7 @@
       "failedLoad": "Gagal memuat pengguna",
       "failedUpdate": "Gagal mengemas kini peranan",
       "failedSupplierAssignment": "Gagal menyimpan tugasan pembekal",
+      "failedRiderProfile": "Gagal menyimpan hubungan penghantar",
       "selectSupplierFirst": "Pilih pembekal sebelum menetapkan pengguna ini sebagai pembekal",
       "cannotChangeOwnRole": "Tidak boleh menukar peranan anda sendiri"
     }

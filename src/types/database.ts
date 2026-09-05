@@ -652,6 +652,30 @@ export type Database = {
         }
         Relationships: []
       }
+      delivery_rider_profiles: {
+        Row: {
+          display_name: string
+          phone: string | null
+          updated_at: string
+          user_id: string
+          whatsapp: string | null
+        }
+        Insert: {
+          display_name: string
+          phone?: string | null
+          updated_at?: string
+          user_id: string
+          whatsapp?: string | null
+        }
+        Update: {
+          display_name?: string
+          phone?: string | null
+          updated_at?: string
+          user_id?: string
+          whatsapp?: string | null
+        }
+        Relationships: []
+      }
       delivery_batch_manifest: {
         Row: {
           batch_id: string
@@ -3480,6 +3504,8 @@ export type Database = {
           delivery_status: string
           ready_for_rider_at: string
           rider_name: string
+          rider_phone: string | null
+          rider_whatsapp: string | null
         }[]
       }
       get_sales_order_payment_display: {
@@ -3503,6 +3529,15 @@ export type Database = {
       is_admin: { Args: never; Returns: boolean }
       has_current_customer_privacy_consent: { Args: never; Returns: boolean }
       is_delivery_rider: { Args: never; Returns: boolean }
+      admin_upsert_delivery_rider_profile: {
+        Args: {
+          p_display_name: string
+          p_phone?: string | null
+          p_user_id: string
+          p_whatsapp?: string | null
+        }
+        Returns: undefined
+      }
       is_supplier: { Args: never; Returns: boolean }
       is_supplier_for_sales_order: {
         Args: { p_sales_order_id: string }
