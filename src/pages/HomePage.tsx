@@ -17,6 +17,7 @@ import ProductCard from '../components/ui/ProductCard';
 import ComboCard from '../components/combo/ComboCard';
 import GuestLandingExperience from '../components/home/GuestLandingExperience';
 import DeliveryTimingBadge from '../components/home/DeliveryTimingBadge';
+import DeliveryFeeChecker from '../components/home/DeliveryFeeChecker';
 
 const categories = [
   {
@@ -130,6 +131,8 @@ export default function HomePage() {
           ) : undefined}
         />
       )}
+
+      <DeliveryFeeChecker />
 
       {/* Categories */}
       {isPageEnabled(settings, 'shop') && (

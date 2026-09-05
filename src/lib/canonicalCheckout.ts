@@ -3,6 +3,7 @@ import type { PreparationAnswers, PreparationTarget } from './checkoutPreparatio
 import { canonicalCheckoutItems, type CanonicalCheckoutItem } from './canonicalCheckoutItems';
 import { nextBulkDeliveryDate } from './deliverySlots';
 import { supabase } from './supabase';
+import type { SelectedDeliveryAddress } from './addressSearch';
 
 export type CanonicalDeliveryMethod = 'normal_bulk' | 'instant_customer_lalamove';
 
@@ -32,6 +33,9 @@ export interface CanonicalPlaceOrderRequest {
     house_unit: string;
     delivery_point_name: string;
     pickup_location: string;
+    display_address?: string;
+    latitude?: number;
+    longitude?: number;
   };
   p_items: CanonicalCheckoutItem[];
   p_preparation_answers: CanonicalPreparationAnswer[];
@@ -130,6 +134,7 @@ export function buildCanonicalPlaceOrderRequest(input: {
   deliveryDay: DeliveryDay | null;
   instantDate: string;
   instantTime: string;
+  selectedDeliveryAddress?: SelectedDeliveryAddress | null;
   preparationTargets: PreparationTarget[];
   preparationAnswers: PreparationAnswers;
 }): CanonicalPlaceOrderRequest {
@@ -166,6 +171,11 @@ export function buildCanonicalPlaceOrderRequest(input: {
       house_unit: customer.houseUnit.trim(),
       delivery_point_name: customer.deliveryPointName.trim(),
       pickup_location: customer.pickupLocation.trim(),
+      ...(deliveryMethod === 'instant_customer_lalamove' && input.selectedDeliveryAddress && {
+        display_address: input.selectedDeliveryAddress.display_address,
+        latitude: input.selectedDeliveryAddress.latitude,
+        longitude: input.selectedDeliveryAddress.longitude,
+      }),
     },
     p_items: canonicalCheckoutItems(items),
     p_preparation_answers: preparationAnswerPayload(input.preparationTargets, input.preparationAnswers),

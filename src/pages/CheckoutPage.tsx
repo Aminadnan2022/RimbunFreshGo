@@ -19,8 +19,11 @@ import { getCheckoutPaymentPreview, isPriceFinalAtCheckout, paymentQrPublicUrl, 
 import { getUserDisplayName } from '../lib/authProfile';
 import { hasCurrentPrivacyConsent } from '../lib/privacyConsent';
 import { createBrowserUuid } from '../lib/browserUuid';
+import { clearDeliveryAddressPrefill, readDeliveryAddressPrefill, saveDeliveryAddressPrefill } from '../lib/deliveryAddressPrefill';
 import { createGuestAccessToken, ensureGuestAuthIdentity, guestOrderUrl, placeGuestOrder } from '../lib/guestCheckout';
 import { guestCaptchaConfigured } from '../lib/guestCheckout';
+import { requestLalamoveQuote, type LalamoveQuote } from '../lib/lalamoveQuote';
+import { resolveMalaysiaAddress, reverseGeocodeMalaysiaAddress, searchMalaysiaAddresses, type AddressSuggestion, type SelectedDeliveryAddress } from '../lib/addressSearch';
 import GuestCaptchaPanel from '../components/auth/GuestCaptchaPanel';
 import type { CustomerDetails, DeliveryDay } from '../types';
 import { BULK_DELIVERY_FEE, getMalaysiaDateString, isDeliveryDateAllowed, nextBulkDeliveryDate, nextCustomerDeliveryDate } from '../lib/deliverySlots';
@@ -72,13 +75,23 @@ function preparationTargetStats(target: PreparationTarget, answers: PreparationA
 
 export default function CheckoutPage() {
   const { cart, subtotal, clearCart } = useCart(); const { user, loading: authLoading } = useAuth(); const { config } = useDeliveryConfig(); const { t, language } = useLanguage(); const { settings } = useWebsiteSettings(); const navigate = useNavigate();
+  const addressInputId = useId();
   const [consentChecking, setConsentChecking] = useState(true);
   const [guestIdentityReady, setGuestIdentityReady] = useState(false);
   const cartDayIsBulk = cart.deliveryDay ? ['wednesday', 'friday'].includes(cart.deliveryDay.toLowerCase()) : false;
-  const [details, setDetails] = useState(blank); const [points, setPoints] = useState<DeliveryPoint[]>([]); const [deliveryDay, setDeliveryDay] = useState<DeliveryDay | null>(cart.deliveryDay); const [errors, setErrors] = useState<Record<string, string>>({});
+  const [prefilledDeliveryAddress] = useState(() => readDeliveryAddressPrefill());
+  const [details, setDetails] = useState(() => ({ ...blank, apartment: prefilledDeliveryAddress?.display_address ?? '' })); const [points, setPoints] = useState<DeliveryPoint[]>([]); const [deliveryDay, setDeliveryDay] = useState<DeliveryDay | null>(cart.deliveryDay); const [errors, setErrors] = useState<Record<string, string>>({});
   const [deliveryMethod, setDeliveryMethod] = useState<CanonicalDeliveryMethod>(cart.deliveryDay && !cartDayIsBulk ? 'instant_customer_lalamove' : 'normal_bulk'); const [instantDate, setInstantDate] = useState(() => cart.deliveryDay && !cartDayIsBulk ? nextCustomerDeliveryDate(cart.deliveryDay) : ''); const [instantTime, setInstantTime] = useState('');
   const [step, setStep] = useState<'details' | 'preparation' | 'review' | 'payment'>('details'); const [targets, setTargets] = useState<PreparationTarget[]>([]); const [answers, setAnswers] = useState<PreparationAnswers>({}); const [prepLoading, setPrepLoading] = useState(true); const [prepError, setPrepError] = useState<string | null>(null); const [prepLoadFailures, setPrepLoadFailures] = useState<PreparationLoadFailure[]>([]); const [placing, setPlacing] = useState(false); const [placeError, setPlaceError] = useState<string | null>(null);
   const [paymentPreview, setPaymentPreview] = useState<CheckoutPaymentPreview | null>(null); const [paymentPreviewLoading, setPaymentPreviewLoading] = useState(false); const [paymentPreviewError, setPaymentPreviewError] = useState<string | null>(null);
+  const [lalamoveQuote, setLalamoveQuote] = useState<LalamoveQuote | null>(null);
+  const [lalamoveQuoteLoading, setLalamoveQuoteLoading] = useState(false);
+  const [lalamoveQuoteError, setLalamoveQuoteError] = useState<string | null>(null);
+  const [selectedDeliveryAddress, setSelectedDeliveryAddress] = useState<SelectedDeliveryAddress | null>(prefilledDeliveryAddress);
+  const [addressSuggestions, setAddressSuggestions] = useState<AddressSuggestion[]>([]);
+  const [addressSearchLoading, setAddressSearchLoading] = useState(false);
+  const [addressSearchError, setAddressSearchError] = useState<string | null>(null);
+  const [currentLocationLoading, setCurrentLocationLoading] = useState(false);
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
   const [receiptSource, setReceiptSource] = useState<ReceiptSource | null>(null);
   const [stagedReceipt, setStagedReceipt] = useState<{ storagePath: string; fileName: string } | null>(null);
@@ -87,6 +100,9 @@ export default function CheckoutPage() {
   // State updates are asynchronous, so `placing` alone does not prevent two
   // fast clicks from issuing duplicate checkout RPCs before the next render.
   const placementLock = useRef(false);
+  const quoteRequestLock = useRef(false);
+  const addressSearchSequence = useRef(0);
+  const addressSessionToken = useRef(createBrowserUuid());
   const placementSucceeded = useRef(false);
   // Retained until confirmed success, so a timeout/error retry uses the same
   // server-side identity but a later deliberate checkout gets a new key.
@@ -203,6 +219,7 @@ useEffect(() => {
         previousPhone ||
         current.phone,
       apartment:
+        prefilledDeliveryAddress?.display_address ||
         profile?.apartment ||
         previousApartment ||
         current.apartment,
@@ -226,7 +243,7 @@ useEffect(() => {
   return () => {
     cancelled = true;
   };
-}, [user, cart.deliveryDay]);
+}, [user, cart.deliveryDay, prefilledDeliveryAddress?.display_address]);
 
 useEffect(() => {
   let mounted = true;
@@ -293,10 +310,52 @@ useEffect(() => {
     })();
     return () => { mounted = false; };
   }, [step, priceFinalAtCheckout, t, isGuestCheckout, guestCaptchaPending]);
+  useEffect(() => {
+    setLalamoveQuote(null);
+    setLalamoveQuoteError(null);
+  }, [deliveryMethod, details.apartment, details.houseUnit, instantDate, instantTime, selectedDeliveryAddress?.latitude, selectedDeliveryAddress?.longitude]);
+  useEffect(() => {
+    const query = details.apartment.trim();
+    const sequence = ++addressSearchSequence.current;
+    if (!isExternalDelivery || query.length < 3 || selectedDeliveryAddress?.display_address === query || guestCaptchaPending) {
+      setAddressSuggestions([]);
+      setAddressSearchLoading(false);
+      return;
+    }
+    const timeout = window.setTimeout(() => {
+      setAddressSearchLoading(true);
+      setAddressSearchError(null);
+      void (async () => {
+        try {
+          if (isGuestCheckout) await ensureGuestAuthIdentity();
+          const suggestions = await searchMalaysiaAddresses(query, addressSessionToken.current, language);
+          if (addressSearchSequence.current === sequence) setAddressSuggestions(suggestions);
+        } catch {
+          if (addressSearchSequence.current === sequence) {
+            setAddressSuggestions([]);
+            setAddressSearchError(t('checkout.addressSearchUnavailable'));
+          }
+        } finally {
+          if (addressSearchSequence.current === sequence) setAddressSearchLoading(false);
+        }
+      })();
+    }, 350);
+    return () => window.clearTimeout(timeout);
+  }, [details.apartment, guestCaptchaPending, isExternalDelivery, isGuestCheckout, language, selectedDeliveryAddress?.display_address, t]);
+  useEffect(() => {
+    if (!lalamoveQuote) return;
+    const remaining = new Date(lalamoveQuote.expiresAt).getTime() - Date.now();
+    if (remaining <= 0) {
+      setLalamoveQuote(null);
+      return;
+    }
+    const timeout = window.setTimeout(() => setLalamoveQuote(null), remaining);
+    return () => window.clearTimeout(timeout);
+  }, [lalamoveQuote]);
   const display = (x: { label: string; label_ms: string }) => language === 'ms' && x.label_ms ? x.label_ms : x.label;
   const reviewText = (target: PreparationTarget, unit: number | null) =>
     concisePreparationText(target, answers, unit, language);
-  const setField = (field: keyof CustomerDetails) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => { setDetails((x) => ({ ...x, [field]: e.target.value })); setErrors((x) => ({ ...x, [field]: '' })); };
+  const setField = (field: keyof CustomerDetails) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => { setDetails((x) => ({ ...x, [field]: e.target.value })); if (field === 'apartment') { setSelectedDeliveryAddress(null); clearDeliveryAddressPrefill(); setAddressSearchError(null); } setErrors((x) => ({ ...x, [field]: '' })); };
   const setPoint = (name: string) => { const p = points.find((x) => x.name === name); setDetails((x) => ({ ...x, pickupLocation: name, deliveryPointName: name, deliveryMethod: p?.delivery_method ?? '' })); };
   const setAnswer = (target: PreparationTarget, unit: number | null, question: PreparationQuestion, value: unknown) => setAnswers((x) => ({ ...x, [answerKey(target, unit)]: { ...(x[answerKey(target, unit)] ?? {}), [question.code]: value } }));
   const validateDetails = () => {
@@ -308,7 +367,7 @@ useEffect(() => {
     if (!details.houseUnit.trim()) e.houseUnit = t('checkout.validation.unitRequired');
     if (!isExternalDelivery && !details.deliveryPointName) e.deliveryPointName = t('checkout.validation.deliveryPointRequired');
     if (!isExternalDelivery && !deliveryDay) e.deliveryDay = t('checkout.validation.deliveryDayRequired');
-    if (isExternalDelivery && !details.apartment.trim()) e.apartment = t('checkout.validation.fullAddressRequired');
+    if (isExternalDelivery && !selectedDeliveryAddress) e.apartment = t('checkout.validation.selectedAddressRequired');
     if (isExternalDelivery && !instantDate) e.deliveryDay = t('checkout.validation.deliveryDayRequired');
     else if (isExternalDelivery && (instantDate < getMalaysiaDateString() || !isDeliveryDateAllowed(instantDate))) e.deliveryDay = t('checkout.validation.deliveryDateUnavailable');
     if (isExternalDelivery && !instantTime) e.deliveryTime = t('checkout.validation.deliveryTimeRequired');
@@ -320,6 +379,93 @@ useEffect(() => {
     const key = checkoutAttemptKey.current ?? createBrowserUuid();
     checkoutAttemptKey.current = key;
     return key;
+  };
+  const getCurrentPosition = () => new Promise<GeolocationPosition>((resolve, reject) => {
+  if (!navigator.geolocation) return reject(new Error(t('checkout.lalamoveLocationUnsupported')));
+  navigator.geolocation.getCurrentPosition(resolve, reject, {
+    enableHighAccuracy: false,
+    timeout: 20_000,
+    maximumAge: 300_000,
+  });
+});
+  const chooseAddressSuggestion = async (suggestion: AddressSuggestion) => {
+    setAddressSearchLoading(true);
+    setAddressSearchError(null);
+    try {
+      if (isGuestCheckout) await ensureGuestAuthIdentity();
+      const address = await resolveMalaysiaAddress(suggestion.placeId, addressSessionToken.current, language);
+      addressSessionToken.current = createBrowserUuid();
+      setSelectedDeliveryAddress(address);
+      saveDeliveryAddressPrefill(address);
+      setDetails((current) => ({ ...current, apartment: address.display_address }));
+      setAddressSuggestions([]);
+      setErrors((current) => ({ ...current, apartment: '' }));
+    } catch {
+      setAddressSearchError(t('checkout.addressSelectionUnavailable'));
+    } finally {
+      setAddressSearchLoading(false);
+    }
+  };
+  const selectCurrentDeliveryLocation = async () => {
+    if (currentLocationLoading) return;
+    setCurrentLocationLoading(true);
+    setAddressSearchError(null);
+    try {
+      if (isGuestCheckout) await ensureGuestAuthIdentity();
+      const position = await getCurrentPosition();
+      const address = await reverseGeocodeMalaysiaAddress(position.coords.latitude, position.coords.longitude, language);
+      setSelectedDeliveryAddress(address);
+      saveDeliveryAddressPrefill(address);
+      setDetails((current) => ({ ...current, apartment: address.display_address }));
+      setAddressSuggestions([]);
+      setErrors((current) => ({ ...current, apartment: '' }));
+    } catch (error) {
+      const locationDenied = !!error && typeof error === 'object' && 'code' in error &&
+        typeof (error as { code?: unknown }).code === 'number';
+      setAddressSearchError(locationDenied
+        ? t('checkout.lalamoveLocationRequired')
+        : t('checkout.currentLocationUnavailable'));
+    } finally {
+      setCurrentLocationLoading(false);
+    }
+  };
+  const checkLalamoveQuote = async () => {
+    if (quoteRequestLock.current) return;
+    const nextErrors: Record<string, string> = {};
+    if (!details.houseUnit.trim()) nextErrors.houseUnit = t('checkout.validation.unitRequired');
+    if (!selectedDeliveryAddress) nextErrors.apartment = t('checkout.validation.selectedAddressRequired');
+    if (!instantDate) nextErrors.deliveryDay = t('checkout.validation.deliveryDayRequired');
+    if (!instantTime) nextErrors.deliveryTime = t('checkout.validation.deliveryTimeRequired');
+    if (Object.keys(nextErrors).length) {
+      setErrors((current) => ({ ...current, ...nextErrors }));
+      setLalamoveQuoteError(t('checkout.lalamoveQuoteFieldsRequired'));
+      return;
+    }
+    if (guestCaptchaPending) {
+      setLalamoveQuoteError(t('checkout.lalamoveSecurityRequired'));
+      return;
+    }
+
+    quoteRequestLock.current = true;
+    setLalamoveQuoteLoading(true);
+    setLalamoveQuoteError(null);
+    setLalamoveQuote(null);
+    try {
+      if (isGuestCheckout) await ensureGuestAuthIdentity();
+      const quote = await requestLalamoveQuote({
+        deliveryAddress: `${details.houseUnit.trim()}, ${details.apartment.trim()}`,
+        deliveryLatitude: selectedDeliveryAddress!.latitude,
+        deliveryLongitude: selectedDeliveryAddress!.longitude,
+        requestedDate: instantDate,
+        requestedTime: instantTime,
+      });
+      setLalamoveQuote(quote);
+    } catch (error) {
+      setLalamoveQuoteError(error instanceof Error ? error.message : t('checkout.lalamoveQuoteUnavailable'));
+    } finally {
+      quoteRequestLock.current = false;
+      setLalamoveQuoteLoading(false);
+    }
   };
   const uploadReceipt = async () => {
     if (!receiptFile || !paymentPreview) return;
@@ -360,7 +506,7 @@ useEffect(() => {
     placementLock.current = true; setPlacing(true); setPlaceError(null);
     try {
       const idempotencyKey = ensureCheckoutAttemptKey();
-      const request = buildCanonicalPlaceOrderRequest({ idempotencyKey, customer: details, items: cart.items, deliveryMethod, deliveryDay, instantDate, instantTime, preparationTargets: targets, preparationAnswers: answers });
+      const request = buildCanonicalPlaceOrderRequest({ idempotencyKey, customer: details, items: cart.items, deliveryMethod, deliveryDay, instantDate, instantTime, selectedDeliveryAddress, preparationTargets: targets, preparationAnswers: answers });
       if (priceFinalAtCheckout && paymentPreview) { request.p_expected_final_total = total; request.p_expected_payment_configuration_version_id = paymentPreview.configurationVersionId; }
       const token = isGuestCheckout
         ? (guestAccessToken.current ?? createGuestAccessToken())
@@ -396,6 +542,7 @@ if (profileSaveError) {
       } else {
         navigate(`/order/${order.order_number}`, { replace: true });
       }
+      clearDeliveryAddressPrefill();
       clearCart();
     } catch (err) { setPlaceError(err instanceof Error ? err.message : t('checkout.validation.failedToPlaceOrder')); }
     finally { placementLock.current = false; setPlacing(false); }
@@ -851,9 +998,52 @@ const Preparation = () => (
           {errors.deliveryDay && <p className="mt-1 text-xs text-red-500">{errors.deliveryDay}</p>}
         </div>
       </> : <>
-        <Field label={t('checkout.fullDeliveryAddress')} required error={errors.apartment}>
-          <textarea className={input(errors.apartment)} value={details.apartment} onChange={setField('apartment')} rows={3} autoComplete="street-address" placeholder={t('checkout.fullDeliveryAddressPlaceholder')} />
-        </Field>
+        <div className="relative">
+          <label htmlFor={addressInputId} className="mb-1.5 block text-sm font-semibold text-gray-700">{t('checkout.fullDeliveryAddress')} *</label>
+          <input
+            id={addressInputId}
+            role="combobox"
+            aria-autocomplete="list"
+            aria-expanded={addressSuggestions.length > 0}
+            aria-controls={`${addressInputId}-suggestions`}
+            className={input(errors.apartment)}
+            value={details.apartment}
+            onChange={(event) => {
+              setDetails((current) => ({ ...current, apartment: event.target.value }));
+              setSelectedDeliveryAddress(null);
+              clearDeliveryAddressPrefill();
+              setAddressSearchError(null);
+              setErrors((current) => ({ ...current, apartment: '' }));
+            }}
+            autoComplete="off"
+            placeholder={t('checkout.fullDeliveryAddressPlaceholder')}
+          />
+          {addressSearchLoading && <p className="mt-1 text-xs text-gray-500">{t('checkout.addressSearching')}</p>}
+          {addressSuggestions.length > 0 && (
+            <ul id={`${addressInputId}-suggestions`} role="listbox" className="absolute z-20 mt-1 max-h-64 w-full overflow-y-auto rounded-xl border border-cream-300 bg-white py-1 shadow-lg">
+              {addressSuggestions.map((suggestion) => (
+                <li key={suggestion.placeId} role="option" aria-selected="false">
+                  <button type="button" className="flex w-full items-start gap-2 px-4 py-3 text-left text-sm hover:bg-forest-50" onClick={() => void chooseAddressSuggestion(suggestion)}>
+                    <MapPin size={16} className="mt-0.5 shrink-0 text-forest-700" />
+                    <span>{suggestion.displayAddress}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {selectedDeliveryAddress && <p className="mt-2 flex items-start gap-1.5 text-xs font-medium text-green-700"><CheckCircle2 size={15} className="mt-0.5 shrink-0"/>{t('checkout.addressSelected')}</p>}
+          {errors.apartment && <p className="mt-1 text-xs text-red-500">{errors.apartment}</p>}
+          {addressSearchError && <p className="mt-1 text-xs text-red-600" aria-live="polite">{addressSearchError}</p>}
+          <button
+            type="button"
+            className="btn-secondary mt-3 inline-flex w-full items-center justify-center gap-2 sm:w-auto"
+            disabled={currentLocationLoading || guestCaptchaPending}
+            onClick={() => void selectCurrentDeliveryLocation()}
+          >
+            <LocateFixed size={16}/>{currentLocationLoading ? t('checkout.currentLocationLoading') : t('checkout.useCurrentLocation')}
+          </button>
+          <p className="mt-2 text-xs leading-5 text-gray-500">{t('checkout.addressPrivacyNotice')}</p>
+        </div>
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900">{t('checkout.externalCourierNotice')}</div>
         <div>
           <p className="mb-2 text-sm font-semibold">{t('checkout.requestedDeliveryDate')} *</p>
@@ -870,6 +1060,29 @@ const Preparation = () => (
           <input className={input(errors.deliveryTime)} type="time" min="09:00" max="16:00" value={instantTime} onChange={(event) => { setInstantTime(event.target.value); setErrors((current) => ({ ...current, deliveryTime: '' })); }} />
         </Field>
         <p className="-mt-3 text-xs text-gray-500">{t('checkout.externalDeliveryWindow')}</p>
+        <section className="space-y-3 rounded-xl border border-forest-200 bg-forest-50/40 p-4">
+          <div>
+            <p className="text-sm font-semibold text-forest-900">{t('checkout.lalamoveQuoteTitle')}</p>
+            <p className="mt-1 text-xs leading-5 text-gray-600">{t('checkout.lalamoveLocationNotice')}</p>
+          </div>
+          {guestCaptchaPending && (
+            <GuestCaptchaPanel onVerified={() => { setGuestIdentityReady(true); setLalamoveQuoteError(null); }}/>
+          )}
+          <button
+            type="button"
+            className="btn-secondary w-full sm:w-auto"
+            disabled={lalamoveQuoteLoading || guestCaptchaPending}
+            onClick={checkLalamoveQuote}
+          >
+            {lalamoveQuoteLoading ? t('checkout.lalamoveQuoteLoading') : t('checkout.lalamoveQuoteButton')}
+          </button>
+          {lalamoveQuote && <div className="rounded-xl border border-green-200 bg-white p-4 text-sm text-green-900" aria-live="polite">
+            <p className="font-semibold">{t('checkout.lalamoveQuotedFee')}: {lalamoveQuote.currency} {formatCurrency(Number(lalamoveQuote.quotedFee))}</p>
+            <p className="mt-1 text-xs">{t('checkout.lalamoveQuoteExpiry')}: {new Date(lalamoveQuote.expiresAt).toLocaleString(language === 'ms' ? 'ms-MY' : 'en-MY', { timeZone: 'Asia/Kuala_Lumpur' })}</p>
+            <p className="mt-2 text-xs leading-5 text-gray-600">{t('checkout.lalamoveQuoteDisclaimer')}</p>
+          </div>}
+          {lalamoveQuoteError && <p className="text-sm text-red-600" aria-live="polite">{lalamoveQuoteError}</p>}
+        </section>
       </>}
     </>
   );
